@@ -4,9 +4,9 @@ import bcryptjs from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const userCount = await prisma.user.count().catch(() => 0);
-  if (userCount > 0) {
-    console.log("✅ [SEED] Base de données déjà peuplée (" + userCount + " utilisateurs). Seed ignoré.");
+  const clientCount = await prisma.client.count().catch(() => 0);
+  if (clientCount > 0) {
+    console.log("La base de données contient déjà des données (clients). Cycle de peuplement ignoré.");
     return;
   }
 

@@ -125,10 +125,22 @@ router.post("/login", async (req: any, res: any) => {
         (normalizedNom === "admin" && dbEmail === "admin@ym-transit.cm") ||
         (normalizedNom === "transit" && dbEmail === "transit@ym-transit.cm") ||
         (normalizedNom === "compta" && dbEmail === "compta@ym-transit.cm") ||
-        (normalizedNom === "caisse" && u.role === "agent_payeur") ||
-        (normalizedNom === "direction" && u.role === "direction") ||
+        (normalizedNom === "caisse" && dbEmail === "caisse@ym-transit.cm") ||
+        (normalizedNom === "pdg" && u.role === "pdg") ||
+        (normalizedNom === "dg" && u.role === "dg") ||
+        (normalizedNom === "dga" && u.role === "dga") ||
+        (normalizedNom === "daf" && u.role === "daf") ||
+        (normalizedNom === "auditeur1" && u.role === "auditeur1") ||
+        (normalizedNom === "auditeur2" && u.role === "auditeur2") ||
+        (normalizedNom === "secretariat" && u.role === "secretariat") ||
+        (normalizedNom === "guce" && u.role === "guce") ||
+        (normalizedNom === "validation" && u.role === "validation") ||
         (normalizedNom === "acconage" && u.role === "acconage") ||
-        (normalizedNom === "enlevement" && u.role === "enlevement")
+        (normalizedNom === "enlevement" && u.role === "enlevement") ||
+        (normalizedNom === "facturation" && u.role === "facturation") ||
+        (normalizedNom === "fiscalite" && u.role === "fiscalite") ||
+        (normalizedNom === "cloture" && u.role === "cloture") ||
+        (normalizedNom === "analyste" && u.role === "analyste")
       );
     });
 
@@ -168,14 +180,30 @@ router.post("/login", async (req: any, res: any) => {
     
     await logActivity(updatedUser.id, "CONNEXION", "User", updatedUser.id);
 
+    // Déterminer le workspace de redirection selon le département
+    let redirectUrl = "/dashboard";
+    const uRole = updatedUser.role;
+
+    if (uRole === "secretariat" || uRole === "guce" || uRole === "validation" || uRole === "validation_role" || uRole === "fiscalite" || uRole === "cloture") {
+      redirectUrl = "/dossiers";
+    } else if (uRole === "acconage" || uRole === "enlevement" || uRole === "agent_payeur" || uRole === "caisse") {
+      redirectUrl = "/bons/provisoir/pending";
+    } else if (uRole === "facturation") {
+      redirectUrl = "/documents";
+    } else if (uRole === "analyste") {
+      redirectUrl = "/analytics";
+    } else if (uRole === "lecture" || uRole === "archives") {
+      redirectUrl = "/archives"; // standard archives landing
+    }
+
     console.log(`[AUTH] Connexion réussie pour ${updatedUser.nom}. Enregistrement manuel de la session...`);
     req.session.save((err: any) => {
       if (err) {
         console.error("[AUTH] Erreur d'enregistrement de session :", err);
       } else {
-        console.log(`[AUTH] Session enregistrée avec succès. Redirection vers /dashboard pour l'utilisateur ID ${updatedUser.id}`);
+        console.log(`[AUTH] Session enregistrée avec succès. Redirection vers ${redirectUrl} pour l'utilisateur ID ${updatedUser.id}`);
       }
-      res.redirect("/dashboard");
+      res.redirect(redirectUrl);
     });
   } catch (error: any) {
     console.error("[AUTH] Erreur d'authentification :");

@@ -58,23 +58,37 @@
             <div class="input-group mb-2">
               <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-lock"></i></span>
               <select id="role-select" name="role" class="form-select" required>
-                <option value="operationnel" selected>Operational - Tâches, Tiers & Dossiers uniquement (operationnel)</option>
-                <option value="commercial">Commercial - Ventes, Facturation client & Analytics (commercial)</option>
-                <option value="comptable">Comptable - Grand Livre, Balance & Fournisseurs (comptable)</option>
-                <option value="magasinier">Magasinier - Stocks & Achats (magasinier)</option>
-                <option value="rh">Ressources Humaines (RH) (rh)</option>
-                <option value="super_admin">Super Administrateur - Tout accès + Gestion Comptes (super_admin)</option>
-                <option value="lecture">Lecture seule (Auditeur) - Aucun droit de modification (lecture)</option>
-                
-                <option value="secretariat">Secrétariat — Suivi & Tiers (secretariat)</option>
-                <option value="validation_role">Validation — Dossiers (validation_role)</option>
-                <option value="guce">GUCE — Guichet Unique (guce)</option>
-                <option value="acconage">Acconage — Opérations & Bons (acconage)</option>
-                <option value="enlevement">Enlèvement — Livraison & Bons (enlevement)</option>
-                <option value="direction">Direction — Décisions & Budgets (direction)</option>
-                <option value="agent_payeur">Agent Payeur — Trésorerie & Décaissements (agent_payeur)</option>
-                <option value="finances">Finances — Devis, Dossiers & Tiers (finances)</option>
-                <option value="comptable_ops">Comptabilité d'Opérations — Comptes & Budgets (comptable_ops)</option>
+                <optgroup label="Administration (Top Management)">
+                  <option value="pdg">PDG (pdg)</option>
+                  <option value="dg">DG (dg)</option>
+                  <option value="dga">DGA (dga)</option>
+                  <option value="daf">DAF (daf)</option>
+                  <option value="auditeur1">Auditeur 1 (auditeur1)</option>
+                  <option value="auditeur2">Auditeur 2 (auditeur2)</option>
+                  <option value="super_admin">Super Administrateur ERP (super_admin)</option>
+                </optgroup>
+                <optgroup label="Transit / Opérations">
+                  <option value="secretariat" selected>Secrétariat (secretariat)</option>
+                  <option value="guce">GUCE (guce)</option>
+                  <option value="validation">Validation (validation)</option>
+                  <option value="acconage">Acconage (acconage)</option>
+                  <option value="enlevement">Enlèvement (enlevement)</option>
+                </optgroup>
+                <optgroup label="Finances / Facturation / Fiscalité">
+                  <option value="facturation">Facturation (facturation)</option>
+                  <option value="fiscalite">Fiscalité (fiscalite)</option>
+                  <option value="cloture">Clôture (cloture)</option>
+                  <option value="agent_payeur">Caisse (Payeur) (agent_payeur)</option>
+                </optgroup>
+                <optgroup label="Analyses & Reporting">
+                  <option value="analyste">Analyste (analyste)</option>
+                </optgroup>
+                <optgroup label="Anciens Rôles & Audit">
+                  <option value="operationnel">Opérationnel Standard (operationnel)</option>
+                  <option value="commercial">Commercial Standard (commercial)</option>
+                  <option value="comptable">Comptable Standard (comptable)</option>
+                  <option value="lecture">Lecture seule (lecture)</option>
+                </optgroup>
               </select>
             </div>
             <!-- Live module preview container -->
@@ -95,19 +109,29 @@
         <script>
           const roleModulesMap = {
             super_admin: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "rh"],
+            pdg: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
+            dg: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
+            dga: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
+            daf: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
+            auditeur1: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
+            auditeur2: ["clients", "dossiers", "taches", "analytics", "bons"],
+            secretariat: ["dashboard", "dossiers", "clients", "taches"],
+            validation: ["dashboard", "dossiers", "taches"],
+            validation_role: ["dashboard", "dossiers", "taches"],
+            guce: ["dashboard", "dossiers", "taches"],
+            acconage: ["dashboard", "dossiers", "bons", "taches"],
+            enlevement: ["dashboard", "dossiers", "bons", "taches"],
+            facturation: ["dashboard", "documents", "facturation", "dossiers", "clients", "taches"],
+            fiscalite: ["dashboard", "dossiers", "taches"],
+            cloture: ["dashboard", "dossiers", "taches"],
+            agent_payeur: ["dashboard", "bons", "dossiers", "taches", "comptabilite"],
+            analyste: ["dashboard", "analytics", "dossiers", "taches"],
             comptable: ["clients", "facturation", "stock", "comptabilite", "achats", "analytics"],
             commercial: ["clients", "dossiers", "taches", "facturation", "analytics"],
             operationnel: ["clients", "dossiers", "taches"],
             magasinier: ["stock", "achats"],
             rh: ["rh"],
             lecture: ["clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics"],
-            secretariat: ["dashboard", "dossiers", "clients"],
-            validation_role: ["dashboard", "dossiers"],
-            guce: ["dashboard", "dossiers"],
-            acconage: ["dashboard", "dossiers", "bons"],
-            enlevement: ["dashboard", "dossiers", "bons"],
-            direction: ["dashboard", "bons", "analytics"],
-            agent_payeur: ["dashboard", "bons"],
             finances: ["dashboard", "documents", "dossiers", "clients"],
             comptable_ops: ["dashboard", "documents", "dossiers", "accounting", "reports"]
           };

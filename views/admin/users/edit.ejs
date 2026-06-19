@@ -58,23 +58,37 @@
             <div class="input-group mb-2">
               <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-lock"></i></span>
               <select id="role-select" name="role" class="form-select" required>
-                <option value="operationnel" <%= targetUser.role === 'operationnel' ? 'selected' : '' %>>Operational - Tâches, Tiers & Dossiers uniquement (operationnel)</option>
-                <option value="commercial" <%= targetUser.role === 'commercial' ? 'selected' : '' %>>Commercial - Ventes, Facturation client & Analytics (commercial)</option>
-                <option value="comptable" <%= targetUser.role === 'comptable' ? 'selected' : '' %>>Comptable - Grand Livre, Balance & Fournisseurs (comptable)</option>
-                <option value="magasinier" <%= targetUser.role === 'magasinier' ? 'selected' : '' %>>Magasinier - Stocks & Achats (magasinier)</option>
-                <option value="rh" <%= targetUser.role === 'rh' ? 'selected' : '' %>>Ressources Humaines (RH) (rh)</option>
-                <option value="super_admin" <%= targetUser.role === 'super_admin' ? 'selected' : '' %>>Super Administrateur - Tout accès + Gestion Comptes (super_admin)</option>
-                <option value="lecture" <%= targetUser.role === 'lecture' ? 'selected' : '' %>>Lecture seule (Auditeur) - Aucun droit de modification (lecture)</option>
-                
-                <option value="secretariat" <%= targetUser.role === 'secretariat' ? 'selected' : '' %>>Secrétariat — Suivi & Tiers (secretariat)</option>
-                <option value="validation_role" <%= targetUser.role === 'validation_role' ? 'selected' : '' %>>Validation — Dossiers (validation_role)</option>
-                <option value="guce" <%= targetUser.role === 'guce' ? 'selected' : '' %>>GUCE — Guichet Unique (guce)</option>
-                <option value="acconage" <%= targetUser.role === 'acconage' ? 'selected' : '' %>>Acconage — Opérations & Bons (acconage)</option>
-                <option value="enlevement" <%= targetUser.role === 'enlevement' ? 'selected' : '' %>>Enlèvement — Livraison & Bons (enlevement)</option>
-                <option value="direction" <%= targetUser.role === 'direction' ? 'selected' : '' %>>Direction — Décisions & Budgets (direction)</option>
-                <option value="agent_payeur" <%= targetUser.role === 'agent_payeur' ? 'selected' : '' %>>Agent Payeur — Trésorerie & Décaissements (agent_payeur)</option>
-                <option value="finances" <%= targetUser.role === 'finances' ? 'selected' : '' %>>Finances — Devis, Dossiers & Tiers (finances)</option>
-                <option value="comptable_ops" <%= targetUser.role === 'comptable_ops' ? 'selected' : '' %>>Comptabilité d'Opérations — Comptes & Budgets (comptable_ops)</option>
+                <optgroup label="Administration (Top Management)">
+                  <option value="pdg" <%= targetUser.role === 'pdg' ? 'selected' : '' %>>PDG (pdg)</option>
+                  <option value="dg" <%= targetUser.role === 'dg' ? 'selected' : '' %>>DG (dg)</option>
+                  <option value="dga" <%= targetUser.role === 'dga' ? 'selected' : '' %>>DGA (dga)</option>
+                  <option value="daf" <%= targetUser.role === 'daf' ? 'selected' : '' %>>DAF (daf)</option>
+                  <option value="auditeur1" <%= targetUser.role === 'auditeur1' ? 'selected' : '' %>>Auditeur 1 (auditeur1)</option>
+                  <option value="auditeur2" <%= targetUser.role === 'auditeur2' ? 'selected' : '' %>>Auditeur 2 (auditeur2)</option>
+                  <option value="super_admin" <%= targetUser.role === 'super_admin' ? 'selected' : '' %>>Super Administrateur ERP (super_admin)</option>
+                </optgroup>
+                <optgroup label="Transit / Opérations">
+                  <option value="secretariat" <%= targetUser.role === 'secretariat' ? 'selected' : '' %>>Secrétariat (secretariat)</option>
+                  <option value="guce" <%= targetUser.role === 'guce' ? 'selected' : '' %>>GUCE (guce)</option>
+                  <option value="validation" <%= targetUser.role === 'validation' ? 'selected' : '' %>>Validation (validation)</option>
+                  <option value="acconage" <%= targetUser.role === 'acconage' ? 'selected' : '' %>>Acconage (acconage)</option>
+                  <option value="enlevement" <%= targetUser.role === 'enlevement' ? 'selected' : '' %>>Enlèvement (enlevement)</option>
+                </optgroup>
+                <optgroup label="Finances / Facturation / Fiscalité">
+                  <option value="facturation" <%= targetUser.role === 'facturation' ? 'selected' : '' %>>Facturation (facturation)</option>
+                  <option value="fiscalite" <%= targetUser.role === 'fiscalite' ? 'selected' : '' %>>Fiscalité (fiscalite)</option>
+                  <option value="cloture" <%= targetUser.role === 'cloture' ? 'selected' : '' %>>Clôture (cloture)</option>
+                  <option value="agent_payeur" <%= targetUser.role === 'agent_payeur' ? 'selected' : '' %>>Caisse (Payeur) (agent_payeur)</option>
+                </optgroup>
+                <optgroup label="Analyses & Reporting">
+                  <option value="analyste" <%= targetUser.role === 'analyste' ? 'selected' : '' %>>Analyste (analyste)</option>
+                </optgroup>
+                <optgroup label="Anciens Rôles & Audit">
+                  <option value="operationnel" <%= targetUser.role === 'operationnel' ? 'selected' : '' %>>Opérationnel Standard (operationnel)</option>
+                  <option value="commercial" <%= targetUser.role === 'commercial' ? 'selected' : '' %>>Commercial Standard (commercial)</option>
+                  <option value="comptable" <%= targetUser.role === 'comptable' ? 'selected' : '' %>>Comptable Standard (comptable)</option>
+                  <option value="lecture" <%= targetUser.role === 'lecture' ? 'selected' : '' %>>Lecture seule (lecture)</option>
+                </optgroup>
               </select>
             </div>
             <!-- Warning Alert Box for role changes -->
@@ -130,19 +144,29 @@
 <script>
   const roleModulesMap = {
     super_admin: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "rh"],
+    pdg: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
+    dg: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
+    dga: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
+    daf: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
+    auditeur1: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
+    auditeur2: ["clients", "dossiers", "taches", "analytics", "bons"],
+    secretariat: ["dashboard", "dossiers", "clients", "taches"],
+    validation: ["dashboard", "dossiers", "taches"],
+    validation_role: ["dashboard", "dossiers", "taches"],
+    guce: ["dashboard", "dossiers", "taches"],
+    acconage: ["dashboard", "dossiers", "bons", "taches"],
+    enlevement: ["dashboard", "dossiers", "bons", "taches"],
+    facturation: ["dashboard", "documents", "facturation", "dossiers", "clients", "taches"],
+    fiscalite: ["dashboard", "dossiers", "taches"],
+    cloture: ["dashboard", "dossiers", "taches"],
+    agent_payeur: ["dashboard", "bons", "dossiers", "taches", "comptabilite"],
+    analyste: ["dashboard", "analytics", "dossiers", "taches"],
     comptable: ["clients", "facturation", "stock", "comptabilite", "achats", "analytics"],
     commercial: ["clients", "dossiers", "taches", "facturation", "analytics"],
     operationnel: ["clients", "dossiers", "taches"],
     magasinier: ["stock", "achats"],
     rh: ["rh"],
     lecture: ["clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics"],
-    secretariat: ["dashboard", "dossiers", "clients"],
-    validation_role: ["dashboard", "dossiers"],
-    guce: ["dashboard", "dossiers"],
-    acconage: ["dashboard", "dossiers", "bons"],
-    enlevement: ["dashboard", "dossiers", "bons"],
-    direction: ["dashboard", "bons", "analytics"],
-    agent_payeur: ["dashboard", "bons"],
     finances: ["dashboard", "documents", "dossiers", "clients"],
     comptable_ops: ["dashboard", "documents", "dossiers", "accounting", "reports"]
   };
