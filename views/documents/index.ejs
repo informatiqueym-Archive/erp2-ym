@@ -1,0 +1,231 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6 text-start">
+    <h1 class="h3 text-slate-800"><i class="bi bi-receipt text-primary me-2"></i>Facturation & Devis Transit</h1>
+    <p class="text-muted mb-0 font-sans">Enregistrement et recouvrement sécurisé des prestations (en FCFA Cameroun).</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/documents/create" class="btn btn-primary d-inline-flex align-items-center">
+      <i class="bi bi-file-earmark-plus-fill me-2"></i> Nouvelle Facture / Devis
+    </a>
+  </div>
+</div>
+
+<!-- Search & Invoicing Stats Overview -->
+<%
+  let statsHt = 0;
+  let statsTtc = 0;
+  let statsPaid = 0;
+  let statsUnpaid = 0;
+
+  if (documents && documents.length > 0) {
+    documents.forEach(doc => {
+      statsHt += doc.total_ht;
+      statsTtc += doc.total_ttc;
+      const paid = doc.payments ? doc.payments.reduce((sum, p) => sum + p.montant, 0) : 0;
+      statsPaid += paid;
+      if (doc.etat !== 'ANNULE') {
+        statsUnpaid += Math.max(0, doc.total_ttc - paid);
+      }
+    });
+  }
+%>
+<div class="row g-3 mb-4 text-start">
+  <div class="col-md-3">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Total Facturé HT</h6>
+          <h4 class="fw-bold text-dark mb-0 font-monospace"><%= statsHt.toLocaleString('fr-Fr') %> <small style="font-size: 0.65rem;">FCFA</small></h4>
+        </div>
+        <div class="bg-primary-subtle text-primary p-2.5 rounded-circle d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+          <i class="bi bi-receipt"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Total TTC Net</h6>
+          <h4 class="fw-bold text-dark mb-0 font-monospace"><%= statsTtc.toLocaleString('fr-Fr') %> <small style="font-size: 0.65rem;">FCFA</small></h4>
+        </div>
+        <div class="bg-info-subtle text-info p-2.5 rounded-circle d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+          <i class="bi bi-cash"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Encaissements client</h6>
+          <h4 class="fw-bold text-success mb-0 font-monospace"><%= statsPaid.toLocaleString('fr-Fr') %> <small style="font-size: 0.65rem;">FCFA</small></h4>
+        </div>
+        <div class="bg-success-subtle text-success p-2.5 rounded-circle d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+          <i class="bi bi-shield-check"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Reste à recouvrer</h6>
+          <h4 class="fw-bold text-danger mb-0 font-monospace"><%= statsUnpaid.toLocaleString('fr-Fr') %> <small style="font-size: 0.65rem;">FCFA</small></h4>
+        </div>
+        <div class="bg-danger-subtle text-danger p-2.5 rounded-circle d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+          <i class="bi bi-clock-history"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search Input filter -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-9 text-start">
+        <label class="form-label text-muted small fw-bold mb-1">Filtrer ou rechercher par mot-clé</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" id="searchInput" class="form-control bg-light border-start-0" placeholder="Rechercher par N° de pièce, client, type...">
+        </div>
+      </div>
+      <div class="col-md-3 text-start">
+        <label class="form-label text-muted small fw-bold mb-1">Affichage Tri</label>
+        <select class="form-select bg-light" id="typeSort">
+          <option value="ALL">Tous les documents</option>
+          <option value="FACTURE">Factures uniquement</option>
+          <option value="PROFORMA">Proformas uniquement</option>
+          <option value="DEVIS">Devis uniquement</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Documents List Content -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 text-start" style="font-size: 0.9rem;" id="docsTable">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Numéro</th>
+            <th>Type</th>
+            <th>Client Débiteur</th>
+            <th>Montant HT</th>
+            <th class="fw-bold">Total TTC Net</th>
+            <th class="text-success">Règlements</th>
+            <th class="text-danger">Reste à payer</th>
+            <th>Statut</th>
+            <th>Date d'émission</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (documents && documents.length > 0) { %>
+            <% documents.forEach(doc => { %>
+              <% 
+                const paidAmt = doc.payments ? doc.payments.reduce((sum, p) => sum + p.montant, 0) : 0;
+                const outstanding = Math.max(0, doc.total_ttc - paidAmt);
+              %>
+              <tr class="document-row-item" data-search="<%= doc.numero.toLowerCase() %> <%= doc.client.nom.toLowerCase() %> <%= doc.type.toLowerCase() %>" data-type="<%= doc.type %>">
+                <td class="ps-4 fw-bold">
+                  <a href="/documents/<%= doc.id %>" class="text-decoration-none text-primary font-monospace"><%= doc.numero %></a>
+                </td>
+                <td>
+                  <span class="badge <%= doc.type === 'FACTURE' ? 'bg-primary-subtle text-primary border' : doc.type === 'PROFORMA' ? 'bg-info-subtle text-info border' : 'bg-warning-subtle text-warning border' %> text-xs font-monospace font-semibold py-1 px-2">
+                    <%= doc.type %>
+                  </span>
+                </td>
+                <td>
+                  <div class="fw-semibold text-slate-800"><%= doc.client.nom %></div>
+                  <div class="text-muted small" style="font-size: 0.72rem;">NIU: <%= doc.client.niu || 'Aucun' %></div>
+                </td>
+                <td class="font-monospace">
+                  <%= doc.total_ht.toLocaleString('fr-FR') %>
+                </td>
+                <td class="fw-bold font-monospace text-slate-900">
+                  <%= doc.total_ttc.toLocaleString('fr-FR') %>
+                </td>
+                <td class="text-success font-monospace">
+                  <%= paidAmt.toLocaleString('fr-FR') %>
+                </td>
+                <td class="<%= outstanding > 0 ? 'text-danger fw-bold' : 'text-muted' %> font-monospace">
+                  <%= outstanding.toLocaleString('fr-FR') %>
+                </td>
+                <td>
+                  <% if (doc.etat === 'PAYE') { %>
+                    <span class="badge bg-success-subtle text-success border py-1 px-2" style="font-size: 0.75rem;"><i class="bi bi-shield-check-fill"></i> PAYÉ</span>
+                  <% } else if (doc.etat === 'EMIS') { %>
+                    <span class="badge bg-warning-subtle text-warning border py-1 px-2" style="font-size: 0.75rem;"><i class="bi bi-hourglass-split"></i> EN ATTENTE</span>
+                  <% } else if (doc.etat === 'ANNULE') { %>
+                    <span class="badge bg-light text-muted border py-1 px-2" style="font-size: 0.75rem;">ANNULÉ</span>
+                  <% } else { %>
+                    <span class="badge bg-dark-subtle text-dark border py-1 px-2" style="font-size: 0.75rem;"><i class="bi bi-pencil-square"></i> BROUILLON</span>
+                  <% } %>
+                </td>
+                <td class="text-muted small">
+                  <%= new Date(doc.created_at).toLocaleDateString('fr-FR') %>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group">
+                    <a href="/documents/<%= doc.id %>" class="btn btn-light btn-sm text-primary rounded-circle me-1" title="Visualiser la facture">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="10" class="text-center text-muted py-5">
+                <i class="bi bi-wallet2 display-4 text-slate-300 d-block mb-3"></i>
+                Aucune pièce de facturation n'est actuellement enregistrée.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("searchInput");
+    const typeSort = document.getElementById("typeSort");
+    const docRows = document.querySelectorAll(".document-row-item");
+
+    function filterTable() {
+      const searchVal = searchInput.value.toLowerCase().trim();
+      const typeVal = typeSort.value;
+
+      docRows.forEach(row => {
+        const searchAttr = row.getAttribute("data-search") || "";
+        const typeAttr = row.getAttribute("data-type") || "";
+
+        const matchSearch = searchAttr.includes(searchVal);
+        const matchType = (typeVal === "ALL" || typeAttr === typeVal);
+
+        if (matchSearch && matchType) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    }
+
+    searchInput.addEventListener("input", filterTable);
+    typeSort.addEventListener("change", filterTable);
+  });
+</script>
+
+<%- include('../partials/footer') %>

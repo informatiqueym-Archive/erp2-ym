@@ -1,0 +1,216 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3 text-start">
+  <div class="col-12">
+    <a href="/factures-fournisseur" class="text-primary text-decoration-none fw-semibold mb-2 d-inline-block">
+      <i class="bi bi-arrow-left me-1"></i> Retour à la liste
+    </a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+      <div>
+        <h1 class="h3 text-slate-800 mb-1">
+          <i class="bi bi-file-earmark-ruled-fill text-primary me-2"></i>Facture <%= facture.numero %>
+        </h1>
+        <p class="text-muted mb-0">Créé automatiquement suite à la validation du BC d'achat • Origine: <%= facture.societe %></p>
+      </div>
+      <div>
+        <% if (facture.etat === 'Payée') { %>
+          <span class="badge bg-success-subtle text-success p-2 fs-6"><i class="bi bi-check-circle-fill me-1"></i>Entièrement Soldée d'avance</span>
+        <% } else { %>
+          <span class="badge bg-danger-subtle text-danger p-2 fs-6"><i class="bi bi-hourglass-split me-1"></i>Solde Dû : <%= Number(soldeRestant).toLocaleString('fr-FR') %> FCFA</span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  
+  <!-- Formulaire de Saisie d'un règlement -->
+  <div class="col-lg-4">
+    
+    <% if (soldeRestant > 0.05) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-primary text-white py-3">
+          <h5 class="mb-0 fw-bold font-sans text-white text-start" style="font-size: 0.95rem;">
+            <i class="bi bi-wallet2 me-2"></i>Enregistrer un Règlement
+          </h5>
+        </div>
+        <div class="card-body">
+          <form action="/factures-fournisseur/<%= facture.id %>/paiement" method="POST">
+            
+            <div class="mb-3">
+              <label class="form-label text-slate-600">Montant du versement (FCFA) *</label>
+              <div class="input-group">
+                <input type="number" step="any" name="montant" class="form-control" max="<%= soldeRestant %>" min="1" value="<%= soldeRestant %>" required>
+                <span class="input-group-text font-monospace bg-light text-slate-600">FCFA</span>
+              </div>
+              <small class="text-muted d-block mt-1">Le montant de l'acompte ou solde maximal ne doit pas dépasser <%= Number(soldeRestant).toLocaleString('fr-FR') %> FCFA.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-slate-600">Moyen de règlement *</label>
+              <select name="moyen" class="form-select" required>
+                <option value="VIREMENT" selected>Virement Bancaire (Compte 512)</option>
+                <option value="ESPECES">Espèces / Caisse (Compte 571)</option>
+                <option value="CHEQUE">Chèque</option>
+                <option value="MOBILE_MONEY">Mobile Money (Mtn / Orange)</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-slate-600">Date du règlement (Valheur)</label>
+              <input type="date" name="date_paiement" class="form-control" value="<%= new Date().toISOString().substring(0, 10) %>">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 btn-sm rounded shadow-sm">
+              <i class="bi bi-file-earmark-check me-1"></i> Passer l'Écriture de règlement
+            </button>
+
+          </form>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Schéma FDJ double-entrée de validation -->
+    <div class="card border-0 shadow-sm border-start border-4 border-success">
+      <div class="card-body">
+        <h6 class="fw-bold text-slate-800"><i class="bi bi-journal-check me-2 text-primary"></i>Écritures comptables de règlement</h6>
+        <p class="text-muted mb-3" style="font-size: 0.8rem;">Chaque règlement d'achat débite le compte 401 (Fournisseurs) et crédite la trésorerie correspondante (512 Banque ou 571 Caisse) par partie double.</p>
+        
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0" style="font-size: 0.78rem;">
+            <thead class="table-light">
+              <tr>
+                <th>Compte</th>
+                <th class="text-end">Débit</th>
+                <th class="text-end">Crédit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-monospace">401 (Fournisseur)</td>
+                <td class="text-end text-success font-monospace">Montant</td>
+                <td class="text-end font-monospace">—</td>
+              </tr>
+              <tr>
+                <td class="font-monospace">512/571 (Livraison)</td>
+                <td class="text-end font-monospace">—</td>
+                <td class="text-end text-danger font-monospace">Montant</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Historique & Détails factures -->
+  <div class="col-lg-8">
+    
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-file-earmark-text text-secondary me-2"></i>Données contractuelles de base
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <h6 class="text-muted mb-1 text-uppercase text-xs" style="font-size: 0.72rem;">Partenaire d'achat :</h6>
+            <p class="fw-bold fs-5 text-slate-800 mb-0">
+              <a href="/fournisseurs/<%= facture.fournisseur_id %>" class="text-decoration-none">
+                <%= facture.fournisseur.nom %>
+              </a>
+            </p>
+            <span class="text-muted small">Code auxiliaire : 401.FOURN.<%= facture.fournisseur.id %></span>
+          </div>
+
+          <div class="col-sm-6">
+            <h6 class="text-muted mb-1 text-uppercase text-xs" style="font-size: 0.72rem;">Historique d'ordre :</h6>
+            <% if (facture.commande) { %>
+              <p class="mb-0">
+                <a href="/commandes/<%= facture.commande.id %>" class="fw-bold font-monospace text-primary text-decoration-none">
+                  <%= facture.commande.numero %>
+                </a>
+              </p>
+              <span class="text-muted small">Créé le : <%= new Date(facture.commande.date).toLocaleDateString('fr-FR') %></span>
+            <% } else { %>
+              <span class="text-muted fw-semibold">Création directe sans bon d'achat</span>
+            <% } %>
+          </div>
+
+          <div class="col-sm-4 border-top border-light pt-3 mt-3">
+            <span class="text-muted d-block small mb-0">Date d'Émission :</span>
+            <strong class="text-slate-800"><%= new Date(facture.date).toLocaleDateString('fr-FR') %></strong>
+          </div>
+
+          <div class="col-sm-4 border-top border-light pt-3 mt-3">
+            <span class="text-muted d-block small mb-0">Date d'Échéance Légale :</span>
+            <strong class="text-slate-700">
+              <% if (facture.echeance) { %>
+                <%= new Date(facture.echeance).toLocaleDateString('fr-FR') %>
+              <% } else { %>
+                Instantanée
+              <% } %>
+            </strong>
+          </div>
+
+          <div class="col-sm-4 border-top border-light pt-3 mt-3">
+            <span class="text-muted d-block small mb-0">Total Montant TTC :</span>
+            <strong class="text-primary font-monospace fs-5"><%= Number(facture.montant_ttc).toLocaleString('fr-FR') %> FCFA</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historique des règlements appliqués -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-wallet-fill text-secondary me-2"></i>Historique des Règlements rattachés
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">ID Règlement</th>
+                <th>Date valeur de paiement</th>
+                <th>Moyen de paiement</th>
+                <th class="text-end pe-3">Montant du règlement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (facture.paiements && facture.paiements.length > 0) { %>
+                <% facture.paiements.forEach(p => { %>
+                  <tr>
+                    <td class="ps-3 font-monospace text-muted">#PAY-<%= p.id %></td>
+                    <td><%= new Date(p.date || p.created_at).toLocaleDateString('fr-FR') %></td>
+                    <td>
+                      <span class="badge bg-secondary-subtle text-secondary px-2 py-1">
+                        <%= p.moyen %>
+                      </span>
+                    </td>
+                    <td class="text-end font-monospace fw-bold text-success pe-3">
+                      + <%= Number(p.montant).toLocaleString('fr-FR') %> FCFA
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-5">Aucun règlement n'a été rattaché à cette facture pour le moment.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<%- include('../partials/footer') %>

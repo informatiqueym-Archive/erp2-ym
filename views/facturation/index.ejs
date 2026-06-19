@@ -1,0 +1,208 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Facturation & Comptabilité Client</h1>
+    <p class="text-muted mb-0">Gestion des devis de dédouanement et factures de transit (en FCFA).</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <button class="btn btn-primary d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#newDocModal">
+      <i class="bi bi-file-earmark-plus-fill me-2"></i> Créer une Facture ou Devis
+    </button>
+  </div>
+</div>
+
+<!-- Search & Invoicing Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Prestations émises (total)</h6>
+          <h4 class="fw-bold text-dark mb-0"><%= stats.totalInvoiced.toLocaleString('fr-FR') %> FCFA</h4>
+        </div>
+        <div class="bg-primary-subtle text-primary p-2 rounded-circle"><i class="bi bi-receipt"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Encaissements perçus</h6>
+          <h4 class="fw-bold text-success mb-0"><%= stats.totalPaid.toLocaleString('fr-FR') %> FCFA</h4>
+        </div>
+        <div class="bg-success-subtle text-success p-2 rounded-circle"><i class="bi bi-cash-stack"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card bg-white border-0 shadow-sm">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <h6 class="text-muted mb-1 text-uppercase text-xs font-sans fw-bold">Reste à recouvrer</h6>
+          <h4 class="fw-bold text-danger mb-0"><%= stats.totalUnpaid.toLocaleString('fr-FR') %> FCFA</h4>
+        </div>
+        <div class="bg-danger-subtle text-danger p-2 rounded-circle"><i class="bi bi-clock-history"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Documents Table Card -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">N° Document</th>
+            <th>Type</th>
+            <th>Client Débiteur</th>
+            <th>Montant HT</th>
+            <th>Montant TTC</th>
+            <th>Montant Payé</th>
+            <th>Reste à Payer</th>
+            <th>État facture</th>
+            <th>Date d'émission</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (documents && documents.length > 0) { %>
+            <% documents.forEach(doc => { %>
+              <% 
+                //Calculer total paiement
+                const paidAmt = doc.payments ? doc.payments.reduce((sum, p) => sum + p.montant, 0) : 0;
+                const outstanding = doc.total_ttc - paidAmt;
+              %>
+              <tr>
+                <td class="ps-4 fw-bold text-dark">
+                  <a href="/facturation/<%= doc.id %>" class="text-decoration-none text-primary"><%= doc.numero %></a>
+                </td>
+                <td>
+                  <span class="badge <%= doc.type === 'FACTURE' ? 'bg-primary' : 'bg-info text-dark' %> text-xs font-monospace">
+                    <%= doc.type %>
+                  </span>
+                </td>
+                <td>
+                  <div class="fw-bold text-slate-800"><%= doc.client.nom %></div>
+                  <div class="small text-muted" style="font-size: 0.75rem;">NIU: <%= doc.client.niu || 'Aucun' %></div>
+                </td>
+                <td>
+                  <span class="font-monospace"><%= doc.total_ht.toLocaleString('fr-Fr') %></span>
+                </td>
+                <td class="fw-semibold">
+                  <span class="font-monospace"><%= doc.total_ttc.toLocaleString('fr-Fr') %></span>
+                </td>
+                <td class="text-success font-monospace">
+                  <%= paidAmt.toLocaleString('fr-Fr') %>
+                </td>
+                <td class="<%= outstanding > 0 ? 'text-danger fw-bold' : 'text-muted' %> font-monospace">
+                  <%= outstanding.toLocaleString('fr-Fr') %>
+                </td>
+                <td>
+                  <% if (doc.etat === 'PAYE') { %>
+                    <span class="badge bg-success"><i class="bi bi-check2-circle"></i> PAYÉ</span>
+                  <% } else if (doc.etat === 'EMIS') { %>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-hourglass"></i> ÉMIS</span>
+                  <% } else if (doc.etat === 'ANNULE') { %>
+                    <span class="badge bg-secondary">ANNULÉ</span>
+                  <% } else { %>
+                    <span class="badge bg-light text-dark border"><i class="bi bi-pencil"></i> BROUILLON</span>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="text-muted"><%= new Date(doc.created_at).toLocaleDateString('fr-FR') %></span>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group">
+                    <a href="/facturation/<%= doc.id %>" class="btn btn-light btn-sm text-primary rounded-circle me-1" title="Détail et lignes de facturation">
+                      <i class="bi bi-plus-circle"></i> Lignes
+                    </a>
+                    <a href="/facturation/<%= doc.id %>/pdf" class="btn btn-light btn-sm text-dark rounded-circle me-1" target="_blank" title="Générer facture PDF">
+                      <i class="bi bi-file-pdf"></i> PDF
+                    </a>
+                    <form action="/facturation/delete/<%= doc.id %>" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette facture ?');">
+                      <button type="submit" class="btn btn-light btn-sm text-danger rounded-circle">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="10" class="text-center text-muted py-5">
+                <i class="bi bi-currency-exchange display-4 text-slate-300 d-block mb-3"></i>
+                Aucune pièce comptable (facture ou devis) enregistrée pour l'instant.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- New Document Modal -->
+<div class="modal fade" id="newDocModal" tabindex="-1" aria-labelledby="newDocModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white fs-6" id="newDocModalLabel">Initialiser un Devis ou Facture</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/facturation/new" method="POST">
+        <div class="modal-body text-start">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Élément Client Débiteur <span class="text-danger">*</span></label>
+            <select class="form-select" name="client_id" required>
+              <option value="">-- Sélectionnez le client --</option>
+              <% if (clients && clients.length > 0) { %>
+                <% clients.forEach(cl => { %>
+                  <option value="<%= cl.id %>" <%= typeof preselectedClientId !== 'undefined' && preselectedClientId == cl.id ? 'selected' : '' %>><%= cl.nom %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Type de Document <span class="text-danger">*</span></label>
+              <select class="form-select" name="type" required>
+                <option value="FACTURE">FACTURE DE PRESTATIONS</option>
+                <option value="DEVIS">DEVIS ESTIMATIF DE LOGISTIQUE</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Générer N° de pièce</label>
+              <% 
+                const runningFACNum = Math.floor(1000 + Math.random() * 9000);
+                const suggestedNum = 'FAC-2026-' + runningFACNum;
+              %>
+              <input type="text" class="form-control font-monospace" name="numero" value="<%= suggestedNum %>" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Cabinet émetteur (Société)</label>
+            <input type="text" class="form-control" name="societe" value="YM-TRANSIT Transit & Logistics Ltd" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">État Initial</label>
+            <select class="form-select" name="etat">
+              <option value="BROUILLON">BROUILLON</option>
+              <option value="EMIS">ÉMIS / EN ATTENTE</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-file-earmark-diff"></i> Créer l'en-tête</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

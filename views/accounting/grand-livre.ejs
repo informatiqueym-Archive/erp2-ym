@@ -1,0 +1,109 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-journals text-primary me-2"></i>Grand Livre Général</h1>
+    <p class="text-muted mb-0">Consultez les mouvements individuels détaillés et les soldes par compte comptable.</p>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  <!-- Liste des comptes avec soldes agrégés -->
+  <div class="<%= selectedCompte ? 'col-lg-5' : 'col-lg-12' %>">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-clipboard2-data text-secondary me-2"></i>Synthèse des soldes par compte
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3" style="width: 15%;">N° Compte</th>
+                <th style="width: 35%;">Intitulé</th>
+                <th class="text-end" style="width: 15%;">Débiteur</th>
+                <th class="text-end" style="width: 15%;">Créditeur</th>
+                <th class="text-end pe-3" style="width: 20%;">Solde</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% comptes.forEach(c => { %>
+                <tr class="<%= Number(selectedCompteId) === c.id ? 'table-primary fw-semibold' : '' %>" style="cursor: pointer;" onclick="window.location.href='?compteId=<%= c.id %>'">
+                  <td class="ps-3 font-monospace"><%= c.code %></td>
+                  <td><%= c.nom %></td>
+                  <td class="text-end text-success font-monospace">
+                    <%= c.totalDebit > 0 ? Number(c.totalDebit).toLocaleString('fr-FR') : '—' %>
+                  </td>
+                  <td class="text-end text-danger font-monospace">
+                    <%= c.totalCredit > 0 ? Number(c.totalCredit).toLocaleString('fr-FR') : '—' %>
+                  </td>
+                  <td class="text-end pe-3 font-monospace fw-bold <%= c.solde >= 0 ? 'text-primary' : 'text-danger' %>">
+                    <%= Number(c.solde).toLocaleString('fr-FR') %> FCFA
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Détails des écritures pour le compte sélectionné -->
+  <% if (selectedCompte) { %>
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 fw-bold font-sans text-white" style="font-size: 1rem;">
+            <i class="bi bi-list-task me-2"></i>Détail du Compte : <%= selectedCompte.code %> — <%= selectedCompte.nom %>
+          </h5>
+          <a href="/accounting/grand-livre" class="btn btn-close btn-close-white btn-sm" aria-label="Close"></a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">Date</th>
+                  <th>Jrn</th>
+                  <th>Réf Pièce</th>
+                  <th>Libellé / Opération</th>
+                  <th class="text-end">Débit</th>
+                  <th class="text-end pe-3">Crédit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (selectedCompte.ecritures && selectedCompte.ecritures.length > 0) { %>
+                  <% selectedCompte.ecritures.forEach(e => { %>
+                    <tr>
+                      <td class="ps-3 text-nowrap"><%= new Date(e.date).toLocaleDateString('fr-FR') %></td>
+                      <td><span class="badge bg-secondary-subtle text-secondary"><%= e.journal %></span></td>
+                      <td class="font-monospace text-muted"><%= e.piece_ref %></td>
+                      <td><%= e.libelle %></td>
+                      <td class="text-end text-success font-monospace">
+                        <%= e.debit > 0 ? Number(e.debit).toLocaleString('fr-FR') : '—' %>
+                      </td>
+                      <td class="text-end pe-3 text-danger font-monospace">
+                        <%= e.credit > 0 ? Number(e.credit).toLocaleString('fr-FR') : '—' %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                      Aucun mouvement comptable enregistré sur ce compte.
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>

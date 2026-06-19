@@ -1,0 +1,170 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/dossiers">Dossiers de Transit</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Archives</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-archive-fill text-dark me-2"></i>Archives des Dossiers Logistiques
+        </h1>
+        <p class="text-muted mb-0">Historique des expéditions de transit clôturées et archivées définitivement</p>
+      </div>
+      <div>
+        <a href="/dossiers" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3.5">
+          <i class="bi bi-arrow-left me-1.5"></i> Retour aux encours
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters & Search Bar -->
+<div class="card border-0 shadow-sm mb-4 text-start">
+  <div class="card-body p-3">
+    <div class="row g-3 align-items-center">
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold text-slate-600 mb-1">
+          <i class="bi bi-search text-muted me-1"></i>Recherche instantanée dans les archives
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-slate-400"><i class="bi bi-funnel"></i></span>
+          <input type="text" id="js-client-search" class="form-control border-start-0" placeholder="Type name, number, port or contact representative...">
+        </div>
+        <div class="form-text small" style="font-size: 0.72rem;">Filtrage dynamique instantané sans rechargement de page.</div>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <span class="text-sm text-slate-500">
+          Total archivé : <strong class="text-dark font-monospace" id="total-rows-count"><%= dossiers ? dossiers.length : 0 %></strong> dossiers
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Archives List Card -->
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-journal-archive text-slate-400 me-2"></i>Registre Officiel d'Archives Logistiques
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="dossiers-table" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width: 15%;">Numéro</th>
+            <th style="width: 25%;">Client & Mandataire</th>
+            <th style="width: 20%;">Zone / Port d'entrée</th>
+            <th style="width: 10%;">Régime</th>
+            <th style="width: 15%;">Date d'Archivage</th>
+            <th class="text-end pe-4" style="width: 15%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (dossiers && dossiers.length > 0) { %>
+            <% dossiers.forEach(ds => { %>
+              <tr class="dossier-tr" 
+                  data-numero="<%= ds.numero.toLowerCase() %>"
+                  data-client="<%= ds.client.nom.toLowerCase() %>"
+                  data-port="<%= ds.port.toLowerCase() %>"
+                  data-nature="<%= ds.nature.toLowerCase() %>"
+                  data-representant="<%= ds.representant ? ds.representant.toLowerCase() : '' %>"
+                  data-bl="<%= ds.bl ? ds.bl.toLowerCase() : '' %>">
+                <td class="ps-4 fw-bold">
+                  <a href="/dossiers/<%= ds.id %>" class="text-decoration-none text-slate-800 font-monospace fs-6">
+                    <i class="bi bi-file-earmark-zip text-slate-400 me-1.5"></i><%= ds.numero %>
+                  </a>
+                  <div class="text-xs text-slate-500 mt-1 font-monospace" style="font-weight: 500;">
+                    <i class="bi bi-file-earmark-text-fill text-muted me-1"></i>BL: <%= ds.bl || 'N/A' %>
+                  </div>
+                </td>
+                <td>
+                  <div class="fw-bold text-slate-900"><%= ds.client.nom %></div>
+                  <% if (ds.representant) { %>
+                    <div class="text-xs text-primary font-sans mt-0.5"><i class="bi bi-person-badge-fill me-1"></i>Rep: <%= ds.representant %></div>
+                  <% } else { %>
+                    <div class="text-xs text-slate-400 mt-0.5"><i class="bi bi-slash-circle me-1"></i>Pas de représentant physique</div>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="small text-slate-700 bg-light p-1.5 rounded-3 d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-geo-alt-fill text-slate-400"></i><%= ds.port %>
+                  </span>
+                </td>
+                <td>
+                  <% if (ds.nature === 'IMPORT') { %>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-sans text-xs">IMPORT</span>
+                  <% } else if (ds.nature === 'EXPORT') { %>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle font-sans text-xs">EXPORT</span>
+                  <% } else { %>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-sans text-xs">TRANSIT</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div class="small fw-semibold text-slate-700 font-monospace">
+                    <%= ds.archived_at ? new Date(ds.archived_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A' %>
+                  </div>
+                  <div class="text-xs text-muted mt-0.5">
+                    <%= ds.archived_at ? new Date(ds.archived_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '' %>
+                  </div>
+                </td>
+                <td class="text-end pe-4">
+                  <a href="/dossiers/<%= ds.id %>" class="btn btn-sm btn-outline-dark rounded-pill px-3 font-sans">
+                    <i class="bi bi-eye-fill me-1"></i> Consulter la fiche
+                  </a>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">
+                <i class="bi bi-archive text-slate-300 d-block mb-3" style="font-size: 3rem;"></i>
+                Aucun dossier archivé trouvé dans le registre d'historique.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Fast Client-Side search script
+  document.getElementById("js-client-search").addEventListener("input", function(e) {
+    const query = e.target.value.toLowerCase().trim();
+    const rows = document.querySelectorAll(".dossier-tr");
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      const num = row.getAttribute("data-numero") || "";
+      const client = row.getAttribute("data-client") || "";
+      const port = row.getAttribute("data-port") || "";
+      const nature = row.getAttribute("data-nature") || "";
+      const rep = row.getAttribute("data-representant") || "";
+      const bl = row.getAttribute("data-bl") || "";
+
+      if (num.includes(query) || client.includes(query) || port.includes(query) || nature.includes(query) || rep.includes(query) || bl.includes(query)) {
+        row.style.display = "";
+        visibleCount++;
+      } else {
+        row.style.display = "none";
+      }
+    });
+
+    const label = document.getElementById("total-rows-count");
+    if (label) {
+      label.innerText = visibleCount;
+    }
+  });
+</script>
+
+<%- include('../partials/footer') %>

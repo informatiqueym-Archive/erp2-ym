@@ -1,0 +1,200 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 text-start">
+  <div class="col-12">
+    <a href="/commandes" class="text-primary text-decoration-none fw-semibold mb-2 d-inline-block">
+      <i class="bi bi-arrow-left me-1"></i> Retour au registre
+    </a>
+    <h1 class="h3 text-slate-800"><i class="bi bi-cart-plus-fill text-primary me-2"></i>Nouveau Bon de Commande</h1>
+    <p class="text-muted">Créez un bon d'achat fournisseurs. Les lignes d'articles soutiennent l'approvisionnement des stocks ou matières.</p>
+  </div>
+</div>
+
+<form action="/commandes" method="POST" id="bcForm">
+  <div class="row g-4 text-start">
+
+    <!-- Volet Renseignements généraux -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-4 h-100">
+        <div class="card-header bg-white py-3 border-bottom border-light">
+          <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+            <i class="bi bi-person-bounding-box text-secondary me-2"></i>Tête de Commande
+          </h5>
+        </div>
+        <div class="card-body">
+          
+          <div class="mb-3">
+            <label class="form-label text-slate-700 fw-semibold">Sélectionner le Fournisseur <strong class="text-danger">*</strong></label>
+            <select name="fournisseur_id" class="form-select form-select-sm" required>
+              <option value="">-- Choisissez un fournisseur --</option>
+              <% fournisseurs.forEach(f => { %>
+                <option value="<%= f.id %>"><%= f.nom %> (<%= f.devise %>)</option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-slate-700 fw-semibold">Date de livraison Souhaitée</label>
+            <input type="date" name="date_livraison" class="form-control form-control-sm">
+          </div>
+
+          <div class="mb-0">
+            <label class="form-label text-slate-700 fw-semibold">Notes / Informations complémentaires</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="5" placeholder="Indiquez par exemple les conditions d'incoterms, port de chargement ou détails de livraison..."></textarea>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Volet Lignes d'articles dynamiques -->
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom border-light d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+            <i class="bi bi-file-earmark-spreadsheet text-secondary me-2"></i>Lignes d'articles & Tarifs d'approvisionnement
+          </h5>
+          <button type="button" class="btn btn-outline-primary btn-sm rounded shadow-sm" id="btnAddRowBtn">
+            <i class="bi bi-plus-lg me-1"></i> Ajouter une ligne
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="lignesTable" style="font-size: 0.85rem;">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3" style="width: 45%;">Désignation / Description Article <strong class="text-danger">*</strong></th>
+                  <th style="width: 15%;">Quantité <strong class="text-danger">*</strong></th>
+                  <th style="width: 20%;">Prix Unitaire (FCFA) <strong class="text-danger">*</strong></th>
+                  <th class="text-end" style="width: 15%;">Total Ligne</th>
+                  <th style="width: 5%;"></th>
+                </tr>
+              </thead>
+              <tbody id="lignesContainer">
+                <!-- Les lignes s'insèrent ici dynamiquement -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Totaux récapitulatifs en bas du tableau -->
+          <div class="p-3 bg-light border-top border-light text-end">
+            <div class="row justify-content-end">
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between py-1">
+                  <span class="text-muted fw-semibold">Total Net Hors-Taxe (HT) :</span>
+                  <strong class="font-monospace text-slate-800" id="totalHTDisplay">0 FCFA</strong>
+                </div>
+                <div class="d-flex justify-content-between py-1">
+                  <span class="text-muted small">TVA Déductible Calculée (19.25%) :</span>
+                  <span class="font-monospace text-muted" id="totalTVADisplay">0 FCFA</span>
+                </div>
+                <div class="d-flex justify-content-between py-1 border-top border-light mt-1 pt-1">
+                  <span class="text-slate-800 fw-bold">Total Estimation TTC :</span>
+                  <strong class="font-monospace text-primary fs-5" id="totalTTCDisplay">0 FCFA</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        
+        <div class="card-footer bg-white border-top border-light py-3 text-end">
+          <a href="/commandes" class="btn btn-outline-secondary btn-sm px-3 py-2 me-2">Annuler</a>
+          <button type="submit" class="btn btn-success btn-sm px-4 py-2">
+            <i class="bi bi-cart-plus me-1"></i> Enregistrer le Bon de Commande
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    let rowCount = 0;
+    const container = document.getElementById("lignesContainer");
+    const btnAddRow = document.getElementById("btnAddRowBtn");
+
+    function createRowElement(index) {
+      const tr = document.createElement("tr");
+      tr.id = `row-${index}`;
+      tr.innerHTML = `
+        <td class="ps-3">
+          <input type="text" name="lignes[${index}][description]" class="form-control form-control-sm" placeholder="Ex: Lot de pneumatiques ou transport douane" required>
+        </td>
+        <td>
+          <input type="number" step="any" name="lignes[${index}][quantite]" class="form-control form-control-sm text-center input-quantite" min="0.01" value="1" required>
+        </td>
+        <td>
+          <input type="number" step="any" name="lignes[${index}][prix_unitaire]" class="form-control form-control-sm text-end input-pu" min="0" value="0" required>
+        </td>
+        <td class="text-end font-monospace fw-bold text-slate-800 ligne-total-display">
+          0 FCFA
+        </td>
+        <td class="text-center pe-3">
+          <button type="button" class="btn btn-outline-danger btn-xs border-0 py-1 px-2 btn-remove-row" style="font-size: 0.8rem;">
+            <i class="bi bi-trash-fill"></i>
+          </button>
+        </td>
+      `;
+      return tr;
+    }
+
+    function addRow() {
+      const tr = createRowElement(rowCount);
+      container.appendChild(tr);
+      
+      // Enregistrer les écouteurs d'événements pour le live calcul
+      const qInput = tr.querySelector(".input-quantite");
+      const puInput = tr.querySelector(".input-pu");
+      const delBtn = tr.querySelector(".btn-remove-row");
+
+      const updateLigneSum = () => {
+        const q = parseFloat(qInput.value) || 0;
+        const pu = parseFloat(puInput.value) || 0;
+        const tot = q * pu;
+        tr.querySelector(".ligne-total-display").innerText = tot.toLocaleString("fr-FR") + " FCFA";
+        recalculateTotals();
+      };
+
+      qInput.addEventListener("input", updateLigneSum);
+      puInput.addEventListener("input", updateLigneSum);
+      
+      delBtn.addEventListener("click", function() {
+        tr.remove();
+        recalculateTotals();
+      });
+
+      rowCount++;
+      recalculateTotals();
+    }
+
+    function recalculateTotals() {
+      let totalHT = 0;
+      const rows = container.querySelectorAll("tr");
+      
+      rows.forEach(r => {
+        const q = parseFloat(r.querySelector(".input-quantite").value) || 0;
+        const pu = parseFloat(r.querySelector(".input-pu").value) || 0;
+        totalHT += q * pu;
+      });
+
+      const tva = totalHT * 0.1925;
+      const totalTTC = totalHT + tva;
+
+      document.getElementById("totalHTDisplay").innerText = totalHT.toLocaleString("fr-FR") + " FCFA";
+      document.getElementById("totalTVADisplay").innerText = tva.toLocaleString("fr-FR") + " FCFA";
+      document.getElementById("totalTTCDisplay").innerText = totalTTC.toLocaleString("fr-FR") + " FCFA";
+    }
+
+    // Ajouter une ligne initiale au chargement
+    addRow();
+
+    // Bouton de commande d'ajout de ligne
+    btnAddRow.addEventListener("click", addRow);
+  });
+</script>
+
+<%- include('../partials/footer') %>

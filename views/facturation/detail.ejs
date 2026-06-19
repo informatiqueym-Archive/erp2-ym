@@ -1,0 +1,295 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3">
+  <div class="col-12 py-2">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/facturation">Facturation</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><%= document.numero %></li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <div class="bg-dark text-white rounded p-2 me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+          <i class="bi bi-file-earmark-textfs-3 text-white"></i>
+        </div>
+        <div>
+          <h1 class="h3 mb-0 text-slate-800"><%= document.type %> <%= document.numero %></h1>
+          <p class="text-xs text-muted mb-0">Débiteur : <strong class="text-slate-700"><%= document.client.nom %></strong> | Géré par <strong class="text-secondary"><%= document.societe %></strong></p>
+        </div>
+      </div>
+      <div>
+        <div class="btn-group">
+          <a href="/facturation/<%= document.id %>/pdf" target="_blank" class="btn btn-outline-danger btn-sm rounded me-2">
+            <i class="bi bi-file-pdf"></i> Imprimer en PDF
+          </a>
+          <a href="/facturation" class="btn btn-outline-secondary btn-sm rounded"><i class="bi bi-chevron-left"></i> Retour</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  <!-- Invoice Header & Totals -->
+  <div class="col-lg-4">
+    <!-- Status & Properties Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-light"><span class="text-dark"><i class="bi bi-gear-fill me-1"></i> Paramètres du document</span></div>
+      <div class="card-body">
+        <form action="/facturation/update-status/<%= document.id %>" method="POST">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Statut actuel du document :</label>
+            <select class="form-select form-select-sm" name="etat" onchange="this.form.submit()">
+              <option value="BROUILLON" <%= document.etat === 'BROUILLON' ? 'selected' : '' %>>BROUILLON</option>
+              <option value="EMIS" <%= document.etat === 'EMIS' ? 'selected' : '' %>>ÉMIS / PARVENU</option>
+              <option value="PAYE" <%= document.etat === 'PAYE' ? 'selected' : '' %>>PAYÉ / SOLDÉ</option>
+              <option value="ANNULE" <%= document.etat === 'ANNULE' ? 'selected' : '' %>>ANNULÉ</option>
+            </select>
+          </div>
+        </form>
+
+        <div class="border-top pt-3 text-start" style="font-size: 0.85rem;">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">Émis le :</span>
+              <strong class="text-dark"><%= new Date(document.created_at).toLocaleDateString('fr-FR') %></strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">Raison Sociale émetteur :</span>
+              <strong class="text-dark"><%= document.societe %></strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">N.I.U Client :</span>
+              <strong class="text-dark font-monospace"><%= document.client.niu || 'NR' %></strong>
+            </li>
+            <li class="d-flex justify-content-between">
+              <span class="text-muted">R.C.C.M Client :</span>
+              <strong class="text-dark font-monospace"><%= document.client.rccm || 'NR' %></strong>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Registry Card -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center bg-light">
+        <span class="text-dark"><i class="bi bi-cash-coin me-1"></i> Encaissements (FCFA)</span>
+        <button class="btn btn-outline-success btn-xs" data-bs-toggle="modal" data-bs-target="#newPaymentModal" style="font-size: 0.75rem;">
+          <i class="bi bi-plus"></i> Encaisser
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush" style="font-size: 0.85rem;">
+          <% 
+            const totalRec = document.payments ? document.payments.reduce((sum, p) => sum + p.montant, 0) : 0;
+            const remaining = document.total_ttc - totalRec;
+          %>
+          <% if (document.payments && document.payments.length > 0) { %>
+            <% document.payments.forEach(p => { %>
+              <li class="list-group-item p-3 d-flex justify-content-between align-items-center border-0 border-bottom">
+                <div>
+                  <div class="fw-bold text-dark"><%= p.montant.toLocaleString('fr-FR') %> FCFA</div>
+                  <small class="text-muted">Via <%= p.moyen %> - <%= new Date(p.date_paiement).toLocaleDateString('fr-FR') %></small>
+                </div>
+                <form action="/facturation/<%= document.id %>/payments/delete/<%= p.id %>" method="POST" class="d-inline" onsubmit="return confirm('Supprimer ce règlement ?');">
+                  <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Retirer encaissement"><i class="bi bi-trash-fill"></i></button>
+                </form>
+              </li>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center text-muted py-4 small">Aucun paiement enregistré pour cette facture.</div>
+          <% } %>
+          
+          <div class="p-3 bg-light text-start" style="font-size: 0.85rem;">
+            <div class="d-flex justify-content-between mb-1">
+              <span>Total perçu :</span>
+              <span class="fw-semibold text-success"><%= totalRec.toLocaleString('fr-Fr') %> FCFA</span>
+            </div>
+            <div class="d-flex justify-content-between font-monospace">
+              <span>Reste à payer :</span>
+              <span class="fw-bold <%= remaining > 0 ? 'text-danger' : 'text-muted' %>"><%= remaining.toLocaleString('fr-Fr') %> FCFA</span>
+            </div>
+          </div>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Lines details -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span class="text-slate-800 fw-bold"><i class="bi bi-list-columns-reverse text-primary me-2"></i> Lignes de Facturation</span>
+        <button class="btn btn-primary btn-xs py-1 px-2.5 rounded text-xs" data-bs-toggle="modal" data-bs-target="#newLineModal">
+          <i class="bi bi-plus-lg me-1"></i> Ajouter une prestation
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3" style="width: 45%;">Prestation descriptive</th>
+                <th style="width: 15%;">P.U (FCFA)</th>
+                <th style="width: 10%;">Qté</th>
+                <th style="width: 15%;">Régime taxe</th>
+                <th style="width: 15%;">Total HT</th>
+                <th class="text-end pe-3" style="width: 5%;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (document.lines && document.lines.length > 0) { %>
+                <% document.lines.forEach(ln => { %>
+                  <tr>
+                    <td class="ps-3">
+                      <div class="fw-semibold text-dark"><%= ln.description %></div>
+                    </td>
+                    <td class="font-monospace"><%= ln.prix_unitaire.toLocaleString('fr-FR') %></td>
+                    <td><%= ln.quantite %></td>
+                    <td>
+                      <% if (ln.taxe_id === 'TVA_19_25') { %>
+                        <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.7rem;">TVA 19.25%</span>
+                      <% } else { %>
+                        <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">Exonéré</span>
+                      <% } %>
+                    </td>
+                    <td class="fw-bold text-dark font-monospace">
+                      <%= ln.total.toLocaleString('fr-FR') %>
+                    </td>
+                    <td class="text-end pe-3">
+                      <form action="/facturation/<%= document.id %>/lines/delete/<%= ln.id %>" method="POST" class="d-inline" onsubmit="return confirm('Retirer cette ligne ?');">
+                        <button type="submit" class="btn btn-light btn-sm text-danger rounded-circle p-1" title="Supprimer la ligne">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-5">
+                    <i class="bi bi-file-earmark-plus-fill display-5 mb-2 d-block"></i>
+                    Aucune ligne de facture ajoutée. Remplissez le devis douanier ci-dessus.
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Billing Summary Matrix -->
+    <div class="row justify-content-end text-start">
+      <div class="col-md-6 col-lg-5">
+        <div class="card border-0 shadow-sm bg-white p-3">
+          <h6 class="border-bottom pb-2 mb-3 fw-bold text-slate-850">Recapitulatif Douanier & Transit</h6>
+          <div class="d-flex justify-content-between mb-2 small text-muted">
+            <span>Total HT :</span>
+            <span class="font-monospace"><%= document.total_ht.toLocaleString('fr-FR') %> FCFA</span>
+          </div>
+          <div class="d-flex justify-content-between mb-3 small text-muted">
+            <% 
+              // Calculer TVA relative
+              const tvaCalculated = document.total_ttc - document.total_ht;
+            %>
+            <span>Taxe TVA globale (19.25%) :</span>
+            <span class="font-monospace"><%= tvaCalculated.toLocaleString('fr-FR') %> FCFA</span>
+          </div>
+          <div class="d-flex justify-content-between border-top pt-2 font-monospace">
+            <strong class="text-dark">Total Net TTC :</strong>
+            <strong class="text-primary" style="font-size: 1.05rem;"><%= document.total_ttc.toLocaleString('fr-FR') %> FCFA</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Prestation Line Modal -->
+<div class="modal fade" id="newLineModal" tabindex="-1" aria-labelledby="newLineModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white fs-6" id="newLineModalLabel">Ajouter une prestation logistique</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/facturation/<%= document.id %>/lines/new" method="POST">
+        <div class="modal-body text-start">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Description de la prestation <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="description" placeholder="Ex: Frais acconage & chargement conteneur" required>
+            <div class="form-text" style="font-size: 0.7rem;">Nom court de l'acte de manutention, douane ou transport.</div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Prix Unitaire HT (FCFA) <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" name="prix_unitaire" placeholder="500000" min="0" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Quantité <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" name="quantite" value="1" min="1" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Régime fiscal / Taxes applicables</label>
+            <select class="form-select" name="taxe_id">
+              <option value="TVA_19_25">TVA Camerounaise Complète (19.25%)</option>
+              <option value="TVA_0">Exonéré (0% - Frais Débours administratifs)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-cart-plus"></i> Imputer la ligne</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="newPaymentModal" tabindex="-1" aria-labelledby="newPaymentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold text-white fs-6" id="newPaymentModalLabel">Enregistrer un encaissement client</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/facturation/<%= document.id %>/payments/new" method="POST">
+        <div class="modal-body text-start">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Montant perçu (FCFA) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control font-monospace" name="montant" value="<%= remaining > 0 ? remaining : 0 %>" max="<%= remaining > 0 ? remaining : 0 %>" min="1" required>
+            <div class="form-text" style="font-size: 0.70rem;">Le montant ne peut pas dépasser le reste à payer de <%= remaining.toLocaleString() %> FCFA.</div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Moyen d'encaissement <span class="text-danger">*</span></label>
+              <select class="form-select" name="moyen" required>
+                <option value="MOMO">Mobile Money (MTN MoMo)</option>
+                <option value="OM">Orange Money (OM)</option>
+                <option value="ESPECES">Espèces / Guichet</option>
+                <option value="VIREMENT">Virement bancaire (Afriland/SG)</option>
+                <option value="CHEQUE">Chèque de Banque certifié</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Date de réception</label>
+              <input type="date" class="form-control" name="date_paiement" value="2026-06-12" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save"></i> Confirmer règlement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

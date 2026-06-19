@@ -1,0 +1,130 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6 text-start">
+    <h1 class="h3 text-slate-800"><i class="bi bi-lock-fill text-primary me-2"></i>Clôtures & Exercices Comptables</h1>
+    <p class="text-muted mb-0">Verrouillez et gérez les périodes financières mensuelles pour figer le grand livre.</p>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  <!-- Formulaire de création de période -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-plus-circle text-secondary me-2"></i>Ouvrir une Période
+        </h5>
+      </div>
+      <div class="card-body">
+        <form action="/accounting/periodes/new" method="POST">
+          <div class="mb-3">
+            <label class="form-label text-slate-600" style="font-size: 0.88rem;">Mois de l'exercice</label>
+            <select name="mois" class="form-select form-select-sm" required>
+              <option value="">Sélectionnez le mois</option>
+              <option value="1">Janvier (01)</option>
+              <option value="2">Février (02)</option>
+              <option value="3">Mars (03)</option>
+              <option value="4">Avril (04)</option>
+              <option value="5">Mai (05)</option>
+              <option value="6">Juin (06)</option>
+              <option value="7">Juillet (07)</option>
+              <option value="8">Août (08)</option>
+              <option value="9">Septembre (09)</option>
+              <option value="10">Octobre (10)</option>
+              <option value="11">Novembre (11)</option>
+              <option value="12">Décembre (12)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-slate-600" style="font-size: 0.88rem;">Année civile</label>
+            <select name="annee" class="form-select form-select-sm" required>
+              <% const curY = new Date().getFullYear(); %>
+              <% for(let y = curY - 1; y <= curY + 2; y++) { %>
+                <option value="<%= y %>" <%= y === curY ? 'selected' : '' %>><%= y %></option>
+              <% } %>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100 py-2">
+            <i class="bi bi-calendar-check me-1"></i> Initialiser la période
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Liste des périodes existantes -->
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-calendar2-week text-secondary me-2"></i>Registre des exercices en cours et clos
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Mois / Exercice</th>
+                <th>Année</th>
+                <th>Statut Clôture</th>
+                <th class="text-end pe-4">Actions de Direction</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (periodes && periodes.length > 0) { %>
+                <% periodes.forEach(p => { %>
+                  <tr>
+                    <td class="ps-4 fw-bold text-slate-800">
+                      <% 
+                        const nameArr = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+                        const mName = nameArr[p.mois - 1] || p.mois;
+                      %>
+                      <%= mName %> (<%= String(p.mois).padStart(2, '0') %>)
+                    </td>
+                    <td class="font-monospace text-slate-600 fw-semibold"><%= p.annee %></td>
+                    <td>
+                      <% if (p.locked) { %>
+                        <span class="badge bg-danger-subtle text-danger px-2 py-1">
+                          <i class="bi bi-lock-fill me-1"></i> Clôturée & Verrouillée
+                        </span>
+                      <% } else { %>
+                        <span class="badge bg-success-subtle text-success px-2 py-1">
+                          <i class="bi bi-unlock-fill me-1"></i> Ouverte aux écritures
+                        </span>
+                      <% } %>
+                    </td>
+                    <td class="text-end pe-4">
+                      <% if (userRole === 'ADMIN') { %>
+                        <form action="/accounting/periodes/<%= p.id %>/toggle-lock" method="POST" class="d-inline">
+                          <button type="submit" class="btn <%= p.locked ? 'btn-outline-success' : 'btn-outline-danger' %> btn-xs px-2 py-1" style="font-size: 0.8rem;">
+                            <% if (p.locked) { %>
+                              <i class="bi bi-unlock-fill me-1"></i> Réouvrir
+                            <% } else { %>
+                              <i class="bi bi-lock-fill me-1"></i> Clôturer Fichier
+                            <% } %>
+                          </button>
+                        </form>
+                      <% } else { %>
+                        <span class="text-muted" style="font-size: 0.8rem;"><i class="bi bi-shield-lock me-1"></i> Restreint (Admin)</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-5">
+                    Aucune période comptable n'a été configurée d'avance.
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

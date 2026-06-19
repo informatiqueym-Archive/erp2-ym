@@ -1,0 +1,192 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3 text-start">
+  <div class="col-12">
+    <a href="/commandes" class="text-primary text-decoration-none fw-semibold mb-2 d-inline-block">
+      <i class="bi bi-arrow-left me-1"></i> Retour au registre des commandes
+    </a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+      <div>
+        <h1 class="h3 text-slate-800 mb-1">
+          <i class="bi bi-cart-check text-primary me-2"></i>Commande <%= commande.numero %>
+        </h1>
+        <p class="text-muted mb-0">Créé par l'agent le <%= new Date(commande.date).toLocaleDateString('fr-FR') %> • Société <%= commande.societe %></p>
+      </div>
+
+      <!-- Statut & Actions Rapides de flux -->
+      <div class="mt-2 mt-sm-0">
+        <% if (commande.etat === 'Brouillon') { %>
+          <form action="/commandes/<%= commande.id %>/valider" method="POST" class="d-inline" onsubmit="return confirm('Valider et comptabiliser ce Bon de Commande ?');">
+            <button type="submit" class="btn btn-primary btn-sm px-3 shadow-sm py-2">
+              <i class="bi bi-shield-check-fill me-1"></i> Valider & Comptabiliser (ACH)
+            </button>
+          </form>
+        <% } else if (commande.etat === 'Validé') { %>
+          <form action="/commandes/<%= commande.id %>/recevoir" method="POST" class="d-inline" onsubmit="return confirm('Enregistrer la réception complète des marchandises liées à cette commande ?');">
+            <button type="submit" class="btn btn-success btn-sm px-3 shadow-sm py-2">
+              <i class="bi bi-box-seam me-1"></i> Confirmer la Réception (Reçu)
+            </button>
+          </form>
+        <% } else { %>
+          <span class="badge bg-success-subtle text-success p-2 fs-6 rounded"><i class="bi bi-check2-all me-1"></i>Livraison Terminée</span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  
+  <!-- Fiche synthétique informative -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-info-circle text-secondary me-2"></i>Renseignements Généraux
+        </h5>
+      </div>
+      <div class="card-body" style="font-size: 0.88rem;">
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">Fournisseur</label>
+          <a href="/fournisseurs/<%= commande.fournisseur_id %>" class="fw-bold fs-6 text-primary text-decoration-none">
+            <%= commande.fournisseur.nom %>
+          </a>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">Date de livraison prévue</label>
+          <strong class="text-slate-800">
+            <% if (commande.date_livraison) { %>
+              <%= new Date(commande.date_livraison).toLocaleDateString('fr-FR') %>
+            <% } else { %>
+              Non spécifiée d'avance
+            <% } %>
+          </strong>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">Statut Workflow</label>
+          <% if (commande.etat === 'Brouillon') { %>
+            <span class="badge bg-secondary-subtle text-secondary py-1 px-2">Brouillon</span>
+          <% } else if (commande.etat === 'Validé') { %>
+            <span class="badge bg-primary-subtle text-primary py-1 px-2"><i class="bi bi-check me-1"></i>Validé</span>
+          <% } else if (commande.etat === 'Reçu') { %>
+            <span class="badge bg-success-subtle text-success py-1 px-2"><i class="bi bi-box-seam me-1"></i>Reçu / Livré</span>
+          <% } %>
+        </div>
+        <div class="mb-0">
+          <label class="text-muted d-block small mb-0">Détails / Notes additionnels</label>
+          <p class="text-muted mb-0 font-monospace" style="font-size: 0.82rem;"><%= commande.notes || '—' %></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schéma FDJ double-entrée de validation -->
+    <div class="card border-0 shadow-sm border-start border-4 <%= commande.etat !== 'Brouillon' ? 'border-primary' : 'border-secondary' %>">
+      <div class="card-body">
+        <h6 class="fw-bold text-slate-800"><i class="bi bi-file-earmark-ruled me-2 text-primary"></i>Écriture comptable OHADA</h6>
+        <p class="text-muted mb-3" style="font-size: 0.82rem;">La validation d'un bon d'achat débite le compte de charge, la TVA déductible, et crédite le compte tiers.</p>
+        
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0" style="font-size: 0.78rem;">
+            <thead class="table-light">
+              <tr>
+                <th>Compte</th>
+                <th class="text-end">Débit</th>
+                <th class="text-end">Crédit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-monospace">604 (Achat)</td>
+                <td class="text-end text-success font-monospace"><%= Number(commande.total_ht).toLocaleString('fr-FR') %></td>
+                <td class="text-end font-monospace">—</td>
+              </tr>
+              <% const calcTva = commande.total_ttc - commande.total_ht; %>
+              <% if (calcTva > 0.05) { %>
+                <tr>
+                  <td class="font-monospace">4456 (TVA Déduct.)</td>
+                  <td class="text-end text-success font-monospace"><%= Number(calcTva).toLocaleString('fr-FR') %></td>
+                  <td class="text-end font-monospace">—</td>
+                </tr>
+              <% } %>
+              <tr>
+                <td class="font-monospace">401 (Fournisseur)</td>
+                <td class="text-end font-monospace">—</td>
+                <td class="text-end text-danger font-monospace"><%= Number(commande.total_ttc).toLocaleString('fr-FR') %></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-2 text-end">
+          <% if (commande.etat !== 'Brouillon') { %>
+            <small class="badge bg-success-subtle text-success"><i class="bi bi-file-earmark-bar-graph me-1"></i>Écrite dans le Livre ACH ✔</small>
+          <% } else { %>
+            <small class="text-muted"><i class="bi bi-lock me-1"></i>En attente de validation</small>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lignes du tableau des articles du Bon de Commande -->
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-list-stars text-secondary me-2"></i>Articles Commandés
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Désignation de l'article</th>
+                <th class="text-center" style="width: 15%;">Quantité</th>
+                <th class="text-end" style="width: 25%;">Prix Unitaire</th>
+                <th class="text-end pe-4" style="width: 25%;">Total Ligne</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% commande.lignes.forEach(line => { %>
+                <tr>
+                  <td class="ps-4 text-slate-800 fw-semibold"><%= line.description %></td>
+                  <td class="text-center font-monospace"><%= line.quantite %></td>
+                  <td class="text-end font-monospace">
+                    <%= Number(line.prix_unitaire).toLocaleString('fr-FR') %> <small><%= commande.fournisseur.devise %></small>
+                  </td>
+                  <td class="text-end font-monospace fw-bold pe-4 text-slate-700">
+                    <%= Number(line.total).toLocaleString('fr-FR') %> <small><%= commande.fournisseur.devise %></small>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Récapitulatif financier -->
+        <div class="p-4 bg-light border-top border-light text-end">
+          <div class="row justify-content-end">
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-muted fw-semibold">Montant net HT :</span>
+                <strong class="font-monospace text-slate-800"><%= Number(commande.total_ht).toLocaleString('fr-FR') %> <small><%= commande.fournisseur.devise %></small></strong>
+              </div>
+              <div class="d-flex justify-content-between py-1">
+                <span class="text-muted small">TVA Déduite (19.25%) :</span>
+                <span class="font-monospace text-muted"><%= Number(calcTva).toLocaleString('fr-FR') %> <small><%= commande.fournisseur.devise %></small></span>
+              </div>
+              <div class="d-flex justify-content-between py-1 border-top border-light mt-1 pt-1">
+                <span class="text-slate-800 fw-bold">Total Général TTC :</span>
+                <strong class="font-monospace text-primary fs-5"><%= Number(commande.total_ttc).toLocaleString('fr-FR') %> <small><%= commande.fournisseur.devise %></small></strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<%- include('../partials/footer') %>

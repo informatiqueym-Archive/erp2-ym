@@ -1,0 +1,209 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/dossiers">Dossiers de Transit</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Nouveau Dossier</li>
+      </nav>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-folder-plus text-primary me-2"></i>Ouvrir un Dossier de Transit
+        </h1>
+        <p class="text-muted mb-0">Initialisez le suivi d'expédition, consignation maritime et dédouanement</p>
+      </div>
+      <div>
+        <a href="/dossiers" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-arrow-left me-1.5"></i> Retour à la Liste
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8 mx-auto">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-file-earmark-medical text-primary me-2"></i>Fiche d'enregistrement logistique
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        <form action="/dossiers/create" method="POST">
+          <!-- Client Selection -->
+          <div class="mb-3 text-start">
+            <label class="form-label small fw-semibold text-slate-700">Client / Importateur / Exportateur <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-slate-500"><i class="bi bi-person-badge-fill"></i></span>
+              <select class="form-select" name="client_id" required>
+                <option value="">-- Sélectionnez le donneur d'ordre --</option>
+                <% if (clients && clients.length > 0) { %>
+                  <% clients.forEach(cl => { %>
+                    <option value="<%= cl.id %>"><%= cl.nom %></option>
+                  <% }) %>
+                <% } %>
+              </select>
+            </div>
+            <div class="form-text text-slate-500" style="font-size: 0.75rem;">
+              Sélectionnez le client responsable des frais de dédouanement et d'acconage.
+            </div>
+          </div>
+
+          <!-- Représentant Field -->
+          <div class="mb-3 text-start">
+            <label class="form-label small fw-semibold text-slate-700">Représentant du Client / Mandataire physique (Ajustable)</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light text-slate-500"><i class="bi bi-person-video"></i></span>
+              <input type="text" class="form-control" name="representant" placeholder="Ex: M. Jean-Pierre Belinga ou Contact transitaire...">
+            </div>
+            <div class="form-text text-slate-500" style="font-size: 0.75rem;">
+              Le représentant désigné ou le mandataire physique en charge de ce dossier douanier.
+            </div>
+          </div>
+
+          <div class="row text-start">
+            <!-- Dossier Number (Auto generated but fully customizable) -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label small fw-semibold text-slate-700">N° Dossier Unique <span class="text-danger">*</span></label>
+              <% 
+                const seq = Math.floor(1000 + Math.random() * 9000); 
+                const defaultNum = `DOS-2026-${seq}`;
+              %>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-hash"></i></span>
+                <input type="text" class="form-control font-monospace" name="numero" value="<%= defaultNum %>" placeholder="Ex: DOS-2026-0001" required>
+              </div>
+              <div class="form-text text-slate-500" style="font-size: 0.75rem;">
+                Format de référence interne recommandé.
+              </div>
+            </div>
+
+            <!-- Initial State -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label small fw-semibold text-slate-700">Statut Initial <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-shield-fill-check"></i></span>
+                <select class="form-select" name="etat" required>
+                  <option value="OUVERT" selected>OUVERT / ATTENTE DOCS</option>
+                  <option value="EN_COURS">EN COURS DE TRAITEMENT</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="row text-start border-top pt-3 mt-2">
+            <!-- N° BL (Bill of Lading) - OBLIGATOIRE -->
+            <div class="col-12 mb-3">
+              <label class="form-label small fw-semibold text-slate-700">Numéro de BL / LTA / Connaissement <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-file-earmark-text-fill"></i></span>
+                <input type="text" class="form-control font-monospace" name="bl" placeholder="Ex: MSCU1234567 ou HLCU897121" required>
+              </div>
+              <div class="form-text text-danger" style="font-size: 0.72rem; font-weight: 500;">
+                <i class="bi bi-exclamation-circle-fill me-1"></i>Ce champ est obligatoire pour l'ouverture du dossier de transit.
+              </div>
+            </div>
+          </div>
+
+          <div class="row text-start border-top pt-3 mt-2">
+            <!-- Port / Customs zone -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label small fw-semibold text-slate-700">Port ou Douane cible <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-anchor"></i></span>
+                <select class="form-select" name="port" required>
+                  <option value="Port Autonome de Douala (PAD)">Port de Douala (PAD)</option>
+                  <option value="Port de Kribi (Seaport)">Port de Kribi (Seaport)</option>
+                  <option value="Aéroport International Douala">Aéroport International Douala</option>
+                  <option value="Aéroport International Yaoundé-Nsimalen">Aéroport Nsimalen (YDE)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Regime Nature -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label small fw-semibold text-slate-700">Régime Flotte / Transit <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-truck"></i></span>
+                <select class="form-select" name="nature" required>
+                  <option value="IMPORT" selected>IMPORTATION (Mise en consommation)</option>
+                  <option value="EXPORT">EXPORTATION (Envoi international)</option>
+                  <option value="TRANSIT">TRANSIT LOCAL / HINTERLAND</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Optional Transit & Customs section -->
+          <div class="border-top pt-3 mt-3 text-start">
+            <h6 class="fw-bold mb-3 font-sans text-slate-800" style="font-size: 0.9rem;">
+              <i class="bi bi-file-earmark-bar-graph text-secondary me-1.5"></i>Spécifications Douane & Conteneur (Facultatif, ajustable par la suite)
+            </h6>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-slate-700">Contenu du conteneur / Marchandises importées</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-box-seam-fill"></i></span>
+                <input type="text" class="form-control" name="contenu" placeholder="Ex: 120 cartons de matériel informatique, pièces détachées...">
+              </div>
+              <div class="form-text text-slate-500" style="font-size: 0.72rem;">Description abrégée de la marchandise ou du fret maritime.</div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label small fw-semibold text-slate-700">Valeur en douane estimée (CIF / CAF en FCFA)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light text-slate-500"><i class="bi bi-currency-exchange"></i></span>
+                  <input type="number" step="any" min="0" class="form-control" name="valeur_douane" placeholder="Ex: 15000000">
+                </div>
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label class="form-label small fw-semibold text-slate-700">Montant des droits de douane liquidés (FCFA)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light text-slate-500"><i class="bi bi-cash"></i></span>
+                  <input type="number" step="any" min="0" class="form-control" name="droits_douane" placeholder="Ex: 3500000">
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="form-check form-switch p-1 d-flex align-items-center gap-2">
+                <input class="form-check-input ms-0" type="checkbox" id="validation" name="validation" style="width: 2.22rem; height: 1.15rem; cursor: pointer;">
+                <label class="form-check-label small fw-bold text-slate-800 cursor-pointer" for="validation">
+                  <i class="bi bi-check-circle-fill text-success me-1"></i>Déclarer ce dossier d'expédition validé douane à l'ouverture
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card bg-light border-0 p-3 mt-3 text-start">
+            <div class="d-flex gap-2">
+              <i class="bi bi-info-circle-fill text-primary" style="font-size: 1.15rem;"></i>
+              <div>
+                <h6 class="mb-1 text-slate-800 fw-bold" style="font-size: 0.85rem;">Feuille de travail automatique</h6>
+                <p class="mb-0 text-slate-600 small" style="font-size: 0.8rem;">
+                  L'ouverture du dossier de transit configure par défaut les deux jalons initiaux fondamentaux de collecte documentaire et d'enregistrement Sydonia.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <a href="/dossiers" class="btn btn-outline-secondary rounded-pill px-4">Annuler</a>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center">
+              <i class="bi bi-folder-plus me-1.5"></i> Générer l'expédition
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

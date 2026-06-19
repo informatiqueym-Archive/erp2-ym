@@ -1,0 +1,253 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Suivi des Dossiers</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-folder-fill text-primary me-2"></i>Suivi des Dossiers de Transit
+        </h1>
+        <p class="text-muted mb-0">Régimes douaniers, escales maritimes et facturations de fret</p>
+      </div>
+      <div>
+        <a href="/dossiers/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3.5 shadow-sm">
+          <i class="bi bi-folder-plus me-1.5"></i> Ouvrir un Nouveau Dossier
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters & Search Bar -->
+<div class="card border-0 shadow-sm mb-4 text-start">
+  <div class="card-body p-3">
+    <div class="row g-3 align-items-center">
+      <!-- Search character-by-character -->
+      <div class="col-md-5">
+        <label class="form-label small fw-semibold text-slate-600 mb-1">
+          <i class="bi bi-search text-muted me-1"></i>Recherche instantanée (JS client-side)
+        </label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-slate-400"><i class="bi bi-funnel"></i></span>
+          <input type="text" id="js-client-search" class="form-control border-start-0" placeholder="Saisir numéro de dossier, client, port, nature...">
+        </div>
+        <div class="form-text small" style="font-size: 0.72rem;">Filtre le tableau au fur et à mesure de votre saisie.</div>
+      </div>
+
+      <!-- Server filter by status & client -->
+      <div class="col-md-7">
+        <form action="/dossiers" method="GET" class="row g-2 align-items-end">
+          <div class="col-sm-5">
+            <label class="form-label small fw-semibold text-slate-600 mb-1">Filtrer par Client</label>
+            <select name="client_id" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tous les clients</option>
+              <% if (clients && clients.length > 0) { %>
+                <% clients.forEach(c => { %>
+                  <option value="<%= c.id %>" <%= typeof selectedClientId !== 'undefined' && String(selectedClientId) === String(c.id) ? 'selected' : '' %>><%= c.nom %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label small fw-semibold text-slate-600 mb-1">Filtrer par État</label>
+            <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tous les états</option>
+              <option value="OUVERT" <%= typeof selectedEtat !== 'undefined' && selectedEtat === 'OUVERT' ? 'selected' : '' %>>OUVERT</option>
+              <option value="EN_COURS" <%= typeof selectedEtat !== 'undefined' && selectedEtat === 'EN_COURS' ? 'selected' : '' %>>EN COURS</option>
+              <option value="FIN DE TRANSIT" <%= typeof selectedEtat !== 'undefined' && selectedEtat === 'FIN DE TRANSIT' ? 'selected' : '' %>>FIN DE TRANSIT</option>
+              <option value="CLOTURE" <%= typeof selectedEtat !== 'undefined' && selectedEtat === 'CLOTURE' ? 'selected' : '' %>>CLÔTURÉ</option>
+            </select>
+          </div>
+          <div class="col-sm-3">
+            <a href="/dossiers" class="btn btn-outline-secondary btn-sm w-100 rounded">
+              Réinitialiser
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dossiers List Card -->
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-list-ul text-slate-500 me-2"></i>Registre des Dossiers de Transit (<span id="total-rows-count"><%= dossiers ? dossiers.length : 0 %></span>)
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="dossiers-table" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width: 12%;">Numéro</th>
+            <th style="width: 20%;">Client Donneur d'ordre</th>
+            <th style="width: 21%;">Contenu & Droits d'entrée</th>
+            <th style="width: 18%;">Zone Portuaire</th>
+            <th style="width: 8%;">Régime</th>
+            <th style="width: 11%;">État Logistique</th>
+            <th class="text-end pe-4" style="width: 10%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (dossiers && dossiers.length > 0) { %>
+            <% dossiers.forEach(ds => { %>
+              <tr class="dossier-tr" 
+                  data-numero="<%= ds.numero.toLowerCase() %>"
+                  data-client="<%= ds.client.nom.toLowerCase() %>"
+                  data-port="<%= ds.port.toLowerCase() %>"
+                  data-nature="<%= ds.nature.toLowerCase() %>"
+                  data-contenu="<%= ds.contenu ? ds.contenu.toLowerCase() : '' %>"
+                  data-bl="<%= ds.bl ? ds.bl.toLowerCase() : '' %>">
+                <td class="ps-4 fw-bold">
+                  <a href="/dossiers/<%= ds.id %>" class="text-decoration-none text-primary font-monospace fs-6">
+                    <i class="bi bi-folder-fill text-yellow-500 me-1.5"></i><%= ds.numero %>
+                  </a>
+                  <div class="text-xs text-slate-500 mt-1 font-monospace" style="font-weight: 500;" title="Bill of Lading / Connaissement">
+                    <i class="bi bi-file-earmark-text-fill text-secondary me-1"></i>BL: <%= ds.bl || 'N/A' %>
+                  </div>
+                </td>
+                <td>
+                  <div class="fw-bold text-slate-800"><%= ds.client.nom %></div>
+                  <div class="text-xs text-slate-500 font-monospace">N.I.U : <%= ds.client.niu || 'NR' %></div>
+                </td>
+                <td>
+                  <div class="small fw-semibold text-dark mb-0.5 text-truncate" style="max-width: 170px;" title="<%= ds.contenu || 'Non spécifié' %>">
+                    <i class="bi bi-box-seam text-slate-400 me-1"></i><%= ds.contenu || 'Cargaison non définie' %>
+                  </div>
+                  <div class="text-xs text-muted">
+                    Droits: <strong class="text-slate-700 font-monospace"><%= ds.droits_douane ? ds.droits_douane.toLocaleString('fr-FR') : '0' %></strong> FCFA
+                  </div>
+                  <div class="mt-1">
+                    <% if (ds.validation) { %>
+                      <span class="badge bg-success-subtle text-success py-0.5 px-2 rounded-pill font-sans" style="font-size: 0.68rem;">
+                        <i class="bi bi-shield-fill-check"></i> VALIDÉ DOUANE
+                      </span>
+                    <% } else { %>
+                      <span class="badge bg-warning-subtle text-warning-emphasis py-0.5 px-2 rounded-pill font-sans" style="font-size: 0.68rem;">
+                        <i class="bi bi-hourglass-split"></i> ATTENTE
+                      </span>
+                    <% } %>
+                  </div>
+                </td>
+                <td>
+                  <span class="small text-slate-700 bg-light p-1.5 rounded-3 d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-geo-alt-fill text-slate-400"></i><%= ds.port %>
+                  </span>
+                </td>
+                <td>
+                  <% if (ds.nature === 'IMPORT') { %>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-sans text-xs">IMPORT</span>
+                  <% } else if (ds.nature === 'EXPORT') { %>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle font-sans text-xs">EXPORT</span>
+                  <% } else { %>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-sans text-xs">TRANSIT</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (ds.etat === 'CLOTURE') { %>
+                    <span class="badge bg-success text-white py-1 px-2.5 rounded-pill text-xs">
+                      <i class="bi bi-lock-fill"></i> CLÔTURÉ
+                    </span>
+                  <% } else if (ds.etat === 'FIN DE TRANSIT') { %>
+                    <span class="badge bg-info text-dark py-1 px-2.5 rounded-pill text-xs">
+                      <i class="bi bi-check-circle-fill"></i> FIN TRANSIT
+                    </span>
+                  <% } else if (ds.etat === 'EN_COURS') { %>
+                    <span class="badge bg-warning text-dark py-1 px-2.5 rounded-pill text-xs">
+                      <i class="bi bi-arrow-repeat animate-spin"></i> EN COURS
+                    </span>
+                  <% } else { %>
+                    <span class="badge bg-secondary text-white py-1 px-2.5 rounded-pill text-xs">
+                      <i class="bi bi-folder-fill"></i> OUVERT
+                    </span>
+                  <% } %>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="d-inline-flex gap-1">
+                    <a href="/dossiers/<%= ds.id %>" class="btn btn-outline-primary btn-sm rounded-circle p-1.5" title="Gérer la fiche détaillée">
+                      <i class="bi bi-gear-fill" style="font-size: 0.85rem;"></i>
+                    </a>
+                    <form action="/dossiers/delete/<%= ds.id %>" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce dossier et toutes ses données rattachées ?');">
+                      <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle p-1.5" title="Supprimer">
+                        <i class="bi bi-trash-fill" style="font-size: 0.85rem;"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr id="empty-row-fallback">
+              <td colspan="6" class="text-center text-muted py-5">
+                <i class="bi bi-folder2 display-3 text-slate-300 d-block mb-3"></i>
+                Aucun dossier enregistré pour ce filtre.
+                <p class="small mb-0">Créez un nouveau dossier pour commencer le suivi douanier.</p>
+              </td>
+            </tr>
+          <% } %>
+          <!-- No results row when filtering client-side -->
+          <tr id="no-js-results" style="display: none;">
+            <td colspan="6" class="text-center text-muted py-5">
+              <i class="bi bi-search display-3 text-slate-300 d-block mb-3"></i>
+              Aucun dossier ne correspond à votre recherche.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const searchInput = document.getElementById("js-client-search");
+  const rows = document.querySelectorAll(".dossier-tr");
+  const fallbackEmpty = document.getElementById("empty-row-fallback");
+  const fallbackNoResults = document.getElementById("no-js-results");
+  const counterSpan = document.getElementById("total-rows-count");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", function() {
+      const q = this.value.trim().toLowerCase();
+      let visibleCount = 0;
+
+      rows.forEach(function(row) {
+        const num = row.getAttribute("data-numero") || "";
+        const client = row.getAttribute("data-client") || "";
+        const port = row.getAttribute("data-port") || "";
+        const nature = row.getAttribute("data-nature") || "";
+        const contenu = row.getAttribute("data-contenu") || "";
+        const bl = row.getAttribute("data-bl") || "";
+
+        if (num.indexOf(q) !== -1 || client.indexOf(q) !== -1 || port.indexOf(q) !== -1 || nature.indexOf(q) !== -1 || contenu.indexOf(q) !== -1 || bl.indexOf(q) !== -1) {
+          row.style.display = "";
+          visibleCount++;
+        } else {
+          row.style.display = "none";
+        }
+      });
+
+      // Show/Hide fallback for search issues
+      if (counterSpan) {
+        counterSpan.textContent = visibleCount;
+      }
+
+      if (visibleCount === 0 && rows.length > 0) {
+        if (fallbackNoResults) fallbackNoResults.style.display = "";
+      } else {
+        if (fallbackNoResults) fallbackNoResults.style.display = "none";
+      }
+    });
+  }
+});
+</script>
+
+<%- include('../partials/footer') %>

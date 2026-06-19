@@ -1,0 +1,67 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-journal-text text-primary me-2"></i>Notes d'Activités & Traces de Sécurité</h1>
+    <p class="text-muted mb-0">Registre d'audit pour le transit logistique autonome (Cameroun).</p>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <span class="text-dark"><i class="bi bi-shield-shaded me-1"></i> Traces d'activités certifiées</span>
+    <span class="text-xs text-muted">Affiche les dernières actions logistiques enregistrées</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width: 10%;">ID Trace</th>
+            <th style="width: 20%;">Horodatage précis</th>
+            <th style="width: 20%;">Opérateur</th>
+            <th style="width: 15%;">Rôle Utilisateur</th>
+            <th style="width: 20%;">Opération effectuée</th>
+            <th style="width: 15%;">Entité affectée</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (logs && logs.length > 0) { %>
+            <% logs.forEach(log => { %>
+              <tr>
+                <td class="ps-4 font-monospace text-muted">LOG-<%= log.id %></td>
+                <td class="font-monospace">
+                  <%= new Date(log.created_at).toLocaleString('fr-FR') %>
+                </td>
+                <td class="fw-semibold text-slate-800">
+                  <%= log.user.nom %>
+                </td>
+                <td>
+                  <% if (log.user.role === 'ADMIN') { %>
+                    <span class="badge bg-danger text-xs px-2"><%= log.user.role %></span>
+                  <% } else if (log.user.role === 'COMPTABLE') { %>
+                    <span class="badge bg-success text-xs px-2"><%= log.user.role %></span>
+                  <% } else { %>
+                    <span class="badge bg-primary text-xs px-2"><%= log.user.role %></span>
+                  <% } %>
+                </td>
+                <td>
+                  <span class="badge bg-secondary-subtle text-secondary font-monospace py-1 px-2"><%= log.action %></span>
+                </td>
+                <td>
+                  <strong class="text-slate-700"><%= log.entity %></strong> <small class="text-muted font-monospace">#<%= log.entity_id || 'N/A' %></small>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">Aucune trace d'activité enregistrée pour l'instant.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

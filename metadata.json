@@ -1,0 +1,6 @@
+{
+  "name": "YM-TRANSIT ERP",
+  "description": "Système ERP de transit et de logistique (Transit/Freight Forwarding) pour entreprises camerounaises. Gestion des dossiers, clients, tâches, factures, encaissements et stocks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

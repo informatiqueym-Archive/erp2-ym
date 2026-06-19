@@ -1,0 +1,84 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 text-start">
+  <div class="col-12">
+    <a href="/fournisseurs" class="text-primary text-decoration-none fw-semibold mb-2 d-inline-block">
+      <i class="bi bi-arrow-left me-1"></i> Retour au registre
+    </a>
+    <h1 class="h3 text-slate-800"><i class="bi bi-pencil-square text-primary me-2"></i>Modifier le Fournisseur</h1>
+    <p class="text-muted">Ajustez les mentions légales ou les coordonnées de contact pour <%= fournisseur.nom %>.</p>
+  </div>
+</div>
+
+<div class="row text-start justify-content-center">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;"><i class="bi bi-gear-wide-connected text-secondary me-2"></i>Fiche Signalétique</h5>
+      </div>
+      <div class="card-body py-4">
+        <form action="/fournisseurs/edit/<%= fournisseur.id %>" method="POST">
+          <div class="row g-3">
+            
+            <div class="col-md-12">
+              <label class="form-label text-slate-700 fw-semibold">Raison Sociale / Nom Complet <strong class="text-danger">*</strong></label>
+              <input type="text" name="nom" class="form-control" value="<%= fournisseur.nom %>" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label text-slate-700 fw-semibold">Numéro d'Identifiant Unique (NIU)</label>
+              <input type="text" name="niu" class="form-control" value="<%= fournisseur.niu || '' %>" placeholder="Ex: M010200021345F">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label text-slate-700 fw-semibold">Registre de Commerce (RCCM)</label>
+              <input type="text" name="rccm" class="form-control" value="<%= fournisseur.rccm || '' %>" placeholder="Ex: RC/DLA/2026/B/882">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label text-slate-700 fw-semibold">Adresse Électronique (Email)</label>
+              <input type="email" name="email" class="form-control" value="<%= fournisseur.email || '' %>" placeholder="Ex: contact@etsfoula.cm">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label text-slate-700 fw-semibold">Numéro de Téléphone</label>
+              <input type="tel" name="tel" class="form-control" value="<%= fournisseur.tel || '' %>" placeholder="Ex: +237 699 999 999">
+            </div>
+
+            <div class="col-md-5">
+              <label class="form-label text-slate-700 fw-semibold">Adresse d'exploitation / Bureau</label>
+              <input type="text" name="adresse" class="form-control" value="<%= fournisseur.adresse || '' %>" placeholder="Ex: Rue Akwa, Douala">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label text-slate-700 fw-semibold">Devise Transactionnelle</label>
+              <select name="devise" class="form-select">
+                <option value="FCFA" <%= fournisseur.devise === 'FCFA' ? 'selected' : '' %>>FCFA</option>
+                <option value="EUR" <%= fournisseur.devise === 'EUR' ? 'selected' : '' %>>EUR</option>
+                <option value="USD" <%= fournisseur.devise === 'USD' ? 'selected' : '' %>>USD</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label text-slate-700 fw-semibold">Statut d'Activité</label>
+              <select name="actif" class="form-select">
+                <option value="true" <%= fournisseur.actif ? 'selected' : '' %>>Actif (Autorisé)</option>
+                <option value="false" <%= !fournisseur.actif ? 'selected' : '' %>>Inactif (Verrouillé)</option>
+              </select>
+            </div>
+
+            <div class="col-12 mt-4 pt-3 border-top border-light text-end">
+              <a href="/fournisseurs" class="btn btn-outline-secondary btn-sm px-3 py-2 me-2">Annuler</a>
+              <button type="submit" class="btn btn-primary btn-sm px-4 py-2">
+                <i class="bi bi-check-circle me-1"></i> Enregistrer les Modifications
+              </button>
+            </div>
+
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

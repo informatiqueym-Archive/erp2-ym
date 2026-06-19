@@ -1,0 +1,96 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/taches">Tâches</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Assigner une tâche</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-calendar-plus text-primary me-2"></i>Nouvelle Tâche Douanière / Logistique
+        </h1>
+        <p class="text-muted mb-0">Planification des opérations de transit et affectation aux agents de terrain</p>
+      </div>
+      <div>
+        <a href="/taches" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-chevron-left me-1"></i> Retour au Tableau Kanban
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 justify-content-start text-start">
+  <div class="col-xl-8 col-lg-10">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-0">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;"><i class="bi bi-file-earmark-text text-primary me-2"></i>Détails de l'Assignation</h5>
+      </div>
+      <div class="card-body bg-white pt-1">
+        <form action="/taches/create" method="POST" class="row g-3">
+          
+          <!-- Dossier de Transit -->
+          <div class="col-md-6">
+            <label for="dossier_id" class="form-label small fw-semibold text-secondary">Associer au Dossier de Transit <span class="text-danger">*</span></label>
+            <select name="dossier_id" id="dossier_id" class="form-select" required>
+              <option value="">-- Choisissez le dossier ciblé --</option>
+              <% if (dossiers && dossiers.length > 0) { %>
+                <% dossiers.forEach(ds => { %>
+                  <option value="<%= ds.id %>">
+                    <%= ds.numero %> - Port: <%= ds.port %> (<%= ds.nature %>)
+                  </option>
+                <% }) %>
+              <% } %>
+            </select>
+            <div class="form-text small" style="font-size: 0.75rem;">Sélectionnez le dossier commercial ou douanier concerné.</div>
+          </div>
+
+          <!-- Agent / Intervenant -->
+          <div class="col-md-6">
+            <label for="intervenant_id" class="form-label small fw-semibold text-secondary">Assigner à un Agent de Terrain</label>
+            <select name="intervenant_id" id="intervenant_id" class="form-select">
+              <option value="">-- Non assigné (Peut être pris en charge plus tard) --</option>
+              <% if (agents && agents.length > 0) { %>
+                <% agents.forEach(ag => { %>
+                  <option value="<%= ag.id %>" <%= (req && req.session && req.session.userId === ag.id) ? 'selected' : '' %>>
+                    <%= ag.nom %> (<%= ag.role %>)
+                  </option>
+                <% }) %>
+              <% } %>
+            </select>
+            <div class="form-text small" style="font-size: 0.75rem;">L'utilisateur verra instantanément cette tâche dans son espace "Mes tâches".</div>
+          </div>
+
+          <!-- Titre / Action requise -->
+          <div class="col-12">
+            <label for="titre" class="form-label small fw-semibold text-secondary">Action ou étape logistique requise <span class="text-danger">*</span></label>
+            <input type="text" name="titre" id="titre" class="form-control" placeholder="Ex: Retrait de l'attestation de non-redevance, Passage au scanner PAD..." required>
+            <div class="form-text small" style="font-size: 0.75rem;">Intitulé simple de la démarche de transit à mener.</div>
+          </div>
+
+          <!-- Observations / Description complémentaire -->
+          <div class="col-12">
+            <label for="observations" class="form-label small fw-semibold text-secondary">Observations, contraintes ou consignes particulières</label>
+            <textarea name="observations" id="observations" rows="5" class="form-control" placeholder="Ajouter des précisions sur les bureaux, contacts douaniers, documents nécessaires..."></textarea>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="col-12 d-flex justify-content-end gap-2 border-top pt-3 mt-4">
+            <a href="/taches" class="btn btn-outline-secondary px-4 rounded-pill">Annuler</a>
+            <button type="submit" class="btn btn-primary px-4 rounded-pill d-inline-flex align-items-center">
+              <i class="bi bi-check-circle-fill me-2"></i> Créer et Assigner
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

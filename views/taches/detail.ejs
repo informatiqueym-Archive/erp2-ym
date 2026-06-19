@@ -1,0 +1,827 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/taches">Tâches</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Fiche de discussion</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-chat-left-text-fill text-primary me-2"></i>Espace de discussion & Suivi Étape
+        </h1>
+        <p class="text-muted mb-0">Commentez, pinnez l'étape suivante et taguez l'équipe pour ne rater aucune information</p>
+      </div>
+      <div>
+        <a href="/taches" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-chevron-left me-1"></i> Retour au Tableau Kanban
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%
+  const getInitials = (name) => {
+    if (!name) return "U";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, Math.min(2, name.length)).toUpperCase();
+  };
+
+  const colors = [
+    'background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;',
+    'background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;',
+    'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;',
+    'background-color: #ecfeff; color: #155e75; border: 1px solid #a5f3fc;',
+    'background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;',
+    'background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff;',
+    'background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;'
+  ];
+  const getColorStyle = (userId) => colors[userId % colors.length];
+
+  const formatCommentWithMentions = (text) => {
+    let escaped = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+    
+    return escaped.replace(/@([A-Za-zÀ-ÿ0-9_.-]+)/g, '<span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2 rounded-all font-sans" style="font-weight: 500; font-size: 0.8rem; border-radius: 50px;"><i class="bi bi-person-fill text-primary" style="font-size: 0.72rem;"></i> @$1</span>');
+  };
+
+  // Find if there is a pinned comment
+  const pinnedComment = tache.comments ? tache.comments.find(c => c.is_next_step) : null;
+%>
+
+<!-- STICKY TOP BANNER FOR PINNED COMMENT -->
+<div id="pinned-banner-container">
+  <% if (pinnedComment) { %>
+    <div class="alert alert-success border-0 shadow-sm d-flex align-items-start gap-2 py-3 px-4 mb-4 rounded-3 text-start transition-all" style="background-color: #ecfdf5; border-left: 5px solid #10b981 !important;">
+      <span class="fs-4 mt-0.5" id="pinned-banner-icon">📌</span>
+      <div class="flex-grow-1">
+        <small class="text-uppercase fw-bold text-success d-block mb-1 font-sans" style="font-size: 0.72rem; letter-spacing: 0.05em;">Prochaine Étape</small>
+        <div class="text-slate-800 d-block fs-6 font-sans" style="font-weight: 600;" id="pinned-banner-content">
+          <%- formatCommentWithMentions(pinnedComment.contenu) %>
+        </div>
+        <span class="text-muted text-xs font-monospace">
+          Défini par <strong id="pinned-banner-user"><%= pinnedComment.user.nom %></strong> - <span class="time-relative" id="pinned-banner-time"><%= timeAgo(pinnedComment.created_at) %></span>
+        </span>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<div class="row g-4 text-start">
+  
+  <!-- Left Side: Task Summary and Details -->
+  <div class="col-lg-4 col-md-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-info-circle-fill text-slate-400 me-2"></i>Fiche d'Étape
+        </h5>
+      </div>
+      <div class="card-body bg-white font-sans">
+        
+        <!-- Associative Folder info -->
+        <div class="mb-3">
+          <span class="text-xs text-uppercase text-muted d-block mb-1">Dossier de Transit</span>
+          <% if (tache.dossier) { %>
+            <a href="/dossiers/<%= tache.dossier.id %>" class="btn btn-light btn-sm text-primary font-monospace fw-bold text-decoration-none border border-light-subtle w-full text-start py-2 d-flex align-items-center justify-content-between">
+              <span>
+                <i class="bi bi-folder2-open text-warning-emphasis me-1.5"></i><%= tache.dossier.numero %>
+              </span>
+              <i class="bi bi-chevron-right text-muted" style="font-size: 0.75rem;"></i>
+            </a>
+          <% } else { %>
+            <span class="text-slate-800 font-monospace">Aucun dossier associé</span>
+          <% } %>
+        </div>
+
+        <div class="mb-3">
+          <span class="text-xs text-uppercase text-muted d-block mb-1">Titre de la tâche</span>
+          <h5 class="text-slate-800 fw-bold" style="font-size: 1.05rem;"><%= tache.titre %></h5>
+        </div>
+
+        <div class="mb-3">
+          <span class="text-xs text-uppercase text-muted d-block mb-1">Responsable</span>
+          <% if (tache.intervenant) { %>
+            <span class="badge rounded bg-slate-100 text-slate-800 border py-1.5 px-2 px-md-3 font-sans" style="font-size: 0.8rem;">
+              <i class="bi bi-person text-slate-500"></i> <%= tache.intervenant.nom %> (<%= tache.intervenant.role %>)
+            </span>
+          <% } else { %>
+            <span class="badge rounded bg-light text-muted border py-1.5 px-2 font-sans" style="font-size: 0.8rem;">
+              <i class="bi bi-person-dash text-slate-400"></i> Non assigné
+            </span>
+          <% } %>
+        </div>
+
+        <div class="mb-3">
+          <span class="text-xs text-uppercase text-muted d-block mb-1">Statut Logistique</span>
+          <% 
+            const isDone = tache.etat.toUpperCase() === 'FAIT' || tache.etat.toUpperCase() === 'TERMINE'; 
+            const isWaiting = tache.etat.toUpperCase() === 'ATTENTE_VALIDATION';
+          %>
+          <% if (isDone) { %>
+            <span class="badge bg-success py-1.5 px-3 rounded-pill text-xs">
+              <i class="bi bi-check-circle-fill me-1"></i> VALIDÉ / REUSSI
+            </span>
+          <% } else if (isWaiting) { %>
+            <span class="badge bg-warning text-dark py-1.5 px-3 rounded-pill text-xs">
+              <i class="bi bi-hourglass-split me-1"></i> ATTENTE VALIDATION
+            </span>
+          <% } else { %>
+            <span class="badge bg-primary py-1.5 px-3 rounded-pill text-xs">
+              <i class="bi bi-play-circle-fill me-1"></i> EN COURS
+            </span>
+          <% } %>
+        </div>
+
+        <% if (tache.observations) { %>
+          <div class="mb-3 border-top pt-2.5">
+            <span class="text-xs text-uppercase text-muted d-block mb-1">Réf / Observations</span>
+            <p class="text-slate-600 small bg-light p-2 rounded mb-0 text-break font-monospace" style="font-size: 0.8rem;">
+              <%= tache.observations %>
+            </p>
+          </div>
+        <% } %>
+
+        <div class="border-top pt-3 mt-3">
+          <span class="text-xs text-uppercase text-muted d-block mb-2">Sous-étapes de dédouanement</span>
+          <div id="subtasks-container">
+            <% if (tache.subtasks && tache.subtasks.length > 0) { %>
+              <% tache.subtasks.forEach(s => { %>
+                <div class="d-flex align-items-center justify-content-between mb-2 text-xs py-1 px-2 rounded hover-bg-light border border-light-subtle">
+                  <label class="d-inline-flex align-items-center mb-0 gap-2 cursor-pointer text-slate-800" style="word-break: break-all;">
+                    <input class="form-check-input subtask-toggle" type="checkbox" data-sub-id="<%= s.id %>" <%= s.fait ? 'checked' : '' %> style="cursor: pointer;">
+                    <span class="<%= s.fait ? 'text-decoration-line-through text-muted' : '' %>" id="subtask-text-<%= s.id %>"><%= s.titre %></span>
+                  </label>
+                  <button class="btn btn-link btn-xs p-0 text-danger border-0 delete-subtask-btn" data-sub-id="<%= s.id %>" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="text-muted text-xs italic">Aucune sous-étape enregistrée.</div>
+            <% } %>
+          </div>
+          
+          <form id="add-subtask-form" class="mt-2.5">
+            <div class="input-group">
+              <input type="text" class="form-control form-control-sm" id="subtask-input" placeholder="Ajouter sous-étape..." required>
+              <button class="btn btn-primary btn-sm" type="submit">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Discussion & Conversation thread -->
+  <div class="col-lg-8 col-md-7">
+    <div class="card border-0 shadow-sm h-100 d-flex flex-column" style="min-height: 550px;">
+      <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-chat-left-dots-fill text-primary me-2"></i>Fil de Discussion (<span id="comment-count"><%= tache.comments ? tache.comments.length : 0 %></span>)
+        </h5>
+        <span class="badge bg-light text-slate-500 border rounded-pill">Temps réel</span>
+      </div>
+
+      <!-- Comments Thread View -->
+      <div class="card-body bg-light-subtle flex-grow-1 p-3" id="comments-thread-container" style="max-height: 500px; overflow-y: auto;">
+        <div class="d-flex flex-column gap-3" id="comments-list">
+          <% if (tache.comments && tache.comments.length > 0) { %>
+            <% tache.comments.forEach(comment => { %>
+              <div class="card border-0 shadow-sm p-3 text-start comment-card transition-all position-relative" 
+                   id="comment-<%= comment.id %>"
+                   style="border-radius: 12px; <%= comment.is_next_step ? 'border-left: 4px solid #10b981 !important; background-color: #f0fdf4;' : '' %>">
+                
+                <div class="d-flex align-items-start gap-2.5">
+                  
+                  <!-- User Avatar with colored initials -->
+                  <div class="avatar-circle rounded-circle d-flex align-items-center justify-content-center fw-bold text-xs flex-shrink-0" 
+                       style="width: 38px; height: 38px; font-size: 0.82rem; <%= getColorStyle(comment.user_id) %>">
+                    <%= getInitials(comment.user.nom) %>
+                  </div>
+                  
+                  <!-- Comment layout -->
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                      <div>
+                        <strong class="text-slate-800 text-sm font-sans"><%= comment.user.nom %></strong>
+                        <span class="text-muted text-xs ms-1.5 font-monospace" title="<%= comment.created_at %>">
+                          <%= timeAgo(comment.created_at) %>
+                        </span>
+                        <% if (comment.is_next_step) { %>
+                          <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-sans ms-1.5" style="font-size: 0.68rem;" id="badge-next-step-<%= comment.id %>">
+                            📌 PROCHAINE ÉTAPE
+                          </span>
+                        <% } %>
+                      </div>
+
+                      <!-- Control Actions -->
+                      <div class="d-flex align-items-center gap-1.5">
+                        
+                        <!-- Pin button -->
+                        <button class="btn btn-link btn-xs p-1 text-slate-400 hover:text-success border-0 pin-comment-btn" 
+                                data-cid="<%= comment.id %>"
+                                title='Définir comme "Prochaine étape"'>
+                          <i class="bi <%= comment.is_next_step ? 'bi-pin-angle-fill text-success' : 'bi-pin-angle' %>" style="font-size: 1rem;"></i>
+                        </button>
+
+                        <!-- Delete button (only if owner or admin) -->
+                        <% if (user && (user.id === comment.user_id || user.role === 'ADMIN')) { %>
+                          <button class="btn btn-link btn-xs p-1 text-slate-400 hover:text-danger border-0 delete-comment-btn" 
+                                  data-cid="<%= comment.id %>"
+                                  title="Supprimer ce commentaire">
+                            <i class="bi bi-trash" style="font-size: 0.95rem;"></i>
+                          </button>
+                        <% } %>
+                      </div>
+                    </div>
+
+                    <!-- Inner comment text body -->
+                    <p class="text-slate-700 text-sm mb-0 text-break font-sans lh-base">
+                      <%- formatCommentWithMentions(comment.contenu) %>
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center py-5 text-muted font-sans" id="no-comments-msg">
+              <i class="bi bi-chat-left text-slate-300 d-block fs-1 mb-2"></i>
+              <p class="mb-0">Aucun commentaire sur cette étape pour l'instant.</p>
+              <small class="text-slate-400">Soyez le premier à poser une question ou définir une étape suivante !</small>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Comment Entry Block with Autocomplete dropdown -->
+      <div class="card-footer bg-white border-top p-3 position-relative">
+        
+        <!-- AUTOCOMPLETE DROPDOWN Container -->
+        <div id="mention-autocomplete-dropdown" class="list-group shadow position-absolute d-none" 
+             style="bottom: 100%; left: 1rem; width: 280px; max-height: 200px; overflow-y: auto; z-index: 1050; border-radius: 8px;">
+          <!-- Populated in JS -->
+        </div>
+
+        <form id="comment-form">
+          <div class="mb-2 position-relative">
+            <textarea class="form-control font-sans" 
+                      id="comment-textarea" 
+                      rows="3" 
+                      placeholder="Écrivez un commentaire... Utilisez @ pour notifier un membre de l'équipe"
+                      style="font-size: 0.9rem; border-radius: 8px;" 
+                      required></textarea>
+            <div class="form-text text-muted text-xs d-flex align-items-center justify-content-between mt-1">
+              <span>Saisissez <code class="bg-light px-1 font-monospace text-primary">@</code> pour les suggestions d'utilisateurs.</span>
+              <span id="char-indicator" class="font-monospace"></span>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2.5">
+            <div class="form-check form-switch d-flex align-items-center gap-2">
+              <input class="form-check-input ms-0" type="checkbox" id="mark_next_step" style="width: 2rem; height: 1rem; cursor: pointer;">
+              <label class="form-check-label small fw-bold text-slate-700 cursor-pointer" for="mark_next_step">
+                📌 Marquer comme "Prochaine étape" du dossier
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm px-4 rounded-pill d-flex align-items-center gap-1.5 shadow-sm">
+              <span>Envoyer</span> <i class="bi bi-send-fill" style="font-size: 0.8rem;"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const taskId = <%= tache.id %>;
+  const currentUserId = <%= user ? user.id : 0 %>;
+  const currentUserRole = "<%= user ? user.role : '' %>";
+  
+  // Clean, loaded users array for autocomplete selection
+  const allUsers = <%- JSON.stringify(allUsers) %>;
+  
+  const textarea = document.getElementById("comment-textarea");
+  const form = document.getElementById("comment-form");
+  const checkboxNextStep = document.getElementById("mark_next_step");
+  const commentsList = document.getElementById("comments-list");
+  const commentsContainer = document.getElementById("comments-thread-container");
+  const noCommentsMsg = document.getElementById("no-comments-msg");
+  const commentCountEl = document.getElementById("comment-count");
+  const autocompleteContainer = document.getElementById("mention-autocomplete-dropdown");
+  const pinnedBannerContainer = document.getElementById("pinned-banner-container");
+
+  // Format mentions helper in JavaScript dynamically on append
+  function jsFormatMentions(text) {
+    // Escape HTML to prevent XSS
+    const div = document.createElement("div");
+    div.innerText = text;
+    let escaped = div.innerHTML;
+    
+    // Replace @name with HTML badge
+    return escaped.replace(/@([A-Za-zÀ-ÿ0-9_.-]+)/g, '<span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2 rounded-all font-sans" style="font-weight: 500; font-size: 0.8rem; border-radius: 50px;"><i class="bi bi-person-fill text-primary" style="font-size: 0.72rem;"></i> @$1</span>');
+  }
+
+  // Soft avatar backgrounds list matching server colors range
+  const colorsList = [
+    'background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;',
+    'background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;',
+    'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;',
+    'background-color: #ecfeff; color: #155e75; border: 1px solid #a5f3fc;',
+    'background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;',
+    'background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff;',
+    'background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;'
+  ];
+  function getColorStyleForUser(uid) {
+    return colorsList[uid % colorsList.length];
+  }
+  function getInitialsFromNom(name) {
+    if (!name) return "U";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, Math.min(2, name.length)).toUpperCase();
+  }
+
+  // Scroll to bottom of comments thread at start
+  commentsContainer.scrollTop = commentsContainer.scrollHeight;
+
+  // ----------------------------------------------------
+  // COMMENT SUBMISSION (fetch post with JSON format, no-reload)
+  // ----------------------------------------------------
+  form.addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const commentText = textarea.value.trim();
+    if (!commentText) return;
+
+    const isNextStep = checkboxNextStep.checked;
+
+    try {
+      const response = await fetch(`/taches/${taskId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contenu: commentText,
+          is_next_step: isNextStep
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        alert(result.message || "Erreur de publication du commentaire.");
+        return;
+      }
+
+      // Hide empty state if first comment
+      if (noCommentsMsg) {
+        noCommentsMsg.remove();
+      }
+
+      // If user marked as next step, clear previous client-side green borders/badges
+      if (isNextStep) {
+        // Reset all client comments to standard state
+        const allComments = document.querySelectorAll(".comment-card");
+        allComments.forEach(card => {
+          card.style.borderLeft = "";
+          card.style.backgroundColor = "";
+          const badge = card.querySelector(".badge[id^='badge-next-step-']");
+          if (badge) badge.remove();
+          
+          const pinBtnIcon = card.querySelector(".pin-comment-btn i");
+          if (pinBtnIcon) {
+            pinBtnIcon.className = "bi bi-pin-angle";
+          }
+        });
+
+        // Update the Green Pinned banner at the top of the entire page
+        pinnedBannerContainer.innerHTML = `
+          <div class="alert alert-success border-0 shadow-sm d-flex align-items-start gap-2 py-3 px-4 mb-4 rounded-3 text-start transition-all animate__animated animate__fadeIn" style="background-color: #ecfdf5; border-left: 5px solid #10b981 !important;">
+            <span class="fs-4 mt-0.5">📌</span>
+            <div class="flex-grow-1">
+              <small class="text-uppercase fw-bold text-success d-block mb-1 font-sans" style="font-size: 0.72rem; letter-spacing: 0.05em;">Prochaine Étape</small>
+              <div class="text-slate-800 d-block fs-6 font-sans" style="font-weight: 600;">
+                ${jsFormatMentions(result.contenu)}
+              </div>
+              <span class="text-muted text-xs font-monospace">
+                Défini par <strong>${result.user_nom}</strong> - <span class="time-relative">il y a quelques secondes</span>
+              </span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Structure and prepend new comment EJS equivalent HTML
+      const commentCardId = `comment-${result.id}`;
+      const userStyle = getColorStyleForUser(currentUserId);
+      const userInitials = getInitialsFromNom(result.user_nom);
+      
+      const pinIconClass = result.is_next_step ? 'bi-pin-angle-fill text-success' : 'bi-pin-angle';
+      const isNextStepBorder = result.is_next_step ? 'border-left: 4px solid #10b981 !important; background-color: #f0fdf4;' : '';
+      const nextStepBadge = result.is_next_step ? `
+        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-sans ms-1.5" style="font-size: 0.68rem;" id="badge-next-step-${result.id}">
+          📌 PROCHAINE ÉTAPE
+        </span>
+      ` : '';
+
+      const commentHTML = `
+        <div class="card border-0 shadow-sm p-3 text-start comment-card transition-all position-relative" 
+             id="${commentCardId}"
+             style="border-radius: 12px; ${isNextStepBorder}">
+          <div class="d-flex align-items-start gap-2.5">
+            <div class="avatar-circle rounded-circle d-flex align-items-center justify-content-center fw-bold text-xs flex-shrink-0" 
+                 style="width: 38px; height: 38px; font-size: 0.82rem; ${userStyle}">
+              ${userInitials}
+            </div>
+            
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                <div>
+                  <strong class="text-slate-800 text-sm font-sans">${result.user_nom}</strong>
+                  <span class="text-muted text-xs ms-1.5 font-monospace">
+                    il y a quelques secondes
+                  </span>
+                  ${nextStepBadge}
+                </div>
+                
+                <div class="d-flex align-items-center gap-1.5">
+                  <button class="btn btn-link btn-xs p-1 text-slate-400 hover:text-success border-0 pin-comment-btn" 
+                          data-cid="${result.id}"
+                          title='Définir comme "Prochaine étape"'>
+                    <i class="bi ${pinIconClass}" style="font-size: 1rem;"></i>
+                  </button>
+                  
+                  <button class="btn btn-link btn-xs p-1 text-slate-400 hover:text-danger border-0 delete-comment-btn" 
+                          data-cid="${result.id}"
+                          title="Supprimer ce commentaire">
+                    <i class="bi bi-trash" style="font-size: 0.95rem;"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <p class="text-slate-700 text-sm mb-0 text-break font-sans lh-base">
+                ${jsFormatMentions(result.contenu)}
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Prepend to top of discussion thread
+      commentsList.insertAdjacentHTML("afterbegin", commentHTML);
+
+      // Reset form variables
+      textarea.value = "";
+      checkboxNextStep.checked = false;
+
+      // Update counters
+      const currentCount = parseInt(commentCountEl.textContent || "0");
+      commentCountEl.textContent = currentCount + 1;
+
+      // Scroll to view the newly added comment at the top
+      commentsContainer.scrollTop = 0;
+
+    } catch (error) {
+      console.error(error);
+      alert("Une erreur technique est survenue.");
+    }
+  });
+
+  // ----------------------------------------------------
+  // PINNING & DELETING INTERACTIONS (Event delegation)
+  // ----------------------------------------------------
+  commentsList.addEventListener("click", async function(e) {
+    // 1. PIN COMMENT Action
+    const pinBtn = e.target.closest(".pin-comment-btn");
+    if (pinBtn) {
+      const commentId = pinBtn.getAttribute("data-cid");
+      try {
+        const response = await fetch(`/taches/${taskId}/comments/${commentId}/pin`, {
+          method: "PATCH"
+        });
+        const result = await response.json();
+        
+        if (response.ok) {
+          // Success: simply reload the page to refresh banners and styles instantly and cleanly
+          window.location.reload();
+        } else {
+          alert(result.message || "Erreur d'épinglage.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      return;
+    }
+
+    // 2. DELETE COMMENT Action
+    const deleteBtn = e.target.closest(".delete-comment-btn");
+    if (deleteBtn) {
+      const commentId = deleteBtn.getAttribute("data-cid");
+      if (!confirm("Voulez-vous vraiment supprimer ce commentaire ?")) return;
+
+      try {
+        const response = await fetch(`/taches/${taskId}/comments/${commentId}`, {
+          method: "DELETE"
+        });
+        const result = await response.json();
+        
+        if (response.ok) {
+          const commentCard = document.getElementById(`comment-${commentId}`);
+          if (commentCard) {
+            commentCard.className += " animate__animated animate__fadeOutDown";
+            setTimeout(() => {
+              commentCard.remove();
+              
+              // If deleted comment was pinned, remove standard top banner too
+              const isPinned = commentCard.style.borderLeft !== "";
+              if (isPinned && pinnedBannerContainer) {
+                pinnedBannerContainer.innerHTML = "";
+              }
+
+              // Update counters
+              const currentCount = parseInt(commentCountEl.textContent || "0");
+              commentCountEl.textContent = Math.max(0, currentCount - 1);
+
+              if (commentsList.children.length === 0) {
+                commentsList.innerHTML = `
+                  <div class="text-center py-5 text-muted font-sans" id="no-comments-msg">
+                    <i class="bi bi-chat-left text-slate-300 d-block fs-1 mb-2"></i>
+                    <p class="mb-0">Aucun commentaire sur cette étape pour l'instant.</p>
+                    <small class="text-slate-400">Soyez le premier à poser une question ou définir une étape suivante !</small>
+                  </div>
+                `;
+              }
+            }, 400);
+          }
+        } else {
+          alert(result.message || "Erreur lors de la suppression.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      return;
+    }
+  });
+
+
+  // ----------------------------------------------------
+  // SUBTASKS LIST TRIGGERS
+  // ----------------------------------------------------
+  const subtasksContainer = document.getElementById("subtasks-container");
+  
+  subtasksContainer.addEventListener("change", async function(e) {
+    const checkbox = e.target.closest(".subtask-toggle");
+    if (checkbox) {
+      const subId = checkbox.getAttribute("data-sub-id");
+      try {
+        const res = await fetch(`/subtasks/${subId}/toggle`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          const textEl = document.getElementById(`subtask-text-${subId}`);
+          if (checkbox.checked) {
+            textEl.classList.add("text-decoration-line-through", "text-muted");
+          } else {
+            textEl.classList.remove("text-decoration-line-through", "text-muted");
+          }
+        } else {
+          checkbox.checked = !checkbox.checked;
+          alert("Erreur de modification d'état.");
+        }
+      } catch (err) {
+        checkbox.checked = !checkbox.checked;
+        console.error(err);
+      }
+    }
+  });
+
+  subtasksContainer.addEventListener("click", async function(e) {
+    const delBtn = e.target.closest(".delete-subtask-btn");
+    if (delBtn) {
+      const subId = delBtn.getAttribute("data-sub-id");
+      if (!confirm("Retirer cette sous-étape ?")) return;
+
+      try {
+        const res = await fetch(`/subtasks/${subId}/delete`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          delBtn.closest(".d-flex").remove();
+          if (subtasksContainer.children.length === 0) {
+            subtasksContainer.innerHTML = `<div class="text-muted text-xs italic">Aucune sous-étape enregistrée.</div>`;
+          }
+        } else {
+          alert("Erreur de suppression.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  });
+
+  const addSubtaskForm = document.getElementById("add-subtask-form");
+  addSubtaskForm.addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const input = document.getElementById("subtask-input");
+    const val = input.value.trim();
+    if (!val) return;
+
+    try {
+      const res = await fetch(`/taches/${taskId}/subtasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titre: val })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Clear empty state text
+        if (subtasksContainer.innerHTML.includes("Aucune sous-étape")) {
+          subtasksContainer.innerHTML = "";
+        }
+
+        const sub = data.subtask;
+        const subtaskHTML = `
+          <div class="d-flex align-items-center justify-content-between mb-2 text-xs py-1 px-2 rounded hover-bg-light border border-light-subtle">
+            <label class="d-inline-flex align-items-center mb-0 gap-2 cursor-pointer text-slate-800" style="word-break: break-all;">
+              <input class="form-check-input subtask-toggle" type="checkbox" data-sub-id="${sub.id}" style="cursor: pointer;">
+              <span id="subtask-text-${sub.id}">${sub.titre}</span>
+            </label>
+            <button class="btn btn-link btn-xs p-0 text-danger border-0 delete-subtask-btn" data-sub-id="${sub.id}" title="Supprimer">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        `;
+        subtasksContainer.insertAdjacentHTML("beforeend", subtaskHTML);
+        input.value = "";
+      } else {
+        alert(data.message || "Erreur d'ajout.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+
+  // ----------------------------------------------------
+  // AUTOCOMPLETE FOR @MENTION ENGINE (FLOATING DROPDOWN)
+  // ----------------------------------------------------
+  let activeIndex = -1;
+  let mentionQueryStart = -1;
+
+  textarea.addEventListener("input", function(e) {
+    const text = textarea.value;
+    const selectionEnd = textarea.selectionEnd;
+    
+    // Find if we are currently typing a mention
+    const precedingText = text.substring(0, selectionEnd);
+    const lastAtSign = precedingText.lastIndexOf("@");
+    
+    if (lastAtSign !== -1 && (lastAtSign === 0 || /\s/.test(precedingText.charAt(lastAtSign - 1)))) {
+      const query = precedingText.substring(lastAtSign + 1);
+      
+      // If query does not contain spaces, perform matching lookup
+      if (!/\s/.test(query)) {
+        mentionQueryStart = lastAtSign;
+        showAutocomplete(query);
+        return;
+      }
+    }
+    
+    hideAutocomplete();
+  });
+
+  textarea.addEventListener("keydown", function(e) {
+    if (autocompleteContainer.classList.contains("d-none")) return;
+
+    const items = autocompleteContainer.querySelectorAll(".autocomplete-item");
+    if (items.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      highlightItem(items);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      highlightItem(items);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < items.length) {
+        items[activeIndex].click();
+      } else if (items.length > 0) {
+        items[0].click();
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      hideAutocomplete();
+    }
+  });
+
+  function showAutocomplete(query) {
+    const matched = allUsers.filter(u => 
+      u.nom.toLowerCase().includes(query.toLowerCase()) || 
+      u.role.toLowerCase().includes(query.toLowerCase())
+    );
+
+    if (matched.length === 0) {
+      hideAutocomplete();
+      return;
+    }
+
+    autocompleteContainer.innerHTML = "";
+    matched.forEach((user, idx) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "list-group-item list-group-item-action text-start autocomplete-item d-flex align-items-center gap-2 border-0 py-2.5 px-3";
+      item.style.fontSize = "0.85rem";
+      item.style.cursor = "pointer";
+      
+      const userInitials = getInitialsFromNom(user.nom);
+      const styleAvatar = getColorStyleForUser(user.id);
+
+      item.innerHTML = `
+        <div class="avatar-circle rounded-circle d-flex align-items-center justify-content-center fw-bold text-xs" 
+             style="width: 24px; height: 24px; font-size: 0.65rem; ${styleAvatar}">
+          ${userInitials}
+        </div>
+        <div>
+          <strong class="text-slate-800">${user.nom}</strong> 
+          <span class="text-slate-400 text-xs">(${user.role})</span>
+        </div>
+      `;
+
+      item.addEventListener("click", function() {
+        // Insert formatted name with spaces replaced by underscores for single-token parsing
+        const formattedMention = "@" + user.nom.replace(/\s+/g, "_") + " ";
+        const originalText = textarea.value;
+        const selectionEnd = textarea.selectionEnd;
+        
+        const beforeMention = originalText.substring(0, mentionQueryStart);
+        const afterMention = originalText.substring(selectionEnd);
+        
+        textarea.value = beforeMention + formattedMention + afterMention;
+        textarea.focus();
+        
+        // Put cursor exactly after insertion
+        const newCursorPos = mentionQueryStart + formattedMention.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        
+        hideAutocomplete();
+      });
+
+      autocompleteContainer.appendChild(item);
+    });
+
+    autocompleteContainer.classList.remove("d-none");
+    activeIndex = -1;
+  }
+
+  function highlightItem(items) {
+    items.forEach((item, idx) => {
+      if (idx === activeIndex) {
+        item.classList.add("active", "bg-primary-subtle", "text-primary");
+        item.scrollIntoView({ block: "nearest" });
+      } else {
+        item.classList.remove("active", "bg-primary-subtle", "text-primary");
+      }
+    });
+  }
+
+  function hideAutocomplete() {
+    autocompleteContainer.classList.add("d-none");
+    autocompleteContainer.innerHTML = "";
+    activeIndex = -1;
+    mentionQueryStart = -1;
+  }
+
+  // Close dropdown if clicked outside
+  document.addEventListener("click", function(e) {
+    if (!autocompleteContainer.contains(e.target) && e.target !== textarea) {
+      hideAutocomplete();
+    }
+  });
+
+});
+</script>
+
+<%- include('../partials/footer') %>

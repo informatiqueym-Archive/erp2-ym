@@ -1,0 +1,237 @@
+<%- include('../partials/header') %>
+
+<style>
+  /* Print styling rules */
+  @media print {
+    #sidebar, 
+    header.top-navbar, 
+    .breadcrumb, 
+    .no-print, 
+    .btn, 
+    .btn-group, 
+    #glbErrAlert, 
+    #glbSucAlert {
+      display: none !important;
+    }
+    body {
+      background-color: #fff !important;
+      color: #000 !important;
+      font-size: 11pt !important;
+      font-family: 'Inter', sans-serif !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    #content {
+      margin-left: 0 !important;
+      width: 100% !important;
+      padding: 0 !important;
+    }
+    .card {
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .table {
+      border: 1px solid #ddd !important;
+    }
+    .print-header {
+      display: flex !important;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #1e3a8a;
+      padding-bottom: 15px;
+      margin-bottom: 30px;
+    }
+    .print-badge {
+      border: 1px solid #000 !important;
+      color: #000 !important;
+      background: none !important;
+    }
+  }
+</style>
+
+<div class="row mb-3 no-print">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/documents">Factures</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><%= document.numero %></li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <div class="bg-primary text-white rounded p-2 me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+          <i class="bi bi-file-earmark-check fs-3"></i>
+        </div>
+        <div>
+          <h1 class="h3 mb-1 text-slate-800 fw-bold"><%= document.type %> <%= document.numero %></h1>
+          <p class="text-xs text-muted mb-0">Client débiteur : <strong class="text-slate-700"><%= document.client.nom %></strong></p>
+        </div>
+      </div>
+      <div>
+        <div class="btn-group">
+          <button onclick="window.print()" class="btn btn-primary btn-sm rounded me-2">
+            <i class="bi bi-printer-fill me-1"></i> Imprimer cette pièce
+          </button>
+          <a href="/documents" class="btn btn-outline-secondary btn-sm rounded"><i class="bi-chevron-left d-none d-sm-inline"></i> Retour</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  <!-- Invoice layout print section -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm bg-white p-4 p-md-5">
+      <!-- Printable Corporate Header -->
+      <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4 flex-wrap gap-3">
+        <div>
+          <div class="d-flex align-items-center mb-2">
+            <div class="bg-primary text-white rounded p-2.5 me-2.5 d-flex align-items-center justify-content-center" style="width: 48px; height: 44px;">
+              <span class="fw-bold fs-5 text-white">YM</span>
+            </div>
+            <div>
+              <h4 class="mb-0 text-slate-900 fw-bold">YM-TRANSIT</h4>
+              <small class="text-xs text-muted">Transit, Logistique & Dédouanement</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-0" style="line-height: 1.4;">
+            Raison Sociale émettrice : <strong><%= document.societe || 'YM-TRANSIT Transit & Logistics Ltd' %></strong><br>
+            Zone Industrielle de Bassa, Douala, Cameroun<br>
+            Tél: +237 677 88 99 00 | Email: contact@ym-transit.cm
+          </p>
+        </div>
+        <div class="text-md-end">
+          <span class="badge bg-primary text-xs font-monospace py-1 px-3 mb-2 print-badge"><%= document.type %></span>
+          <h5 class="fw-bold text-dark font-monospace mb-1"><%= document.numero %></h5>
+          <p class="text-muted small mb-0">
+            Date émission : <%= new Date(document.created_at).toLocaleDateString('fr-FR') %><br>
+            Statut : <strong class="text-primary"><%= document.etat %></strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- Parties details -->
+      <div class="row mb-5 g-3">
+        <div class="col-sm-6 text-start">
+          <span class="text-uppercase text-xs font-sans fw-bold text-muted d-block mb-1">Émetteur</span>
+          <div class="p-3 bg-light rounded text-start h-100" style="font-size: 0.85rem;">
+            <strong class="text-slate-900 d-block mb-1"><%= document.societe %></strong>
+            <span class="text-muted d-block">Transit Agréé en Douane CEMAC</span>
+            <span class="text-muted d-block">Siège Social: Douala Port, Cameroun</span>
+          </div>
+        </div>
+        <div class="col-sm-6 text-start">
+          <span class="text-uppercase text-xs font-sans fw-bold text-muted d-block mb-1">Facturé à (Client Débiteur)</span>
+          <div class="p-3 bg-light rounded text-start h-100" style="font-size: 0.85rem;">
+            <strong class="text-slate-900 d-block mb-1"><%= document.client.nom %></strong>
+            <% if (document.client.niu) { %>
+              <span class="text-muted d-block">NIU Douanes : <strong class="text-dark font-monospace"><%= document.client.niu %></strong></span>
+            <% } %>
+            <% if (document.client.rccm) { %>
+              <span class="text-muted d-block">RCCM : <strong class="text-dark font-monospace"><%= document.client.rccm %></strong></span>
+            <% } %>
+            <% if (document.client.tel) { %>
+              <span class="text-muted d-block">Téléphone : <%= document.client.tel %></span>
+            <% } %>
+            <% if (document.client.adresse) { %>
+              <span class="text-muted d-block">Adresse : <%= document.client.adresse %></span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Lines descriptive section -->
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered align-middle text-start" style="font-size: 0.9rem;">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3" style="width: 50%;">Description de la Prestation / Logistique</th>
+              <th style="width: 15%;" class="text-end">Prix Unitaire (FCFA)</th>
+              <th style="width: 10%;" class="text-center">Quantité</th>
+              <th style="width: 13%;" class="text-center">Taxation</th>
+              <th style="width: 12%;" class="text-end pe-3">Total HT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (document.lines && document.lines.length > 0) { %>
+              <% document.lines.forEach(line => { %>
+                <tr>
+                  <td class="ps-3 fw-bold text-slate-800"><%= line.description %></td>
+                  <td class="font-monospace text-end"><%= line.prix_unitaire.toLocaleString('fr-FR') %></td>
+                  <td class="text-center"><%= line.quantite %></td>
+                  <td class="text-center">
+                    <%= line.taxe_id === 'TVA_19_25' ? 'TVA 19.25%' : 'Exonéré' %>
+                  </td>
+                  <td class="fw-bold font-monospace text-end pe-3 text-dark">
+                    <%= (line.prix_unitaire * line.quantite).toLocaleString('fr-FR') %>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">Pas de lignes de prestations.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Financial Recap Table -->
+      <div class="row justify-content-end text-start mt-4">
+        <div class="col-md-6 col-lg-5">
+          <div class="p-3 bg-light rounded" style="font-size: 0.9rem;">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">Total Cumulé HT :</span>
+              <span class="font-monospace fw-semibold"><%= document.total_ht.toLocaleString('fr-FR') %> FCFA</span>
+            </div>
+            <%
+              const computedTva = document.total_ttc - document.total_ht;
+            %>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">TVA Supportée (19.25%) :</span>
+              <span class="font-monospace fw-semibold"><%= computedTva > 0 ? computedTva.toLocaleString('fr-FR') : '0' %> FCFA</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3 border-top pt-2">
+              <strong class="text-slate-900">Total Net TTC :</strong>
+              <strong class="text-primary font-monospace" style="font-size: 1.15rem;"><%= document.total_ttc.toLocaleString('fr-FR') %> FCFA</strong>
+            </div>
+
+            <!-- Avances details -->
+            <% 
+              const totalPayments = document.payments ? document.payments.reduce((sum, p) => sum + p.montant, 0) : 0;
+              const dueAmount = Math.max(0, document.total_ttc - totalPayments);
+            %>
+            <div class="d-flex justify-content-between mb-2 border-top pt-2 text-success" style="font-size: 0.85rem;">
+              <span>Règlements / Acomptes perçus :</span>
+              <span class="font-monospace fw-semibold"><%= totalPayments.toLocaleString('fr-FR') %> FCFA</span>
+            </div>
+
+            <div class="d-flex justify-content-between text-danger" style="font-size: 1rem; font-weight: bold;">
+              <span>Reste à payer :</span>
+              <span class="font-monospace"><%= dueAmount.toLocaleString('fr-FR') %> FCFA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Professional Signature Footnote -->
+      <div class="border-top pt-4 mt-5">
+        <div class="row mt-4">
+          <div class="col-sm-6 text-start">
+            <p class="text-xs text-muted mb-0">Régime fiscal des douanes d'Afrique Centrale - CEMAC.</p>
+            <p class="text-xs text-muted">Facture générée numériquement le <%= new Date(document.created_at).toLocaleDateString('fr-FR') %>.</p>
+          </div>
+          <div class="col-sm-6 text-md-end text-start mt-3 mt-sm-0">
+            <span class="text-muted small d-block mb-3">Le transitaire agréé, Cachet et Signature :</span>
+            <div style="height: 60px;"></div>
+            <p class="fw-bold text-dark border-top d-inline-block pt-1 px-4" style="font-size: 0.85rem;">Direction Commerciale YM-TRANSIT</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

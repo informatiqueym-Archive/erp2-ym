@@ -1,0 +1,553 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Suivi des tâches</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-kanban text-primary me-2"></i>Tableau de Suivi Douanier (Kanban)
+        </h1>
+        <p class="text-muted mb-0">Drag & drop interactif pour un workflow de dédouanement fluide</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/taches/mine" class="btn btn-outline-primary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-person-check-fill me-1.5"></i> Mes tâches
+        </a>
+        <a href="/taches/archives" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-archive-fill me-1.5"></i> Archives
+        </a>
+        <a href="/taches/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-plus-lg me-1.5"></i> Nouvelle Tâche
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%
+  const now = new Date();
+  const isOverdue = (createdDate, state) => {
+    if (!createdDate || state !== 'EN_COURS') return false;
+    const diffHours = (now.getTime() - new Date(createdDate).getTime()) / (1000 * 60 * 60);
+    return diffHours > 48;
+  };
+
+  const enCoursTasks = taches.filter(t => t.etat === 'EN_COURS');
+  const attenteTasks = taches.filter(t => t.etat === 'ATTENTE_VALIDATION');
+  const faitTasks = taches.filter(t => t.etat === 'FAIT' || t.etat === 'TERMINE');
+%>
+
+<!-- Kanban Board Row -->
+<div class="row g-3" id="kanban-board">
+  
+  <!-- Column 1: En cours -->
+  <div class="col-lg-4 font-sans">
+    <div class="card border-0 bg-light-subtle shadow-sm h-100" style="min-height: 600px; background-color: #f8fafc;">
+      <div class="card-header border-0 py-3 d-flex align-items-center justify-content-between text-white" style="background-color: #2563eb; border-radius: 8px 8px 0 0;">
+        <div class="d-flex align-items-center">
+          <span class="badge bg-white text-primary me-2 rounded-circle font-monospace" id="count-en-cours" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem;"><%= enCoursTasks.length %></span>
+          <h6 class="mb-0 fw-bold">En cours</h6>
+        </div>
+        <i class="bi bi-collection-play-fill"></i>
+      </div>
+      <div class="card-body p-2  kanban-column" id="EN_COURS" ondragover="allowDrop(event)" ondrop="drop(event)" style="overflow-y: auto;">
+        <% if (enCoursTasks.length > 0) { %>
+          <% enCoursTasks.forEach(t => { %>
+            <div class="card border-0 shadow-sm mb-3 p-3 kanban-card text-start position-relative" 
+                 id="task-<%= t.id %>" 
+                 draggable="true" 
+                 ondragstart="drag(event)"
+                 style="cursor: grab; border-left: <%= isOverdue(t.created_at, t.etat) ? '4px solid #ef4444' : '4px solid #2563eb' %> !important; border-radius: 6px;">
+              
+              <% if (isOverdue(t.created_at, t.etat)) { %>
+                <span class="badge bg-danger mb-2 py-1 px-2 d-inline-block" style="font-size: 0.65rem;" title="Créé il y a plus de 48 heures">
+                  <i class="bi bi-exclamation-triangle"></i> Retard (+48h)
+                </span>
+              <% } %>
+              
+              <div class="text-xs text-uppercase fw-bold text-muted mb-1 d-flex align-items-center justify-content-between">
+                <span>Dossier: <strong class="text-secondary"><%= t.dossier.numero %></strong></span>
+                <span class="d-flex align-items-center gap-1">
+                  <!-- Action Archiver -->
+                  <form action="/taches/<%= t.id %>/archive" method="POST" class="d-inline m-0">
+                    <button type="submit" class="btn btn-link btn-xs p-0 text-slate-400 hover:text-secondary border-0" title="Envoyer aux archives" onclick="return confirm('Archiver cette tâche ?')">
+                      <i class="bi bi-archive-fill" style="font-size: 0.85rem;"></i>
+                    </button>
+                  </form>
+                </span>
+              </div>
+              <h6 class="fw-bold text-slate-800 mb-2" style="font-size: 0.92rem; line-height: 1.35;">
+                <a href="/taches/<%= t.id %>" class="text-slate-800 text-decoration-none hover:text-primary transition-colors d-flex align-items-start justify-content-between" title="Ouvrir la discussion: <%= t.titre %>">
+                  <span><%= t.titre %></span>
+                  <i class="bi bi-chat-left-text text-slate-400 ms-1 hover:text-primary animate__animated animate__pulse animate__infinite" style="font-size: 0.8rem;"></i>
+                </a>
+              </h6>
+              
+              <% if (t.observations) { %>
+                <p class="text-muted text-xs mb-2 text-truncate-custom" style="max-height: 48px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;"><%= t.observations %></p>
+              <% } %>
+
+              <!-- Section des sous-tâches -->
+              <div class="mt-2.5 pt-2.5 border-top">
+                <div class="fw-bold text-slate-600 text-xs mb-1">
+                  <i class="bi bi-check2-square text-primary me-1"></i>Sous-étapes
+                </div>
+                <div class="subtasks-container" id="subtasks-container-<%= t.id %>">
+                  <% if (t.subtasks && t.subtasks.length > 0) { %>
+                    <% t.subtasks.forEach(s => { %>
+                      <div class="d-flex align-items-center justify-content-between mb-1 text-xs py-0.5 subtask-item" id="subtask-item-<%= s.id %>">
+                        <label class="d-inline-flex align-items-center mb-0 gap-1.5 cursor-pointer text-slate-800" style="word-break: break-all;">
+                          <input type="checkbox" class="form-check-input subtask-checkbox" data-id="<%= s.id %>" <%= s.fait ? 'checked' : '' %> style="width: 12px; height: 12px; margin-top: 0;">
+                          <span class="subtask-title <%= s.fait ? 'text-decoration-line-through text-muted' : '' %>" style="font-size: 0.78rem;"><%= s.titre %></span>
+                        </label>
+                        <button type="button" class="btn btn-link btn-xs p-0 text-danger border-0 opacity-75 hover:opacity-100 delete-subtask-btn" data-id="<%= s.id %>" title="Supprimer">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </div>
+                    <% }) %>
+                  <% } %>
+                </div>
+                <!-- Dynamic formulation input -->
+                <div class="input-group input-group-sm mt-2 dynamic-subtask-form">
+                  <input type="text" class="form-control form-control-sm border-end-0 subtask-input" placeholder="Sous-étape..." data-task-id="<%= t.id %>" style="font-size: 0.72rem; height: 26px;">
+                  <button class="btn btn-outline-secondary add-subtask-btn px-2 border-slate-300" type="button" data-task-id="<%= t.id %>" style="height: 26px; display: inline-flex; align-items: center; justify-content: center; background-color: #fff;">
+                    <i class="bi bi-plus-lg text-primary" style="font-size: 0.72rem;"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2.5" style="font-size: 0.75rem;">
+                <div class="text-slate-600">
+                  <i class="bi bi-person-fill text-muted me-1"></i><%= t.intervenant ? t.intervenant.nom : 'Non assigné' %>
+                </div>
+                <div class="text-muted text-xs">
+                  <i class="bi bi-calendar-event me-1"></i><%= new Date(t.created_at).toLocaleDateString('fr-FR') %>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column 2: En attente de validation -->
+  <div class="col-lg-4 font-sans">
+    <div class="card border-0 bg-light-subtle shadow-sm h-100" style="min-height: 600px; background-color: #f8fafc;">
+      <div class="card-header border-0 py-3 d-flex align-items-center justify-content-between text-white" style="background-color: #ea580c; border-radius: 8px 8px 0 0;">
+        <div class="d-flex align-items-center">
+          <span class="badge bg-white text-warning me-2 rounded-circle font-monospace" id="count-attente" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #ea580c !important;"><%= attenteTasks.length %></span>
+          <h6 class="mb-0 fw-bold">En attente de validation</h6>
+        </div>
+        <i class="bi bi-hourglass-split"></i>
+      </div>
+      <div class="card-body p-2 kanban-column" id="ATTENTE_VALIDATION" ondragover="allowDrop(event)" ondrop="drop(event)" style="overflow-y: auto;">
+        <% if (attenteTasks.length > 0) { %>
+          <% attenteTasks.forEach(t => { %>
+            <div class="card border-0 shadow-sm mb-3 p-3 kanban-card text-start position-relative" 
+                 id="task-<%= t.id %>" 
+                 draggable="true" 
+                 ondragstart="drag(event)"
+                 style="cursor: grab; border-left: 4px solid #ea580c !important; border-radius: 6px;">
+              
+              <div class="text-xs text-uppercase fw-bold text-muted mb-1 d-flex align-items-center justify-content-between">
+                <span>Dossier: <strong class="text-secondary"><%= t.dossier.numero %></strong></span>
+                <span class="d-flex align-items-center gap-1">
+                  <!-- Action Archiver -->
+                  <form action="/taches/<%= t.id %>/archive" method="POST" class="d-inline m-0">
+                    <button type="submit" class="btn btn-link btn-xs p-0 text-slate-400 hover:text-secondary border-0" title="Envoyer aux archives" onclick="return confirm('Archiver cette tâche ?')">
+                      <i class="bi bi-archive-fill" style="font-size: 0.85rem;"></i>
+                    </button>
+                  </form>
+                </span>
+              </div>
+              <h6 class="fw-bold text-slate-800 mb-2" style="font-size: 0.92rem; line-height: 1.35;">
+                <a href="/taches/<%= t.id %>" class="text-slate-800 text-decoration-none hover:text-primary transition-colors d-flex align-items-start justify-content-between" title="Ouvrir la discussion: <%= t.titre %>">
+                  <span><%= t.titre %></span>
+                  <i class="bi bi-chat-left-text text-slate-400 ms-1 hover:text-primary animate__animated animate__pulse animate__infinite" style="font-size: 0.8rem;"></i>
+                </a>
+              </h6>
+              
+              <% if (t.observations) { %>
+                <p class="text-muted text-xs mb-2 text-truncate-custom" style="max-height: 48px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;"><%= t.observations %></p>
+              <% } %>
+
+              <!-- Section des sous-tâches -->
+              <div class="mt-2.5 pt-2.5 border-top">
+                <div class="fw-bold text-slate-600 text-xs mb-1">
+                  <i class="bi bi-check2-square text-primary me-1"></i>Sous-étapes
+                </div>
+                <div class="subtasks-container" id="subtasks-container-<%= t.id %>">
+                  <% if (t.subtasks && t.subtasks.length > 0) { %>
+                    <% t.subtasks.forEach(s => { %>
+                      <div class="d-flex align-items-center justify-content-between mb-1 text-xs py-0.5 subtask-item" id="subtask-item-<%= s.id %>">
+                        <label class="d-inline-flex align-items-center mb-0 gap-1.5 cursor-pointer text-slate-800" style="word-break: break-all;">
+                          <input type="checkbox" class="form-check-input subtask-checkbox" data-id="<%= s.id %>" <%= s.fait ? 'checked' : '' %> style="width: 12px; height: 12px; margin-top: 0;">
+                          <span class="subtask-title <%= s.fait ? 'text-decoration-line-through text-muted' : '' %>" style="font-size: 0.78rem;"><%= s.titre %></span>
+                        </label>
+                        <button type="button" class="btn btn-link btn-xs p-0 text-danger border-0 opacity-75 hover:opacity-100 delete-subtask-btn" data-id="<%= s.id %>" title="Supprimer">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </div>
+                    <% }) %>
+                  <% } %>
+                </div>
+                <!-- Dynamic formulation input -->
+                <div class="input-group input-group-sm mt-2 dynamic-subtask-form">
+                  <input type="text" class="form-control form-control-sm border-end-0 subtask-input" placeholder="Sous-étape..." data-task-id="<%= t.id %>" style="font-size: 0.72rem; height: 26px;">
+                  <button class="btn btn-outline-secondary add-subtask-btn px-2 border-slate-300" type="button" data-task-id="<%= t.id %>" style="height: 26px; display: inline-flex; align-items: center; justify-content: center; background-color: #fff;">
+                    <i class="bi bi-plus-lg text-primary" style="font-size: 0.72rem;"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2.5" style="font-size: 0.75rem;">
+                <div class="text-slate-600">
+                  <i class="bi bi-person-fill text-muted me-1"></i><%= t.intervenant ? t.intervenant.nom : 'Non assigné' %>
+                </div>
+                <div class="text-muted text-xs">
+                  <i class="bi bi-calendar-event me-1"></i><%= new Date(t.created_at).toLocaleDateString('fr-FR') %>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column 3: Fait -->
+  <div class="col-lg-4 font-sans">
+    <div class="card border-0 bg-light-subtle shadow-sm h-100" style="min-height: 600px; background-color: #f8fafc;">
+      <div class="card-header border-0 py-3 d-flex align-items-center justify-content-between text-white" style="background-color: #16a34a; border-radius: 8px 8px 0 0;">
+        <div class="d-flex align-items-center">
+          <span class="badge bg-white text-success me-2 rounded-circle font-monospace" id="count-fait" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #16a34a !important;"><%= faitTasks.length %></span>
+          <h6 class="mb-0 fw-bold">Fait / Terminé</h6>
+        </div>
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <div class="card-body p-2 kanban-column" id="FAIT" ondragover="allowDrop(event)" ondrop="drop(event)" style="overflow-y: auto;">
+        <% if (faitTasks.length > 0) { %>
+          <% faitTasks.forEach(t => { %>
+            <div class="card border-0 shadow-sm mb-3 p-3 kanban-card text-start position-relative" 
+                 id="task-<%= t.id %>" 
+                 draggable="true" 
+                 ondragstart="drag(event)"
+                 style="cursor: grab; border-left: 4px solid #16a34a !important; border-radius: 6px; opacity: 0.85;">
+              
+              <div class="text-xs text-uppercase fw-bold text-muted mb-1 d-flex align-items-center justify-content-between">
+                <span>Dossier: <strong class="text-secondary"><%= t.dossier.numero %></strong></span>
+                <span class="d-flex align-items-center gap-1">
+                  <!-- Action Archiver -->
+                  <form action="/taches/<%= t.id %>/archive" method="POST" class="d-inline m-0">
+                    <button type="submit" class="btn btn-link btn-xs p-0 text-slate-400 hover:text-secondary border-0" title="Envoyer aux archives" onclick="return confirm('Archiver cette tâche ?')">
+                      <i class="bi bi-archive-fill" style="font-size: 0.85rem;"></i>
+                    </button>
+                  </form>
+                </span>
+              </div>
+              <h6 class="fw-bold text-slate-800 mb-2 text-decoration-line-through" style="font-size: 0.92rem; line-height: 1.35;">
+                <a href="/taches/<%= t.id %>" class="text-slate-600 text-decoration-none hover:text-primary transition-colors d-flex align-items-start justify-content-between shadow-xs" title="Ouvrir la discussion">
+                  <span><%= t.titre %></span>
+                  <i class="bi bi-chat-left-text text-slate-400 ms-1 hover:text-primary" style="font-size: 0.8rem;"></i>
+                </a>
+              </h6>
+              
+              <% if (t.observations) { %>
+                <p class="text-muted text-xs mb-2 text-truncate-custom" style="max-height: 48px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;"><%= t.observations %></p>
+              <% } %>
+
+              <!-- Section des sous-tâches -->
+              <div class="mt-2.5 pt-2.5 border-top">
+                <div class="fw-bold text-slate-600 text-xs mb-1">
+                  <i class="bi bi-check2-square text-primary me-1"></i>Sous-étapes
+                </div>
+                <div class="subtasks-container" id="subtasks-container-<%= t.id %>">
+                  <% if (t.subtasks && t.subtasks.length > 0) { %>
+                    <% t.subtasks.forEach(s => { %>
+                      <div class="d-flex align-items-center justify-content-between mb-1 text-xs py-0.5 subtask-item" id="subtask-item-<%= s.id %>">
+                        <label class="d-inline-flex align-items-center mb-0 gap-1.5 cursor-pointer text-slate-800" style="word-break: break-all;">
+                          <input type="checkbox" class="form-check-input subtask-checkbox" data-id="<%= s.id %>" <%= s.fait ? 'checked' : '' %> style="width: 12px; height: 12px; margin-top: 0;">
+                          <span class="subtask-title <%= s.fait ? 'text-decoration-line-through text-muted' : '' %>" style="font-size: 0.78rem;"><%= s.titre %></span>
+                        </label>
+                        <button type="button" class="btn btn-link btn-xs p-0 text-danger border-0 opacity-75 hover:opacity-100 delete-subtask-btn" data-id="<%= s.id %>" title="Supprimer">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </div>
+                    <% }) %>
+                  <% } %>
+                </div>
+                <!-- Dynamic formulation input -->
+                <div class="input-group input-group-sm mt-2 dynamic-subtask-form">
+                  <input type="text" class="form-control form-control-sm border-end-0 subtask-input" placeholder="Sous-étape..." data-task-id="<%= t.id %>" style="font-size: 0.72rem; height: 26px;">
+                  <button class="btn btn-outline-secondary add-subtask-btn px-2 border-slate-300" type="button" data-task-id="<%= t.id %>" style="height: 26px; display: inline-flex; align-items: center; justify-content: center; background-color: #fff;">
+                    <i class="bi bi-plus-lg text-primary" style="font-size: 0.72rem;"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2.5" style="font-size: 0.75rem;">
+                <div class="text-slate-600">
+                  <i class="bi bi-person-fill text-muted me-1"></i><%= t.intervenant ? t.intervenant.nom : 'Non assigné' %>
+                </div>
+                <div class="text-muted text-xs">
+                  <i class="bi bi-calendar-event me-1"></i><%= new Date(t.created_at).toLocaleDateString('fr-FR') %>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Drop status notification banner (Fixed bottom notification badge) -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 2000;">
+  <div id="toastNotification" class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body d-flex align-items-center">
+        <i class="bi bi-lightning-charge text-warning me-2" id="toastIcon"></i>
+        <span id="toastMessage">Modification du statut enregistrée !</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fermer"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function allowDrop(ev) {
+    ev.preventDefault();
+  }
+
+  function drag(ev) {
+    ev.dataTransfer.setData("text/plain", ev.currentTarget.id);
+  }
+
+  function drop(ev) {
+    ev.preventDefault();
+    const data = ev.dataTransfer.getData("text/plain");
+    const card = document.getElementById(data);
+    if (!card) return;
+
+    // Déterminer la colonne cible
+    let targetColumn = ev.target;
+    // Remonter le DOM si on a lâché sur un enfant
+    while (targetColumn && !targetColumn.classList.contains("kanban-column")) {
+      targetColumn = targetColumn.parentElement;
+    }
+
+    if (!targetColumn) return;
+
+    const newStatus = targetColumn.id;
+    const taskId = data.replace("task-", "");
+
+    // Déplacer l'élément visuellement
+    targetColumn.appendChild(card);
+
+    // Mettre à jour visuellement les bordures et décorations de la carte
+    if (newStatus === "EN_COURS") {
+      card.style.borderLeft = "4px solid #2563eb";
+      card.style.opacity = "1";
+      const titleEl = card.querySelector("h6");
+      if (titleEl) titleEl.classList.remove("text-decoration-line-through");
+    } else if (newStatus === "ATTENTE_VALIDATION") {
+      card.style.borderLeft = "4px solid #ea580c";
+      card.style.opacity = "1";
+      const titleEl = card.querySelector("h6");
+      if (titleEl) titleEl.classList.remove("text-decoration-line-through");
+    } else if (newStatus === "FAIT") {
+      card.style.borderLeft = "4px solid #16a34a";
+      card.style.opacity = "0.85";
+      const titleEl = card.querySelector("h6");
+      if (titleEl) titleEl.classList.add("text-decoration-line-through");
+    }
+
+    // Mettre à jour le décompte des colonnes
+    updateCountIndicators();
+
+    // Effectuer l'appel PATCH sans rechargement
+    fetch(`/taches/${taskId}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ etat: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showActivityToast(`Tâche mise à jour avec succès : "${newStatus === 'FAIT' ? 'Fait' : newStatus === 'ATTENTE_VALIDATION' ? 'Validation' : 'En cours'}"`);
+      } else {
+        console.error("Erreur retournée par le serveur :", data.message);
+        showActivityToast("Erreur lors de l'enregistrement de l'opération.");
+      }
+    })
+    .catch(error => {
+      console.error("Erreur de communication :", error);
+      showActivityToast("Échec de synchronisation avec le serveur.");
+    });
+  }
+
+  function updateCountIndicators() {
+    document.getElementById("count-en-cours").textContent = document.getElementById("EN_COURS").querySelectorAll(".kanban-card").length;
+    document.getElementById("count-attente").textContent = document.getElementById("ATTENTE_VALIDATION").querySelectorAll(".kanban-card").length;
+    document.getElementById("count-fait").textContent = document.getElementById("FAIT").querySelectorAll(".kanban-card").length;
+  }
+
+  function showActivityToast(message) {
+    const toastMessage = document.getElementById("toastMessage");
+    const toastEl = document.getElementById("toastNotification");
+    toastMessage.textContent = message;
+    
+    // Bootstrap Toast initialization and show
+    const bsToast = new bootstrap.Toast(toastEl, { delay: 3000 });
+    bsToast.show();
+  }
+
+  // Gestionnaires pour les sous-tâches (Ajout, Toggle, Suppression)
+  document.addEventListener("DOMContentLoaded", () => {
+    const board = document.getElementById("kanban-board");
+    if (board) {
+      // 1. Bouton d'ajout de sous-tâche
+      board.addEventListener("click", async (e) => {
+        const addBtn = e.target.closest(".add-subtask-btn");
+        if (addBtn) {
+          const taskId = addBtn.getAttribute("data-task-id");
+          const container = addBtn.closest(".dynamic-subtask-form");
+          const input = container.querySelector(".subtask-input");
+          await addSubtaskAction(taskId, input);
+        }
+
+        // 2. Bouton de suppression de sous-tâche
+        const deleteBtn = e.target.closest(".delete-subtask-btn");
+        if (deleteBtn) {
+          const subtaskId = deleteBtn.getAttribute("data-id");
+          if (confirm("Supprimer cette sous-étape ?")) {
+            await deleteSubtaskAction(subtaskId);
+          }
+        }
+      });
+
+      // 3. Touche Entrée sur l'input de sous-tâche
+      board.addEventListener("keydown", async (e) => {
+        if (e.target.classList.contains("subtask-input") && e.key === "Enter") {
+          e.preventDefault();
+          const taskId = e.target.getAttribute("data-task-id");
+          await addSubtaskAction(taskId, e.target);
+        }
+      });
+
+      // 4. Case à cocher pour changer l'état
+      board.addEventListener("change", async (e) => {
+        if (e.target.classList.contains("subtask-checkbox")) {
+          const subtaskId = e.target.getAttribute("data-id");
+          await toggleSubtaskAction(subtaskId, e.target);
+        }
+      });
+    }
+  });
+
+  // Action: Ajouter une sous-tâche
+  async function addSubtaskAction(taskId, inputElement) {
+    const titre = inputElement.value.trim();
+    if (!titre) return;
+
+    try {
+      const response = await fetch(`/taches/${taskId}/subtasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titre })
+      });
+      const data = await response.json();
+      if (data.success) {
+        const sub = data.subtask;
+        const container = document.getElementById(`subtasks-container-${taskId}`);
+        
+        // Créer l'élément de la sous-tâche
+        const item = document.createElement("div");
+        item.className = "d-flex align-items-center justify-content-between mb-1 text-xs py-0.5 subtask-item";
+        item.id = `subtask-item-${sub.id}`;
+        item.innerHTML = `
+          <label class="d-inline-flex align-items-center mb-0 gap-1.5 cursor-pointer text-slate-800" style="word-break: break-all;">
+            <input type="checkbox" class="form-check-input subtask-checkbox" data-id="${sub.id}" style="width: 12px; height: 12px; margin-top: 0;">
+            <span class="subtask-title" style="font-size: 0.78rem;">${escapeHTML(sub.titre)}</span>
+          </label>
+          <button type="button" class="btn btn-link btn-xs p-0 text-danger border-0 opacity-75 hover:opacity-100 delete-subtask-btn" data-id="${sub.id}" title="Supprimer">
+            <i class="bi bi-x"></i>
+          </button>
+        `;
+        
+        container.appendChild(item);
+        inputElement.value = "";
+        showActivityToast("Sous-étape ajoutée !");
+      } else {
+        showActivityToast("Erreur lors de la création.");
+      }
+    } catch (e) {
+      console.error(e);
+      showActivityToast("Échec de communication.");
+    }
+  }
+
+  // Action: Toggle sous-tâche
+  async function toggleSubtaskAction(subtaskId, checkboxElement) {
+    try {
+      const response = await fetch(`/subtasks/${subtaskId}/toggle`, {
+        method: "POST"
+      });
+      const data = await response.json();
+      if (data.success) {
+        const labelText = checkboxElement.closest("label").querySelector(".subtask-title");
+        if (data.subtask.fait) {
+          labelText.classList.add("text-decoration-line-through", "text-muted");
+        } else {
+          labelText.classList.remove("text-decoration-line-through", "text-muted");
+        }
+        showActivityToast("Sous-étape mise à jour.");
+      } else {
+        checkboxElement.checked = !checkboxElement.checked; // revert
+        showActivityToast("Erreur de modification.");
+      }
+    } catch (e) {
+      checkboxElement.checked = !checkboxElement.checked; // revert
+      console.error(e);
+    }
+  }
+
+  // Action: Supprimer sous-tâche
+  async function deleteSubtaskAction(subtaskId) {
+    try {
+      const response = await fetch(`/subtasks/${subtaskId}/delete`, {
+        method: "POST"
+      });
+      const data = await response.json();
+      if (data.success) {
+        document.getElementById(`subtask-item-${subtaskId}`).remove();
+        showActivityToast("Sous-étape supprimée.");
+      } else {
+        showActivityToast("Erreur lors de la suppression.");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function escapeHTML(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+</script>
+
+<%- include('../partials/footer') %>

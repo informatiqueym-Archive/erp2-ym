@@ -1,0 +1,356 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <h1 class="h3 text-slate-800 font-sans fw-bold mb-1">
+          <i class="bi bi-speedometer2 text-primary me-2"></i>Tableau de bord ERP
+        </h1>
+        <p class="text-muted mb-0">Espace de pilotage divisionnel - YM-TRANSIT ERP (Cameroun Transit Logistics Ltd)</p>
+      </div>
+      <div class="d-flex gap-2">
+        <% if (typeof user !== 'undefined') { %>
+          <% if (['super_admin', 'commercial', 'operationnel', 'secretariat', 'validation_role', 'acconage', 'enlevement', 'finances', 'comptable_ops'].includes(user.role)) { %>
+            <a href="/dossiers/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3 shadow-sm">
+              <i class="bi bi-folder-plus me-2"></i> Nouveau Dossier
+            </a>
+          <% } %>
+          <% if (['super_admin', 'comptable', 'commercial'].includes(user.role)) { %>
+            <a href="/facturation" class="btn btn-outline-dark d-inline-flex align-items-center rounded-pill px-3">
+              <i class="bi bi-receipt me-2"></i> Gérer Facturation
+            </a>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (typeof user !== 'undefined') { %>
+  <!-- Statistics Cards Grid (Adapted by Role) -->
+  <div class="row g-3 mb-4 text-start">
+    
+    <!-- C.A. Facturé du Mois: Visuel pour Admin, Comptable uniquement -->
+    <% if (['super_admin', 'comptable'].includes(user.role)) { %>
+      <div class="col-sm-6 col-md-3">
+        <div class="card h-100 border-0 border-start border-4 border-success shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="text-uppercase text-muted fw-bold text-xs">C.A. Facturé du Mois</div>
+              <div class="bg-success-subtle text-success p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="bi bi-cash-stack"></i>
+              </div>
+            </div>
+            <h3 class="fw-bold text-dark mb-1"><%= stats.monthlyRevenue.toLocaleString('fr-Fr') %> <span class="fs-6 fw-normal text-muted">FCFA</span></h3>
+            <p class="text-xs mb-0 text-muted"><span class="text-success"><i class="bi bi-calendar-event"></i> Mois en cours</span> (HT)</p>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Factures non réglées: Admin, Comptable, Commercial -->
+    <% if (['super_admin', 'comptable', 'commercial'].includes(user.role)) { %>
+      <div class="col-sm-6 col-md-3">
+        <div class="card h-100 border-0 border-start border-4 border-danger shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="text-uppercase text-muted fw-bold text-xs">Factures non réglées</div>
+              <div class="bg-danger-subtle text-danger p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="bi bi-exclamation-octagon"></i>
+              </div>
+            </div>
+            <h3 class="fw-bold text-dark mb-1"><%= stats.unpaidCount %> <span class="fs-6 fw-normal text-muted">pièces</span></h3>
+            <p class="text-xs mb-0 text-muted">Reste dû : <span class="text-danger fw-semibold"><%= stats.unpaidAmount.toLocaleString('fr-Fr') %> FCFA</span></p>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Dossiers actifs de transit: Admin, Commercial, Operationnel, Lecture -->
+    <% if (['super_admin', 'commercial', 'operationnel', 'lecture'].includes(user.role)) { %>
+      <div class="col-sm-6 col-md-3">
+        <div class="card h-100 border-0 border-start border-4 border-primary shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="text-uppercase text-muted fw-bold text-xs">Dossiers de Transit Actifs</div>
+              <div class="bg-primary-subtle text-primary p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="bi bi-folder2-open"></i>
+              </div>
+            </div>
+            <h3 class="fw-bold text-dark mb-1"><%= stats.activeDossiers %></h3>
+            <p class="text-xs mb-0 text-muted"><span class="text-success"><i class="bi bi-anchor"></i> En cours</span> (Douane & Transport)</p>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Mes tâches en cours : Tous les rôles -->
+    <div class="col-sm-6 col-md-3">
+      <div class="card h-100 border-0 border-start border-4 border-warning shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-uppercase text-muted fw-bold text-xs">Mes Tâches en cours</div>
+            <div class="bg-warning-subtle text-warning p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+              <i class="bi bi-list-task"></i>
+            </div>
+          </div>
+          <h3 class="fw-bold text-dark mb-1"><%= stats.userPendingTasks %></h3>
+          <p class="text-xs mb-0 text-muted"><span class="text-warning"><i class="bi bi-clock-history"></i> Assignées à vous</span> (Action requise)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Customs & Transit Analytics Bar (Adapted - Admin, Comptable, Commercial) -->
+  <% if (['super_admin', 'comptable', 'commercial'].includes(user.role)) { %>
+    <div class="row g-3 mb-4 text-start">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm bg-slate-900 text-white rounded-3">
+          <div class="card-body p-4">
+            <div class="row align-items-center">
+              <div class="col-md-4 border-end border-slate-700 mb-3 mb-md-0">
+                <span class="text-slate-400 text-xs text-uppercase fw-bold d-block mb-1">
+                  <i class="bi bi-box-seam me-1 text-primary"></i> Valeur en Douane Active (CIF)
+                </span>
+                <h3 class="fw-bold text-white mb-1">
+                  <%= customsStats.totalValeurDouane.toLocaleString('fr-FR') %> <span class="fs-6 text-slate-400 font-normal">FCFA</span>
+                </h3>
+                <small class="text-slate-400 text-xs">Cumul des valeurs marchandes transitant</small>
+              </div>
+              <div class="col-md-4 border-end border-slate-700 mb-3 mb-md-0">
+                <span class="text-slate-400 text-xs text-uppercase fw-bold d-block mb-1">
+                  <i class="bi bi-cash-coin me-1 text-success"></i> Droits de Douane Enregistrés
+                </span>
+                <h3 class="fw-bold text-success mb-1">
+                  <%= customsStats.totalDroitsDouane.toLocaleString('fr-FR') %> <span class="fs-6 text-slate-400 font-normal">FCFA</span>
+                </h3>
+                <small class="text-slate-400 text-xs">Total des taxes douanières gérées</small>
+              </div>
+              <div class="col-md-4">
+                <span class="text-slate-400 text-xs text-uppercase fw-bold d-block mb-1">
+                  <i class="bi bi-check-circle-fill me-1 text-info"></i> Validation Douanière (Sydonia)
+                </span>
+                <div class="d-flex align-items-center gap-3 mt-1">
+                  <div>
+                    <span class="h4 fw-bold text-info"><%= customsStats.valideDossiersCount %> </span><span class="small text-slate-400">validés</span>
+                  </div>
+                  <div class="border-start border-slate-700 ps-3">
+                    <span class="h4 fw-bold text-warning"><%= customsStats.attenteDossiersCount %> </span><span class="small text-slate-400">en attente</span>
+                  </div>
+                </div>
+                <small class="text-slate-400 text-xs">Dossiers actifs sous administration douanière</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Alert Panels Grid (Adapted by Role) -->
+  <div class="row g-4 mb-4 text-start">
+    
+    <!-- Factures de Transit en retard (Admin, Comptable, Commercial, Lecture) -->
+    <% if (['super_admin', 'comptable', 'commercial', 'lecture'].includes(user.role)) { %>
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-header bg-danger-subtle text-danger py-2.5 d-flex justify-content-between align-items-center border-0">
+            <span class="fw-bold small"><i class="bi bi-receipt-cutoff me-2"></i> Inpayés Clients en Retard</span>
+            <span class="badge bg-danger rounded-pill"><%= alerts.overdueInvoices.length %></span>
+          </div>
+          <div class="card-body p-0 overflow-auto" style="max-height: 280px;">
+            <% if (alerts.overdueInvoices && alerts.overdueInvoices.length > 0) { %>
+              <div class="list-group list-group-flush">
+                <% alerts.overdueInvoices.forEach(inv => { %>
+                  <div class="list-group-item p-3 border-0 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                      <a href="/facturation/<%= inv.id %>" class="fw-bold text-dark text-decoration-none small"><%= inv.numero %></a>
+                      <span class="badge bg-danger text-xs text-white">Retard</span>
+                    </div>
+                    <div class="small text-secondary mb-1">Débiteur : <strong><%= inv.client.nom %></strong></div>
+                    <div class="d-flex justify-content-between align-items-center">
+                      <small class="text-danger fw-semibold font-monospace">Reste : <%= inv.resteAPayer.toLocaleString('fr-Fr') %> FCFA</small>
+                      <small class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-calendar-x"></i> <%= new Date(inv.dateEcheance).toLocaleDateString('fr-FR') %></small>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="text-center text-muted py-5 px-3">
+                <i class="bi bi-check2-circle text-success display-6 mb-2 d-block"></i>
+                <small>Aucun retard de règlement détecté.</small>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Dossiers de transit / Tâches bloqués (Admin, Commercial, Operationnel, Lecture) -->
+    <% if (['super_admin', 'commercial', 'operationnel', 'lecture'].includes(user.role)) { %>
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-header bg-warning-subtle text-warning-emphasis py-2.5 d-flex justify-content-between align-items-center border-0">
+            <span class="fw-bold small"><i class="bi bi-exclamation-triangle me-2"></i> Épreuves Transit Bloquées</span>
+            <span class="badge bg-warning text-dark rounded-pill"><%= alerts.blockedTasks.length %></span>
+          </div>
+          <div class="card-body p-0 overflow-auto" style="max-height: 280px;">
+            <% if (alerts.blockedTasks && alerts.blockedTasks.length > 0) { %>
+              <div class="list-group list-group-flush">
+                <% alerts.blockedTasks.forEach(task => { %>
+                  <div class="list-group-item p-3 border-0 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                      <a href="/dossiers/<%= task.dossier_id %>" class="fw-bold text-dark text-decoration-none small"><%= task.titre %></a>
+                      <span class="badge bg-warning text-dark text-xs"><%= task.dossier.numero %></span>
+                    </div>
+                    <div class="small text-muted mb-2">Assigné à : <strong><%= task.intervenant ? task.intervenant.nom : 'Non assigné' %></strong></div>
+                    <div class="d-flex justify-content-between align-items-center">
+                      <small class="text-danger fw-semibold" style="font-size: 0.75rem;">
+                        <i class="bi bi-clock"></i> Dépassé : <%= task.deadline ? new Date(task.deadline).toLocaleDateString('fr-FR') : 'N/A' %>
+                      </small>
+                      <% if (user.role !== 'lecture') { %>
+                        <form action="/dossiers/<%= task.dossier_id %>/taches/<%= task.id %>/valider" method="POST" class="d-inline">
+                          <button type="submit" class="btn btn-outline-success btn-xs py-0 px-2 rounded" style="font-size: 0.72rem;">Terminer</button>
+                        </form>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="text-center text-muted py-5 px-3">
+                <i class="bi bi-clock-history text-success display-6 mb-2 d-block"></i>
+                <small>Aucun retard de traitement opérationnel.</small>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Alerte Stocks (Admin, Comptable, Magasinier, Lecture) -->
+    <% if (['super_admin', 'comptable', 'magasinier', 'lecture'].includes(user.role)) { %>
+      <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-header bg-secondary-subtle text-secondary-emphasis py-2.5 d-flex justify-content-between align-items-center border-0">
+            <span class="fw-bold small text-slate-800"><i class="bi bi-box-seam me-2"></i> Seuil Matériels Logistiques</span>
+            <span class="badge bg-secondary rounded-pill"><%= alerts.lowStock.length %></span>
+          </div>
+          <div class="card-body p-0 overflow-auto" style="max-height: 280px;">
+            <% if (alerts.lowStock && alerts.lowStock.length > 0) { %>
+              <div class="list-group list-group-flush">
+                <% alerts.lowStock.forEach(item => { %>
+                  <div class="list-group-item p-3 border-0 border-bottom d-flex align-items-center justify-content-between">
+                    <div>
+                      <h6 class="mb-0 fw-bold text-dark small"><%= item.nom %></h6>
+                      <small class="text-muted">Lieu : <%= item.lieu_stockage || 'N/A' %></small>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge bg-danger-subtle text-danger py-1"><%= item.quantite %> / Min: <%= item.stock_min %></span>
+                      <% if (user.role !== 'lecture') { %>
+                        <form action="/stock/replenish/<%= item.id %>" method="POST" class="mt-1 d-flex gap-1 justify-content-end align-items-center">
+                          <input type="number" name="quantity_to_add" value="10" class="form-control form-control-sm text-center py-0" style="width: 50px; font-size: 0.75rem;" required>
+                          <button type="submit" class="btn btn-primary btn-xs py-0 px-1.5" title="Réapprovisionner" style="font-size: 0.7rem;"><i class="bi bi-plus-lg"></i></button>
+                        </form>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else { %>
+              <div class="text-center text-muted py-5 px-3">
+                <i class="bi bi-shield-check text-success display-6 mb-2 d-block"></i>
+                <small>Tous les stocks sont suffisants.</small>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+  </div>
+
+  <!-- Recent Invoices Table (Admin, Comptable, Commercial) -->
+  <% if (['super_admin', 'comptable', 'commercial', 'lecture'].includes(user.role)) { %>
+    <div class="row text-start mb-4">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
+            <span class="fw-bold text-dark"><i class="bi bi-file-earmark-text-fill text-primary me-2"></i>Dernières Factures Émises</span>
+            <a href="/facturation" class="btn btn-sm btn-link text-decoration-none">Consulter toute la facturation</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-4">Référence</th>
+                    <th>Importateur / Client</th>
+                    <th>Montant Total TTC</th>
+                    <th>Date d'émission</th>
+                    <th>Règlement</th>
+                    <th class="text-center">Statut</th>
+                    <th class="text-end pe-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (lastInvoices && lastInvoices.length > 0) { %>
+                    <% lastInvoices.forEach(inv => { %>
+                      <% 
+                        const totalPaid = inv.payments.reduce((sum, p) => sum + p.montant, 0);
+                        const isOverdue = (new Date(inv.created_at).getTime() + 30 * 24 * 60 * 60 * 1000) < Date.now();
+                      %>
+                      <tr>
+                        <td class="ps-4 fw-bold text-dark">
+                          <a href="/facturation/<%= inv.id %>" class="text-decoration-none"><%= inv.numero %></a>
+                        </td>
+                        <td>
+                          <div class="fw-bold text-slate-800"><%= inv.client.nom %></div>
+                          <small class="text-xs text-muted">NIU: <%= inv.client.niu || 'N/A' %></small>
+                        </td>
+                        <td class="fw-semibold">
+                          <%= inv.total_ttc.toLocaleString('fr-Fr') %> <small class="text-muted">FCFA</small>
+                        </td>
+                        <td>
+                          <small class="text-secondary"><%= new Date(inv.created_at).toLocaleDateString('fr-FR') %></small>
+                        </td>
+                        <td>
+                          <div class="text-xs text-muted">Payé: <strong class="text-success"><%= totalPaid.toLocaleString('fr-Fr') %> FCFA</strong></div>
+                        </td>
+                        <td class="text-center">
+                          <% if (inv.etat === 'PAYE') { %>
+                            <span class="badge bg-success py-1.5 px-3">Payé</span>
+                          <% } else if (isOverdue && totalPaid < inv.total_ttc) { %>
+                            <span class="badge bg-danger py-1.5 px-3">En retard</span>
+                          <% } else { %>
+                            <span class="badge bg-warning text-dark py-1.5 px-3">En attente</span>
+                          <% } %>
+                        </td>
+                        <td class="text-end pe-4">
+                          <a href="/facturation/<%= inv.id %>" class="btn btn-light btn-sm rounded-circle" title="Détails">
+                            <i class="bi bi-eye"></i>
+                          </a>
+                          <a href="/facturation/<%= inv.id %>/pdf" class="btn btn-outline-danger btn-sm rounded-circle ms-1" target="_blank" title="Imprimer le PDF">
+                            <i class="bi bi-file-pdf"></i>
+                          </a>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } else { %>
+                    <tr>
+                      <td colspan="7" class="text-center text-muted py-4">Aucune facture enregistrée dans le système pour l'instant.</td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+<% } %>
+
+<%- include('../partials/footer') %>

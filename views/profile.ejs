@@ -1,0 +1,130 @@
+<%- include('partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2">
+    <h1 class="h3 text-slate-800 font-display"><i class="bi bi-person-bounding-box text-primary me-2"></i>Mon Profil Utilisateur</h1>
+    <p class="text-muted mb-0">Renseignez vos coordonnées personnelles ou renouvelez votre mot de passe d'accès.</p>
+  </div>
+</div>
+
+<% if (user.force_pwd_change) { %>
+  <div class="alert alert-warning py-3 px-4 border-warning bg-warning-subtle text-warning-emphasis mb-4 rounded-3 shadow-sm">
+    <div class="d-flex align-items-center">
+      <i class="bi bi-shield-exclamation fs-3 me-3"></i>
+      <div>
+        <h5 class="fw-bold mb-1">Action requise : Changement de mot de passe obligatoire</h5>
+        <p class="small mb-0">Un administrateur a exigé la réinitialisation de vos identifiants d'accès. Vous devez configurer un mot de passe personnel avant de pouvoir accéder pleinement aux autres modules.</p>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<% if (typeof warning_msg !== 'undefined' && warning_msg && warning_msg.length > 0) { %>
+  <div class="alert alert-warning alert-dismissible fade show mb-4 rounded-3" role="alert">
+    <i class="bi bi-exclamation-circle-fill me-2"></i><%= warning_msg %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<% } %>
+
+<div class="row text-start">
+  <!-- Info Box & Personal Data Form -->
+  <div class="col-lg-6 mb-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h5 class="mb-0 text-slate-800 fw-bold"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Informations collaborateurs</h5>
+      </div>
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+          <div class="rounded-circle text-white bg-primary d-flex align-items-center justify-content-center me-3" style="width: 54px; height: 54px; font-size: 1.35rem;">
+            <%= (user.prenom ? user.prenom[0] : '') %><%= user.nom[0] %>
+          </div>
+          <div>
+            <h5 class="fw-semibold text-slate-900 mb-0"><%= user.nom %> <%= user.prenom || "" %></h5>
+            <span class="badge bg-primary-subtle text-primary rounded-pill uppercase tracking-wider px-3 py-1 font-sans text-xs"><%= user.role %></span>
+          </div>
+        </div>
+
+        <form action="/profile/update" method="POST">
+          <div class="row mb-3">
+            <div class="col-md-6 mb-3 mb-md-0">
+              <label class="form-label fw-semibold">Nom</label>
+              <input type="text" name="nom" class="form-control" value="<%= user.nom %>" <%= user.role === 'lecture' ? 'disabled' : '' %> required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Prénom</label>
+              <input type="text" name="prenom" class="form-control" value="<%= user.prenom || "" %>" <%= user.role === 'lecture' ? 'disabled' : '' %>>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Adresse Email / Identifiant</label>
+            <input type="email" name="email" class="form-control" value="<%= user.email %>" readonly>
+            <div class="form-text text-muted">L'email sert d'identifiant unique et ne peut pas être modifié sans l'aide d'un administrateur.</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label text-muted">Structure d'affectation</label>
+              <input type="text" class="form-control bg-light" value="<%= user.societe %>" disabled>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label text-muted">Date d'embauche / Admission</label>
+              <input type="text" class="form-control bg-light" value="<%= new Date(user.created_at).toLocaleDateString('fr-FR', {year: 'numeric', month: 'long', day: 'numeric'}) %>" disabled>
+            </div>
+          </div>
+          <% if (user.role !== 'lecture') { %>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 mt-2 shadow-sm">
+              <i class="bi bi-save me-2"></i>Mettre à jour mes informations
+            </button>
+          <% } %>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password update Form & Rules -->
+  <div class="col-lg-6 mb-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom">
+        <h5 class="mb-0 text-slate-800 fw-bold"><i class="bi bi-shield-lock-fill me-2 text-warning"></i>Sécurité & Mot de passe</h5>
+      </div>
+      <div class="card-body p-4">
+        <form action="/profile/password" method="POST">
+          <% if (!user.force_pwd_change) { %>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Mot de passe actuel <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-lock"></i></span>
+                <input type="password" name="current_password" class="form-control" required>
+              </div>
+            </div>
+          <% } else { %>
+            <div class="alert alert-info py-2 px-3 small border-0 bg-info-subtle text-info-emphasis mb-3">
+              <i class="bi bi-info-circle me-1"></i> S'agissant d'un renouvellement obligatoire, la saisie de votre ancien mot de passe est dispensée.
+            </div>
+          <% } %>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nouveau mot de passe <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-lock"></i></span>
+              <input type="password" name="new_password" class="form-control" placeholder="Entrez votre mot de passe privé" required>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Confirmer le nouveau mot de passe <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-check"></i></span>
+              <input type="password" name="confirm_password" class="form-control" placeholder="Ressaisir à l'identique" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-warning rounded-pill px-4 text-dark fw-bold shadow-sm">
+            <i class="bi bi-key-fill me-2"></i>Changer mon mot de passe
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

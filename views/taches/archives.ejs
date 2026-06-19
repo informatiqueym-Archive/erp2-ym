@@ -1,0 +1,98 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/taches">Suivi des tâches</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Archives des tâches</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-archive-fill text-secondary me-2"></i>Archives des Tâches de Transit
+        </h1>
+        <p class="text-muted mb-0">Historique complet des opérations terminées et archivées</p>
+      </div>
+      <div>
+        <a href="/taches" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-kanban me-1.5"></i> Retour au Tableau Kanban
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 border-0">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-folder-check text-secondary me-2"></i>Dossiers & Tâches Archivés (<%= taches ? taches.length : 0 %>)
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 text-start" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width: 15%;">N° Dossier</th>
+            <th style="width: 30%;">Opération de Transit</th>
+            <th style="width: 25%;">Sous-étapes de dédouanement</th>
+            <th style="width: 15%;">Date d'archivage (Init)</th>
+            <th style="width: 15%; text-align: right;" class="pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (taches && taches.length > 0) { %>
+            <% taches.forEach(t => { %>
+              <tr>
+                <td class="ps-4">
+                  <span class="badge bg-light text-dark border font-monospace py-1 px-2"><%= t.dossier.numero %></span>
+                </td>
+                <td>
+                  <div class="fw-bold text-slate-800" style="font-size: 0.95rem;"><%= t.titre %></div>
+                  <div class="text-xs text-slate-600 mt-1">
+                    <i class="bi bi-person-fill text-muted me-1"></i><%= t.intervenant ? t.intervenant.nom : 'Non assigné' %>
+                  </div>
+                </td>
+                <td>
+                  <% if (t.subtasks && t.subtasks.length > 0) { %>
+                    <% const doneCount = t.subtasks.filter(s => s.fait).length; %>
+                    <div class="small fw-semibold text-slate-700 mb-1">
+                      <%= doneCount %> / <%= t.subtasks.length %> étapes validées
+                    </div>
+                    <div class="progress" style="height: 6px; max-width: 150px; border-radius: 4px;">
+                      <div class="progress-bar bg-success" role="progressbar" style="width: <%= (doneCount / t.subtasks.length) * 100 %>%" aria-valuenow="<%= doneCount %>" aria-valuemin="0" aria-valuemax="<%= t.subtasks.length %>"></div>
+                    </div>
+                  <% } else { %>
+                    <span class="text-xs text-muted italic">Aucune sous-étape</span>
+                  <% } %>
+                </td>
+                <td class="text-muted small">
+                  <%= new Date(t.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) %>
+                </td>
+                <td class="pe-4" style="text-align: right;">
+                  <form action="/taches/<%= t.id %>/unarchive" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1">
+                      <i class="bi bi-arrow-counterclockwise"></i> Restaurer
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="5" class="text-center text-muted py-5">
+                <i class="bi bi-archive display-4 text-slate-300 d-block mb-3"></i>
+                Aucune tâche n'est archivée pour l'instant.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

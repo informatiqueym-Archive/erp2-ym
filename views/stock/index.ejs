@@ -1,0 +1,136 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-box-seam-fill text-primary me-2"></i>Gestion de Stocks & Matériels Logistiques</h1>
+    <p class="text-muted mb-0">Disponibilité du matériel d'arrimage d'expédition (Douala / Kribi).</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <button class="btn btn-primary d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#newStockModal">
+      <i class="bi bi-plus-circle me-2"></i> Enregistrer un article
+    </button>
+  </div>
+</div>
+
+<!-- Stock Inventory warning notifications -->
+<div class="row g-3 mb-4">
+  <% 
+    const isCritical = stocks && stocks.some(s => s.quantite <= s.stock_min);
+  %>
+  <% if (isCritical) { %>
+    <div class="col-12 text-start">
+      <div class="alert alert-warning border border-warning-subtle d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-5 me-2 text-warning animate-bounce"></i>
+        <div>
+          <strong>Alerte de rupture imminente !</strong> Certains matériels d'arrimage et d'emballage logistique sont sous le stock critique de sécurité. Veuillez passer commande de réapprovisionnement auprès de vos distributeurs locaux.
+        </div>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<!-- Stock Inventory Table Card -->
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width: 10%;">ID Article</th>
+            <th style="width: 30%;">Désignation du Matériel</th>
+            <th style="width: 20%;">Lieu de Stockage</th>
+            <th style="width: 12%;">Prix unitaire (FCFA)</th>
+            <th style="width: 10%;">Quantité en Stock</th>
+            <th style="width: 8%;">S. Seuil Min</th>
+            <th style="width: 10%;">Alerte Statut</th>
+            <th class="text-end pe-4" style="width: 10%;">Approvisionner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (stocks && stocks.length > 0) { %>
+            <% stocks.forEach(item => { %>
+              <% const warning = item.quantite <= item.stock_min; %>
+              <tr class="<%= warning ? 'table-danger-subtle' : '' %>">
+                <td class="ps-4 font-monospace text-muted">STK-<%= item.id %></td>
+                <td>
+                  <strong class="text-dark"><%= item.nom %></strong>
+                </td>
+                <td>
+                  <span class="text-secondary"><i class="bi bi-geo-alt-fill text-muted me-1"></i> <%= item.lieu_stockage || 'Non attribué' %></span>
+                </td>
+                <td class="font-monospace fw-semibold">
+                  <%= item.prix_vente.toLocaleString('fr-FR') %>
+                </td>
+                <td class="fw-bold fs-6 font-monospace <%= warning ? 'text-danger' : 'text-success' %>">
+                  <%= item.quantite %> u
+                </td>
+                <td class="font-monospace text-muted"><%= item.stock_min %> u</td>
+                <td>
+                  <% if (warning) { %>
+                    <span class="badge bg-danger rounded-pill"><i class="bi bi-arrow-down-circle"></i> SOU-STOCK</span>
+                  <% } else { %>
+                    <span class="badge bg-success rounded-pill"><i class="bi bi-check2"></i> CONFORME</span>
+                  <% } %>
+                </td>
+                <td class="text-end pe-4">
+                  <form action="/stock/replenish/<%= item.id %>" method="POST" class="d-inline-flex gap-1 align-items-center justify-content-end">
+                    <input type="number" name="quantity_to_add" class="form-control form-control-sm text-center font-monospace" style="width: 65px;" value="20" min="1" required>
+                    <button type="submit" class="btn btn-outline-dark btn-sm rounded" title="Ajouter des palettes/sangles"><i class="bi bi-plus-lg"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">Aucun matériel logistique inventorié.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Stock Item Modal -->
+<div class="modal fade" id="newStockModal" tabindex="-1" aria-labelledby="newStockModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white fs-6" id="newStockModalLabel">Ajouter un matériel d'entrepôt</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/stock/new" method="POST">
+        <div class="modal-body text-start">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Désignation du Matériel <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="nom" placeholder="Ex: Palettes Europe en bois" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Lieu de Stockage de départ <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="lieu_stockage" placeholder="Ex: Entrepôt Douala Port - Zone B" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Stock Initial <span class="text-danger">*</span></label>
+              <input type="number" class="form-control font-monospace" name="quantite" value="50" min="0" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Quantité de sécurité mini <span class="text-danger">*</span></label>
+              <input type="number" class="form-control font-monospace" name="stock_min" value="10" min="1" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Prix estimé de Revente (FCFA)</label>
+            <input type="number" class="form-control font-monospace" name="prix_vente" value="5000" min="0" required>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> Enregistrer l'article</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

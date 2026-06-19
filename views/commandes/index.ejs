@@ -1,0 +1,112 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center text-start">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-cart-check text-primary me-2"></i>Bons de Commande Fournisseurs</h1>
+    <p class="text-muted mb-0">Rédigez, validez et suivez vos ordres d'approvisionnement auprès de vos partenaires.</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/commandes/create" class="btn btn-primary rounded shadow-sm btn-sm py-2 px-3">
+      <i class="bi bi-cart-plus-fill me-1"></i> Créer un Bon de Commande
+    </a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-list-task text-secondary me-2"></i>Registre des ordres d'achat d'articles ou matières
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Numéro Commande</th>
+            <th>Fournisseur</th>
+            <th>Date d'émission</th>
+            <th>Prévu de livraison</th>
+            <th>Nombre Lignes</th>
+            <th>Note / Observations</th>
+            <th>Statut Flux</th>
+            <th class="text-end">Total HT</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (commandes && commandes.length > 0) { %>
+            <% commandes.forEach(cmd => { %>
+              <tr>
+                <td class="ps-4">
+                  <a href="/commandes/<%= cmd.id %>" class="fw-bold font-monospace text-primary text-decoration-none" style="font-size: 0.9rem;">
+                    <%= cmd.numero %>
+                  </a>
+                </td>
+                <td class="fw-semibold">
+                  <a href="/fournisseurs/<%= cmd.fournisseur_id %>" class="text-slate-800 text-decoration-none">
+                    <%= cmd.fournisseur.nom %>
+                  </a>
+                </td>
+                <td class="text-nowrap"><%= new Date(cmd.date).toLocaleDateString('fr-FR') %></td>
+                <td class="text-nowrap text-muted">
+                  <% if (cmd.date_livraison) { %>
+                    <%= new Date(cmd.date_livraison).toLocaleDateString('fr-FR') %>
+                  <% } else { %>
+                    Non planifié
+                  <% } %>
+                </td>
+                <td class="text-center fw-bold text-slate-700 font-monospace">
+                  <%= cmd.lignes.length %>
+                </td>
+                <td class="text-truncate text-muted" style="max-width: 180px;"><%= cmd.notes || '—' %></td>
+                <td>
+                  <% if (cmd.etat === 'Brouillon') { %>
+                    <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1">Brouillon</span>
+                  <% } else if (cmd.etat === 'Validé') { %>
+                    <span class="badge bg-primary-subtle text-primary px-2.5 py-1"><i class="bi bi-shield-check me-1"></i>Achat Validé</span>
+                  <% } else if (cmd.etat === 'Reçu') { %>
+                    <span class="badge bg-success-subtle text-success px-2.5 py-1"><i class="bi bi-box-seam me-1"></i>Reçu / Livré</span>
+                  <% } else { %>
+                    <span class="badge bg-warning-subtle text-warning px-2.5 py-1"><%= cmd.etat %></span>
+                  <% } %>
+                </td>
+                <td class="text-end font-monospace fw-bold text-slate-800">
+                  <%= Number(cmd.total_ht).toLocaleString('fr-FR') %> FCFA
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group btn-group-sm">
+                    <a href="/commandes/<%= cmd.id %>" class="btn btn-outline-secondary" title="Ouvrir">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <% if (cmd.etat === 'Brouillon') { %>
+                      <form action="/commandes/<%= cmd.id %>/valider" method="POST" class="d-inline" onsubmit="return confirm('Valider ce bon de commande ? Cette action générera la facture et passera l\'écriture comptable.');">
+                        <button type="submit" class="btn btn-outline-primary" title="Valider & Comptabiliser">
+                          <i class="bi bi-check-circle"></i>
+                        </button>
+                      </form>
+                      <form action="/commandes/<%= cmd.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Supprimer ce bon de commande ?');">
+                        <button type="submit" class="btn btn-outline-danger" title="Supprimer">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="9" class="text-center text-muted py-5">
+                <i class="bi bi-cart-x fs-2 text-slate-300 d-block mb-3"></i>
+                Aucun Bon de Commande enregistré. Commencez par en créer un !
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

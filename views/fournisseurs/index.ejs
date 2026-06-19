@@ -1,0 +1,108 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center text-start">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-person-rolodex text-primary me-2"></i>Registre des Fournisseurs</h1>
+    <p class="text-muted mb-0">Pilotez votre catalogue fournisseur et suivez les flux d'achats en temps réel.</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/fournisseurs/create" class="btn btn-primary rounded shadow-sm btn-sm py-2 px-3">
+      <i class="bi bi-person-plus-fill me-1"></i> Ajouter un Fournisseur
+    </a>
+  </div>
+</div>
+
+<!-- Synthèse des Fournisseurs -->
+<div class="card border-0 shadow-sm text-start mb-4">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-grid-3x3-gap-fill text-secondary me-2"></i>Liste des partenaires d'approvisionnement
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Raison Sociale / Nom</th>
+            <th>NIU & RCCM</th>
+            <th>Téléphone / Email</th>
+            <th>Devise</th>
+            <th>Statut</th>
+            <th class="text-end">Total Achats (TTC)</th>
+            <th class="text-end">Solde Dû</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (fournisseurs && fournisseurs.length > 0) { %>
+            <% fournisseurs.forEach(f => { %>
+              <tr>
+                <td class="ps-4">
+                  <a href="/fournisseurs/<%= f.id %>" class="fw-bold text-primary text-decoration-none">
+                    <%= f.nom %>
+                  </a>
+                  <% if (f.adresse) { %>
+                    <small class="text-muted d-block" style="font-size: 0.75rem;"><%= f.adresse %></small>
+                  <% } %>
+                </td>
+                <td class="font-monospace text-slate-600" style="font-size: 0.8rem;">
+                  <div>NIU: <%= f.niu || '—' %></div>
+                  <div>RCCM: <%= f.rccm || '—' %></div>
+                </td>
+                <td>
+                  <div><%= f.tel || '—' %></div>
+                  <div class="text-muted" style="font-size: 0.78rem;"><%= f.email || '—' %></div>
+                </td>
+                <td>
+                  <span class="badge bg-secondary-subtle text-secondary px-2 py-1 font-monospace" style="font-size: 0.75rem;">
+                    <%= f.devise %>
+                  </span>
+                </td>
+                <td>
+                  <% if (f.actif) { %>
+                    <span class="badge bg-success-subtle text-success px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Actif</span>
+                  <% } else { %>
+                    <span class="badge bg-danger-subtle text-danger px-2 py-1"><i class="bi bi-x-circle-fill me-1"></i>Inactif</span>
+                  <% } %>
+                </td>
+                <td class="text-end font-monospace fw-bold text-slate-800">
+                  <%= Number(f.totalAchats).toLocaleString('fr-FR') %> <small><%= f.devise %></small>
+                </td>
+                <td class="text-end font-monospace fw-bold <%= f.soldeDu > 0 ? 'text-danger' : 'text-success' %>">
+                  <%= Number(f.soldeDu).toLocaleString('fr-FR') %> <small><%= f.devise %></small>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group btn-group-sm">
+                    <a href="/fournisseurs/<%= f.id %>" class="btn btn-outline-secondary" title="Fiche détaillée">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="/fournisseurs/edit/<%= f.id %>" class="btn btn-outline-primary" title="Modifier">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <% if (userRole === 'ADMIN') { %>
+                      <form action="/fournisseurs/<%= f.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ou désactiver ce fournisseur ?');">
+                        <button type="submit" class="btn btn-outline-danger" title="Supprimer">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="bi bi-building-dash fs-2 text-slate-300 d-block mb-3"></i>
+                Aucun partenaire fournisseur dans votre base pour l'instant.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

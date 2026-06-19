@@ -1,0 +1,690 @@
+<%- include('../partials/header') %>
+
+<style>
+  /* Base Style refinements for YM-Transit Analytics Dashboard */
+  .kpi-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    border-radius: 12px;
+  }
+  .kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02) !important;
+  }
+  .chart-wrapper {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .font-heading {
+    font-family: var(--font-display), sans-serif;
+  }
+
+  /* PRINT MODE OVERLAYS - STUNNING ACCURACY */
+  @media print {
+    /* Hide all layout elements that are not part of the analytics report */
+    #sidebar, .top-navbar, .no-print, .btn, .filter-card, form, hr, .breadcrumb {
+      display: none !important;
+    }
+    
+    /* Expand content to fit 100% full-width on page and force light theme */
+    #content {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      background: #ffffff !important;
+    }
+    .wrapper {
+      display: block !important;
+      background: #ffffff !important;
+    }
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      padding: 0.5cm !important;
+      margin: 0 !important;
+    }
+    
+    /* KPI grids and columns re-shaping to print inline elegantly */
+    .row {
+      display: flex !important;
+      flex-wrap: wrap !important;
+    }
+    .col-lg-6 {
+      flex: 0 0 50% !important;
+      max-width: 50% !important;
+      width: 50% !important;
+    }
+    .col-xl-3 {
+      flex: 0 0 25% !important;
+      max-width: 25% !important;
+      width: 25% !important;
+    }
+    .col-12 {
+      flex: 0 0 100% !important;
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+
+    /* Print styling card enhancements */
+    .card, .chart-wrapper, .kpi-card {
+      border: 1px solid #cbd5e1 !important;
+      box-shadow: none !important;
+      background: #ffffff !important;
+      break-inside: avoid;
+      margin-bottom: 1.5rem !important;
+    }
+    
+    /* Force high contrast text colors */
+    .text-slate-800, .text-slate-900, h1, h2, h3, h4, h5, h6, strong {
+      color: #000000 !important;
+    }
+    
+    /* Ensure charts scale clean */
+    canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+  }
+</style>
+
+<!-- Main Header & Navigation breadcrumb -->
+<div class="row mb-4 no-print">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Analyses & Statistiques</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-bar-chart-line-fill text-primary me-2"></i>Rapport Analytique Financier & Logistique
+        </h1>
+        <p class="text-muted mb-0">Suivez en temps réel le chiffre d'affaires, le recouvrement client, et l'efficacité des agents opérationnels</p>
+      </div>
+      <div>
+        <button onclick="window.print()" class="btn btn-outline-primary d-inline-flex align-items-center rounded-pill px-3 shadow-xs">
+          <i class="bi bi-printer-fill me-1.5"></i> Imprimer le rapport
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Header print banner (Only visible on paper) -->
+<div class="d-none d-print-block w-100 text-start border-bottom pb-3 mb-4">
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <h2 class="h1 fw-bold text-dark m-0">YM-TRANSIT ERP</h2>
+      <p class="text-muted mb-0" style="font-size: 0.85rem;">Transit & Logistique • Douala / Kribi Cameroun</p>
+    </div>
+    <div class="text-end">
+      <h5 class="fw-bold m-0 text-primary">RAPPORT ANALYTIQUE DE GESTION</h5>
+      <small class="text-muted">Généré le <%= new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></small>
+    </div>
+  </div>
+</div>
+
+<!-- Filter card (Date range form) -->
+<div class="card border-0 shadow-sm mb-4 filter-card no-print text-start">
+  <div class="card-body p-3 bg-white">
+    <form method="GET" action="/analytics" class="row row-cols-lg-auto g-3 align-items-center justify-content-start">
+      <div class="col-12">
+        <label class="form-label text-muted small fw-bold mb-1" for="filter-from">Du (Date Début)</label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+          <input type="date" class="form-control" name="from" id="filter-from" value="<%= filters.from %>">
+        </div>
+      </div>
+      <div class="col-12">
+        <label class="form-label text-muted small fw-bold mb-1" for="filter-to">Au (Date Fin)</label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+          <input type="date" class="form-control" name="to" id="filter-to" value="<%= filters.to %>">
+        </div>
+      </div>
+      <div class="col-12 align-self-end mt-3 mt-lg-0">
+        <button type="submit" class="btn btn-primary btn-sm rounded px-4">
+          <i class="bi bi-funnel"></i> Filtrer les données
+        </button>
+        <a href="/analytics" class="btn btn-outline-secondary btn-sm rounded ms-1.5" title="Réinitialiser">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Date Indicator on Printout (Visible on Paper) -->
+<div class="d-none d-print-block text-start mb-4 bg-light p-3 rounded border">
+  <strong class="text-uppercase text-secondary" style="font-size: 0.72rem; letter-spacing: 0.5px;">Période d'Analyse Sélectionnée</strong>
+  <div class="fs-6 mt-1 text-slate-800 fw-bold">
+    Du <span class="text-primary"><%= new Date(filters.from).toLocaleDateString('fr-FR') %></span> au <span class="text-primary"><%= new Date(filters.to).toLocaleDateString('fr-FR') %></span>
+  </div>
+</div>
+
+<!-- ROW of 4 KPI CARDS -->
+<div class="row g-4 mb-4 text-start">
+  
+  <!-- KPI 1 : CA ce mois -->
+  <div class="col-xl-3 col-md-6 col-12">
+    <div class="card bg-white border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body p-3.5 d-flex flex-column justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-uppercase text-muted fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Chiffre d'Affaires Mensuel</span>
+          <div class="bg-primary-subtle text-primary p-2.5 rounded d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="bi bi-wallet2 fs-5"></i>
+          </div>
+        </div>
+        <div>
+          <h3 class="fw-bold font-sans text-slate-900 m-0 text-nowrap">
+            <%= kpis.caCeMois.toLocaleString('fr-FR') %> <span class="text-xs text-muted font-sans fw-normal">FCFA</span>
+          </h3>
+          <span class="badge bg-success-subtle text-success border rounded-pill mt-2" style="font-size: 0.7rem;">
+            <i class="bi bi-calendar3"></i> En deçà du mois en cours
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI 2 : Taux de paiement (Taux de Recouvrement) -->
+  <div class="col-xl-3 col-md-6 col-12">
+    <div class="card bg-white border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body p-3.5 d-flex flex-column justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-uppercase text-muted fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Taux de Recouvrement</span>
+          <div class="p-2.5 rounded d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #ecfdf5; color: #10b981;">
+            <i class="bi bi-check2-circle fs-5"></i>
+          </div>
+        </div>
+        <div>
+          <h3 class="fw-bold font-sans m-0 text-slate-900">
+            <%= kpis.tauxPaiement %>%
+          </h3>
+          <div class="progress mt-2.5" style="height: 6px; border-radius: 5px;">
+            <div class="progress-bar bg-success" role="progressbar" style="width: <%= kpis.tauxPaiement %>%; border-radius: 5px;" aria-valuenow="<%= kpis.tauxPaiement %>" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <small class="text-slate-400 d-block mt-2" style="font-size: 0.7rem;">Rapport des factures perçues</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI 3 : Factures en retard -->
+  <div class="col-xl-3 col-md-6 col-12">
+    <div class="card bg-white border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body p-3.5 d-flex flex-column justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-uppercase text-muted fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Factures Impayées & Retard</span>
+          <div class="p-2.5 rounded d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #fef2f2; color: #ef4444;">
+            <i class="bi bi-clock-history fs-5"></i>
+          </div>
+        </div>
+        <div>
+          <h3 class="fw-bold font-sans text-danger m-0">
+            <%= kpis.overdueCount %> <span class="fs-6 fw-normal text-muted">docs</span>
+          </h3>
+          <span class="text-slate-700 text-xs mt-1.5 d-block fw-bold font-monospace">
+            Total : <%= kpis.overdueAmount.toLocaleString('fr-FR') %> FCFA
+          </span>
+          <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">Échéance expirée (+30 jours)</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI 4 : Meilleur agent -->
+  <div class="col-xl-3 col-md-6 col-12">
+    <div class="card bg-white border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body p-3.5 d-flex flex-column justify-content-between">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-uppercase text-muted fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Meilleur Agent (Mois)</span>
+          <div class="p-2.5 rounded d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #faf5ff; color: #a855f7;">
+            <i class="bi bi-trophy fs-5"></i>
+          </div>
+        </div>
+        <div>
+          <h3 class="fw-bold font-sans text-slate-800 m-0" style="font-size: 1.15rem; line-height: 1.25;">
+            <%= kpis.meilleurAgent.nom %>
+          </h3>
+          <span class="badge rounded-pill mt-2.5 px-2.5 py-1 text-xs" style="background-color: #f3e8ff; color: #6b21a8; font-weight: 600;">
+            🏆 <%= kpis.meilleurAgent.count %> étapes validées
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CHARTS container layout -->
+<div class="row g-4">
+  
+  <!-- CHART 1: Chiffre d'affaires mensuel - Line chart (Full width) -->
+  <div class="col-12 text-start">
+    <div class="card bg-white border-0 shadow-sm chart-wrapper">
+      <div class="card-header bg-white border-bottom-0 pb-1 px-0 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="fw-bold text-slate-900 mb-0 font-heading">
+            <i class="bi bi-graph-up text-primary me-2"></i> Chiffre d'Affaires Mensuel Comparatif
+          </h5>
+          <p class="text-muted small mb-0">Comparaison de la facturation acquise de cette année par rapport à l'année précédente (FCFA)</p>
+        </div>
+        <span class="badge bg-light text-slate-600 border font-monospace px-2.5">Facturation</span>
+      </div>
+      <div class="card-body px-0" style="position: relative; height: 350px;">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART 2 (Left half): Top 5 clients - Horizontal bar -->
+  <div class="col-lg-6 col-12 text-start">
+    <div class="card bg-white border-0 shadow-sm chart-wrapper h-100">
+      <div class="card-header bg-white border-bottom-0 pb-1 px-0">
+        <h5 class="fw-bold text-slate-900 mb-0 font-heading">
+          <i class="bi bi-people-fill text-primary me-2"></i> Top 5 Clients Portefeuille
+        </h5>
+        <p class="text-muted small mb-0">Classement selon le total TTC cumulé facturé sur la période choisie</p>
+      </div>
+      <div class="card-body px-0" style="position: relative; height: 300px;">
+        <% if (chartData.topClients && chartData.topClients.length > 0) { %>
+          <canvas id="clientsChart"></canvas>
+        <% } else { %>
+          <div class="d-flex align-items-center justify-content-center h-100 flex-column text-muted py-5">
+            <i class="bi bi-person-dash fs-2 mb-2"></i>
+            <p class="m-0 text-center">Aucune donnée client disponible pour cette période de filtres.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART 3 (Right half): Doughnut - Status analysis -->
+  <div class="col-lg-6 col-12 text-start">
+    <div class="card bg-white border-0 shadow-sm chart-wrapper h-100">
+      <div class="card-header bg-white border-bottom-0 pb-1 px-0 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="fw-bold text-slate-900 mb-0 font-heading">
+            <i class="bi bi-funnel-fill text-primary me-2"></i> État de Recouvrement des Factures
+          </h5>
+          <p class="text-muted small mb-0">Répartition quantitative des pièces financières en cours ou payées</p>
+        </div>
+      </div>
+      <div class="card-body px-0 d-flex align-items-center justify-content-center" style="position: relative; height: 300px;">
+        <% if (chartData.invoiceStats.payee > 0 || chartData.invoiceStats.en_attente > 0 || chartData.invoiceStats.en_retard > 0) { %>
+          <div class="w-100 h-100">
+            <canvas id="statsChart"></canvas>
+          </div>
+        <% } else { %>
+          <div class="d-flex align-items-center justify-content-center h-100 flex-column text-muted py-5">
+            <i class="bi bi-file-earmark-bar-graph fs-2 mb-2"></i>
+            <p class="m-0 text-center">Aucune facture émise sur cette période.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART 4: Agent Performance (Full width grouped bars) -->
+  <div class="col-12 text-start">
+    <div class="card bg-white border-0 shadow-sm chart-wrapper">
+      <div class="card-header bg-white border-bottom-0 pb-1 px-0">
+        <h5 class="fw-bold text-slate-900 mb-0 font-heading">
+          <i class="bi bi-check-all text-primary me-2"></i> Performance Logistique & Suivi Opérations Agents
+        </h5>
+        <p class="text-muted small mb-0">Quantité de sous-étapes de transit finalisées (VALIDÉ) vs en cours d'exécution ce mois-ci par intervenant actif</p>
+      </div>
+      <div class="card-body px-0" style="position: relative; height: 350px;">
+        <canvas id="agentsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CHART.JS LIBRARY VIA CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // Parsing the backend datasets securely injected of YM-Transit Analytics
+  const monthlyRevenueThisYear = <%- JSON.stringify(chartData.monthlyRevenueThisYear) %>;
+  const monthlyRevenueLastYear = <%- JSON.stringify(chartData.monthlyRevenueLastYear) %>;
+  
+  const topClients = <%- JSON.stringify(chartData.topClients) %>;
+  const invoiceStats = <%- JSON.stringify(chartData.invoiceStats) %>;
+  const agentPerformance = <%- JSON.stringify(chartData.agentPerformance) %>;
+
+  const currentYearStr = new Date().getFullYear();
+  const lastYearStr = currentYearStr - 1;
+
+  // Formatting Numbers in FCFA
+  const fcfaFormatter = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'XAF',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
+
+  // Global defaults overrides
+  Chart.defaults.font.family = "'Inter', '-apple-system', 'Segoe UI', sans-serif";
+  Chart.defaults.color = '#64748b';
+
+  // ----------------------------------------------------
+  // CHART 1: COMPARATIVE REVENUE (LINE CHART)
+  // ----------------------------------------------------
+  const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+  
+  // Custom gradient for modern fill
+  const thisYearGradient = revenueCtx.createLinearGradient(0, 0, 0, 300);
+  thisYearGradient.addColorStop(0, 'rgba(37, 99, 235, 0.15)');
+  thisYearGradient.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
+
+  new Chart(revenueCtx, {
+    type: 'line',
+    data: {
+      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+      datasets: [
+        {
+          label: `Année en cours (${currentYearStr})`,
+          data: monthlyRevenueThisYear,
+          borderColor: '#2563eb',
+          backgroundColor: thisYearGradient,
+          borderWidth: 3,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#2563eb'
+        },
+        {
+          label: `Année précédente (${lastYearStr})`,
+          data: monthlyRevenueLastYear,
+          borderColor: '#94a3b8',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          fill: false,
+          tension: 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#94a3b8'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            boxWidth: 25,
+            usePointStyle: false,
+            padding: 20,
+            font: {
+              weight: '500'
+            }
+          }
+        },
+        tooltip: {
+          padding: 12,
+          backgroundColor: '#0f172a',
+          titleFont: {
+            size: 13,
+            weight: 'bold'
+          },
+          bodyFont: {
+            size: 12
+          },
+          callbacks: {
+            label: function(context) {
+              const val = context.parsed.y || 0;
+              return `${context.dataset.label}: ${fcfaFormatter.format(val)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          grid: {
+            color: '#f1f5f9'
+          },
+          ticks: {
+            callback: function(value) {
+              return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' : value.toLocaleString('fr-FR');
+            }
+          }
+        }
+      }
+    }
+  });
+
+
+  // ----------------------------------------------------
+  // CHART 2: TOP 5 CLIENTS (HORIZONTAL BAR)
+  // ----------------------------------------------------
+  if (topClients && topClients.length > 0) {
+    const clientsCtx = document.getElementById('clientsChart').getContext('2d');
+    
+    // Five gorgeous premium shades of blue matching corporate YM branding
+    const shadesOfBlue = ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
+    
+    new Chart(clientsCtx, {
+      type: 'bar',
+      data: {
+        labels: topClients.map(c => c.client_nom),
+        datasets: [{
+          label: 'Total TTC facturé',
+          data: topClients.map(c => c.total_ttc),
+          backgroundColor: shadesOfBlue.slice(0, topClients.length),
+          borderRadius: 6,
+          borderWidth: 0,
+          barThickness: 24,
+        }]
+      },
+      options: {
+        indexAxis: 'y', // Makes the bar chart horizontal
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            padding: 12,
+            backgroundColor: '#0f172a',
+            callbacks: {
+              label: function(context) {
+                const item = topClients[context.dataIndex];
+                return `Facturé : ${fcfaFormatter.format(context.parsed.x)} (${item.count} factures)`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              color: '#f1f5f9'
+            },
+            ticks: {
+              callback: function(value) {
+                return value >= 1000000 ? (value / 1000000).toFixed(1) + 'M' : value.toLocaleString('fr-FR');
+              }
+            }
+          },
+          y: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              font: {
+                weight: '600'
+              },
+              color: '#1e293b'
+            }
+          }
+        }
+      }
+    });
+  }
+
+
+  // ----------------------------------------------------
+  // CHART 3: STATE OF INVOICES (DOUGHNUT)
+  // ----------------------------------------------------
+  const statsCanvas = document.getElementById('statsChart');
+  if (statsCanvas) {
+    const statsCtx = statsCanvas.getContext('2d');
+    const totalCount = invoiceStats.payee + invoiceStats.en_attente + invoiceStats.en_retard;
+
+    new Chart(statsCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Factures Payées', 'En attente de paiement', 'En retard d\'échéance'],
+        datasets: [{
+          data: [invoiceStats.payee, invoiceStats.en_attente, invoiceStats.en_retard],
+          backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], // Green, Orange, Red
+          hoverOffset: 8,
+          borderWidth: 3,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              padding: 15,
+              boxWidth: 15,
+              font: {
+                size: 11,
+                weight: '500'
+              }
+            }
+          },
+          tooltip: {
+            padding: 12,
+            backgroundColor: '#0f172a',
+            callbacks: {
+              label: function(context) {
+                const val = context.parsed;
+                const percentage = totalCount > 0 ? Math.round((val / totalCount) * 100) : 0;
+                return ` ${context.label} : ${val} (${percentage}%)`;
+              }
+            }
+          },
+          // Custom centerText configuration
+          centerText: {
+            text: `${totalCount} documents`
+          }
+        }
+      },
+      plugins: [{
+        id: 'centerText',
+        beforeDraw: function(chart) {
+          const { width, height, ctx } = chart;
+          ctx.restore();
+          
+          // Outer doughnut bounds
+          const chartArea = chart.chartArea;
+          const centerX = (chartArea.left + chartArea.right) / 2;
+          const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+          ctx.textBaseline = "middle";
+          
+          // Header Total (e.g. "Total")
+          ctx.font = "bold 0.75rem sans-serif";
+          ctx.fillStyle = "#94a3b8";
+          const subText = "TOTAL PIÈCES";
+          const subTextX = Math.round(centerX - (ctx.measureText(subText).width / 2));
+          ctx.fillText(subText, subTextX, centerY - 10);
+          
+          // Large main count number text
+          ctx.font = "bold 1.35rem sans-serif";
+          ctx.fillStyle = "#020617";
+          const mainText = `${totalCount}`;
+          const mainTextX = Math.round(centerX - (ctx.measureText(mainText).width / 2));
+          ctx.fillText(mainText, mainTextX, centerY + 12);
+          
+          ctx.save();
+        }
+      }]
+    });
+  }
+
+
+  // ----------------------------------------------------
+  // CHART 4: AGENTS PERFORMANCE (GROUPED BAR CHART)
+  // ----------------------------------------------------
+  const agentsCtx = document.getElementById('agentsChart').getContext('2d');
+  
+  new Chart(agentsCtx, {
+    type: 'bar',
+    data: {
+      labels: agentPerformance.map(a => a.nom),
+      datasets: [
+        {
+          label: 'Sous-étapes validées (Fait)',
+          data: agentPerformance.map(a => a.done),
+          backgroundColor: '#10b981', // Green
+          borderRadius: 4,
+          barThickness: 16
+        },
+        {
+          label: 'Sous-étapes en cours',
+          data: agentPerformance.map(a => a.in_progress),
+          backgroundColor: '#2563eb', // Blue
+          borderRadius: 4,
+          barThickness: 16
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            boxWidth: 15,
+            padding: 15
+          }
+        },
+        tooltip: {
+          padding: 12,
+          backgroundColor: '#0f172a'
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          grid: {
+            color: '#f1f5f9'
+          },
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+
+});
+</script>
+
+<%- include('../partials/footer') %>

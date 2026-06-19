@@ -1,0 +1,523 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/documents">Factures</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Création rapide</li>
+      </ol>
+    </nav>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
+          <i class="bi bi-file-earmark-plus text-primary me-2"></i>Émission d'un Document Facturation
+        </h1>
+        <p class="text-muted mb-0">Régime douanier camerounais - Saisie directe et décompte automatique de stock</p>
+      </div>
+      <div>
+        <a href="/documents" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3">
+          <i class="bi bi-chevron-left me-1"></i> Retour à la liste
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form id="invoiceForm" class="row g-4 text-start">
+  <!-- Left Side: Header & Items -->
+  <div class="col-xl-9 col-lg-8">
+    <!-- Invoice Header Block -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-0">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;"><i class="bi bi-person-bounding-box text-primary me-2"></i>1. Informations Client et Pièce</h5>
+      </div>
+      <div class="card-body bg-white pt-1">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold text-secondary">Sélectionner un Client / Importateur <span class="text-danger">*</span></label>
+            <select class="form-select" id="clientSelect" required>
+              <option value="">-- Choisissez le client --</option>
+              <% if (clients && clients.length > 0) { %>
+                <% clients.forEach(cl => { %>
+                  <option value="<%= cl.id %>" data-niu="<%= cl.niu || 'Non renseigné' %>" data-rccm="<%= cl.rccm || 'Non renseigné' %>" data-tel="<%= cl.tel || 'N/A' %>" data-adresse="<%= cl.adresse || 'N/A' %>">
+                    <%= cl.nom %>
+                  </option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold text-secondary">Type de document <span class="text-danger">*</span></label>
+            <select class="form-select" id="documentType" required>
+              <option value="FACTURE">Facture commerciale définitive</option>
+              <option value="PROFORMA">Facture proforma de douane</option>
+              <option value="DEVIS">Devis de transit informatif</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold text-secondary">Date d'émission <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="invoiceDate" value="2026-06-12" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold text-secondary">Échéance <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="dueDate" value="2026-07-12" required>
+          </div>
+        </div>
+
+        <div class="row mt-3 bg-light p-3 rounded mx-0 text-start" id="clientDetailsBox" style="display: none; font-size: 0.85rem;">
+          <div class="col-sm-6 col-md-3 border-end">
+            <div class="text-muted text-uppercase text-xs fw-bold">NIU Douane</div>
+            <div class="fw-semibold text-secondary font-monospace" id="metaNiu">-</div>
+          </div>
+          <div class="col-sm-6 col-md-3 border-end">
+            <div class="text-muted text-uppercase text-xs fw-bold">N° RCCM</div>
+            <div class="fw-semibold text-secondary font-monospace" id="metaRccm">-</div>
+          </div>
+          <div class="col-sm-6 col-md-3 border-end">
+            <div class="text-muted text-uppercase text-xs fw-bold">Téléphone / BP</div>
+            <div class="fw-semibold text-secondary" id="metaTel">-</div>
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <div class="text-muted text-uppercase text-xs fw-bold">Adresse Géographique</div>
+            <div class="fw-semibold text-secondary" id="metaAdresse">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line Items Table Card -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;"><i class="bi bi-list-stars text-primary me-2"></i>2. Prestations Logistiques et Douanières (Lignes de facture)</h5>
+        <button type="button" class="btn btn-outline-primary btn-sm rounded" id="addLineBtn">
+          <i class="bi bi-plus-lg me-1"></i> Ajouter une ligne
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 text-start" id="linesTable">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 40%;" class="ps-3">Désignation / Article de stock</th>
+                <th style="width: 15%;">P.U HT (FCFA)</th>
+                <th style="width: 10%;">Qté</th>
+                <th style="width: 18%;">Taxes applicables</th>
+                <th style="width: 12%;">Total HT</th>
+                <th style="width: 5%;" class="text-center pe-3">Action</th>
+              </tr>
+            </thead>
+            <tbody id="linesContainer">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="text-center text-muted py-5 px-3">
+          <i class="bi bi-cart-x display-6 mb-2 d-block text-secondary"></i>
+          <p class="mb-0 small">Aucune ligne n'a été ajoutée à ce document pour le moment.</p>
+          <button type="button" class="btn btn-outline-primary btn-xs py-1 px-3 mt-2" id="emptyStateAddBtn">Créer la première ligne</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Summary & Actions -->
+  <div class="col-xl-3 col-lg-4">
+    <!-- Invoice Financial Statement Card -->
+    <div class="card border-0 shadow-sm bg-white mb-4 position-sticky" style="top: 20px;">
+      <div class="card-header bg-slate-900 text-white rounded-top py-3 border-0 d-flex align-items-center">
+        <h6 class="mb-0 text-white fw-bold"><i class="bi bi-shield-lock-fill text-warning me-2"></i>Synthèse Financière</h6>
+      </div>
+      <div class="card-body p-4 text-start">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted small">Total HT :</span>
+          <span class="font-monospace fw-semibold text-dark"><span id="sumHt">0</span> <small>FCFA</small></span>
+        </div>
+
+        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+          <span class="text-muted small">TVA Standard (19.25%) :</span>
+          <span class="font-monospace fw-semibold text-dark"><span id="sumTva">0</span> <small>FCFA</small></span>
+        </div>
+
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-dark small fw-bold">Total Brut TTC :</span>
+          <span class="font-monospace fw-bold text-dark fs-6"><span id="sumTtc">0</span> <small>FCFA</small></span>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Remise commerciale (FCFA)</label>
+          <input type="number" class="form-control form-control-sm text-end font-monospace" id="discountField" value="0" min="0">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Avance perçue à l'émission (FCFA)</label>
+          <input type="number" class="form-control form-control-sm text-end font-monospace text-success fw-bold" id="advanceField" value="0" min="0">
+        </div>
+
+        <div class="border-top pt-3 text-start mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-dark small fw-bold">Net à Payer :</span>
+            <span class="font-monospace fw-bold text-primary fs-5"><span id="netToPay">0</span> <small class="fs-6 text-muted">FCFA</small></span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-secondary small">Reste à recouvrer :</span>
+            <span class="font-monospace fw-bold text-danger"><span id="remainingToCollect">0</span> <small class="text-muted">FCFA</small></span>
+          </div>
+        </div>
+
+        <!-- Master Submit Action Button -->
+        <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold rounded shadow d-flex align-items-center justify-content-center" id="submitBtn">
+          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;" id="btnSpinner"></span>
+          <i class="bi bi-file-earmark-check-fill me-2" id="btnIcon"></i> Enregistrer & Émettre
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- Available Articles Database Local Storage JSON -->
+<script type="application/json" id="stocksData">
+  <%- JSON.stringify(stocks) %>
+</script>
+
+<% if (locals.preselectedDossier) { %>
+  <script type="application/json" id="preselectedDossierData">
+    <%- JSON.stringify({
+      id: preselectedDossier.id,
+      clientId: preselectedDossier.client_id,
+      numero: preselectedDossier.numero,
+      items: preselectedDossier.bons_provisoir && preselectedDossier.bons_provisoir.length > 0
+        ? preselectedDossier.bons_provisoir.flatMap(bp => {
+            if (bp.bon_reel) {
+              if (bp.bon_reel.items_json) {
+                try {
+                  return JSON.parse(bp.bon_reel.items_json).map(it => ({
+                    description: `Débours: ${it.designation} (Dossier N° ${preselectedDossier.numero})`,
+                    price: it.montant
+                  }));
+                } catch(e) {}
+              }
+              return [{
+                description: `Débours: ${bp.objet} [Bon Réel N° ${bp.numero}] (Dossier N° ${preselectedDossier.numero})`,
+                price: bp.bon_reel.montant_reel
+              }];
+            }
+            return [];
+          })
+        : []
+    }) %>
+  </script>
+<% } %>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Parser les articles de stock
+    const stocksJsonElement = document.getElementById("stocksData");
+    const stocks = JSON.parse(stocksJsonElement.textContent || "[]");
+
+    const linesContainer = document.getElementById("linesContainer");
+    const emptyState = document.getElementById("emptyState");
+    const addLineBtn = document.getElementById("addLineBtn");
+    const emptyStateAddBtn = document.getElementById("emptyStateAddBtn");
+
+    const clientSelect = document.getElementById("clientSelect");
+    const clientDetailsBox = document.getElementById("clientDetailsBox");
+    const metaNiu = document.getElementById("metaNiu");
+    const metaRccm = document.getElementById("metaRccm");
+    const metaTel = document.getElementById("metaTel");
+    const metaAdresse = document.getElementById("metaAdresse");
+
+    const sumHtSpan = document.getElementById("sumHt");
+    const sumTvaSpan = document.getElementById("sumTva");
+    const sumTtcSpan = document.getElementById("sumTtc");
+    const netToPaySpan = document.getElementById("netToPay");
+    const remainingToCollectSpan = document.getElementById("remainingToCollect");
+
+    const discountField = document.getElementById("discountField");
+    const advanceField = document.getElementById("advanceField");
+
+    // Événement choix du client
+    clientSelect.addEventListener("change", function() {
+      const selectedOption = clientSelect.options[clientSelect.selectedIndex];
+      if (selectedOption && selectedOption.value) {
+        metaNiu.textContent = selectedOption.getAttribute("data-niu");
+        metaRccm.textContent = selectedOption.getAttribute("data-rccm");
+        metaTel.textContent = selectedOption.getAttribute("data-tel");
+        metaAdresse.textContent = selectedOption.getAttribute("data-adresse");
+        clientDetailsBox.style.display = "flex";
+      } else {
+        clientDetailsBox.style.display = "none";
+      }
+    });
+
+    let lineIndex = 0;
+
+    // Fonction d'ajout de ligne
+    function addLineRow(initDesc = "", initPrice = "0", initTax = "TVA_19_25") {
+      const tr = document.createElement("tr");
+      tr.id = `line-row-${lineIndex}`;
+      tr.className = "line-item-row";
+
+      // Création du select d'articles de stock
+      let stockOptions = `<option value="">-- Saisie libre (Entrez le libellé) --</option>`;
+      stocks.forEach(item => {
+        stockOptions += `<option value="${item.id}" data-price="${item.prix_vente}" data-qty="${item.quantite}">${item.nom} (Restant: ${item.quantite} pcs)</option>`;
+      });
+
+      tr.innerHTML = `
+        <td class="ps-3 align-top">
+          <select class="form-select mb-1 article-select form-select-sm">
+            ${stockOptions}
+          </select>
+          <input type="text" class="form-control form-control-sm item-desc" placeholder="Ou décrivez la prestation de transit..." value="${initDesc}" required>
+        </td>
+        <td class="align-top">
+          <input type="number" class="form-control form-control-sm font-monospace text-end item-price" value="${initPrice}" min="0" required style="width: 130px;">
+        </td>
+        <td class="align-top">
+          <input type="number" class="form-control form-control-sm text-center item-qty" value="1" min="1" required style="width: 70px;">
+        </td>
+        <td class="align-top">
+          <select class="form-select form-select-sm item-tax">
+            <option value="TVA_19_25" ${initTax === "TVA_19_25" ? "selected" : ""}>TVA Complète (19.25%)</option>
+            <option value="TVA_0" ${initTax === "TVA_0" ? "selected" : ""}>Exonéré (0% / Débours)</option>
+          </select>
+        </td>
+        <td class="fw-bold text-dark font-monospace text-end align-top pt-2">
+          <span class="row-total">0</span> <small class="text-muted">FCFA</small>
+        </td>
+        <td class="text-center pe-3 align-top">
+          <button type="button" class="btn btn-outline-danger btn-sm rounded-circle remove-row-btn p-1 border-0" title="Retirer">
+            <i class="bi bi-trash-fill"></i>
+          </button>
+        </td>
+      `;
+
+      linesContainer.appendChild(tr);
+      emptyState.style.display = "none";
+
+      const currentIdx = lineIndex;
+      const row = document.getElementById(`line-row-${currentIdx}`);
+      const select = row.querySelector(".article-select");
+      const descInput = row.querySelector(".item-desc");
+      const priceInput = row.querySelector(".item-price");
+      const qtyInput = row.querySelector(".item-qty");
+      const taxSelect = row.querySelector(".item-tax");
+      const rowTotalSpan = row.querySelector(".row-total");
+      const removeBtn = row.querySelector(".remove-row-btn");
+
+      // Événement choix de l'article de stock
+      select.addEventListener("change", function() {
+        const option = select.options[select.selectedIndex];
+        if (option && option.value) {
+          descInput.value = option.text.split(" (Restant")[0];
+          priceInput.value = option.getAttribute("data-price");
+          qtyInput.max = option.getAttribute("data-qty");
+        } else {
+          descInput.value = "";
+          priceInput.value = "0";
+          qtyInput.removeAttribute("max");
+        }
+        calculateTotals();
+      });
+
+      // Recalcul sur modification des champs
+      [descInput, priceInput, qtyInput, taxSelect].forEach(element => {
+        element.addEventListener("input", calculateTotals);
+        element.addEventListener("change", calculateTotals);
+      });
+
+      // Suppression de la ligne
+      removeBtn.addEventListener("click", function() {
+        row.remove();
+        calculateTotals();
+        if (linesContainer.children.length === 0) {
+          emptyState.style.display = "block";
+        }
+      });
+
+      lineIndex++;
+      calculateTotals();
+    }
+
+    addLineBtn.addEventListener("click", () => addLineRow("", "0", "TVA_19_25"));
+    emptyStateAddBtn.addEventListener("click", () => addLineRow("", "0", "TVA_19_25"));
+
+    // Fonction de calcul en temps réel des totaux
+    function calculateTotals() {
+      let grandTotalHt = 0;
+      let grandTotalTva = 0;
+
+      const rows = linesContainer.querySelectorAll(".line-item-row");
+      rows.forEach(row => {
+        const select = row.querySelector(".article-select");
+        const price = parseFloat(row.querySelector(".item-price").value) || 0;
+        const qty = parseInt(row.querySelector(".item-qty").value) || 1;
+        const taxVal = row.querySelector(".item-tax").value;
+
+        const rowTotalHt = price * qty;
+        let rowTva = 0;
+
+        if (taxVal === "TVA_19_25") {
+          rowTva = rowTotalHt * 0.1925;
+        }
+
+        row.querySelector(".row-total").textContent = rowTotalHt.toLocaleString("fr-FR");
+
+        grandTotalHt += rowTotalHt;
+        grandTotalTva += rowTva;
+      });
+
+      const grandTotalTtc = grandTotalHt + grandTotalTva;
+      const discount = parseFloat(discountField.value) || 0;
+      const netToPay = Math.max(0, grandTotalTtc - discount);
+      const advance = parseFloat(advanceField.value) || 0;
+      const remainingToCollect = Math.max(0, netToPay - advance);
+
+      sumHtSpan.textContent = grandTotalHt.toLocaleString("fr-FR");
+      sumTvaSpan.textContent = grandTotalTva.toLocaleString("fr-FR");
+      sumTtcSpan.textContent = grandTotalTtc.toLocaleString("fr-FR");
+      netToPaySpan.textContent = netToPay.toLocaleString("fr-FR");
+      remainingToCollectSpan.textContent = remainingToCollect.toLocaleString("fr-FR");
+
+      // Conserver les valeurs brutes dans des variables globales si nécessaire lors de l'envoi
+      window.calculatedTotals = {
+        total_ht: grandTotalHt,
+        total_ttc: netToPay,
+        remise: discount,
+        avance: advance
+      };
+    }
+
+    // Attacher des écouteurs sur Remise et Avance
+    discountField.addEventListener("input", calculateTotals);
+    advanceField.addEventListener("input", calculateTotals);
+
+    // Initialisation intelligente : pré-remplissage ou ligne blanche par défaut
+    const preselectedDataElement = document.getElementById("preselectedDossierData");
+    if (preselectedDataElement) {
+      try {
+        const predata = JSON.parse(preselectedDataElement.textContent);
+        if (predata && predata.clientId) {
+          clientSelect.value = predata.clientId;
+          // Déclencher l'événement pour charger les informations du client dans le bandeau
+          clientSelect.dispatchEvent(new Event("change"));
+          
+          if (predata.items && predata.items.length > 0) {
+            predata.items.forEach(item => {
+              addLineRow(item.description, item.price, "TVA_0"); // Les débours sont exonérés de TVA
+            });
+          } else {
+            addLineRow("", "0", "TVA_19_25");
+          }
+        } else {
+          addLineRow("", "0", "TVA_19_25");
+        }
+      } catch (e) {
+        console.error("Erreur d'import des débours du bon réel :", e);
+        addLineRow("", "0", "TVA_19_25");
+      }
+    } else {
+      // Ajouter une première ligne par défaut
+      addLineRow("", "0", "TVA_19_25");
+    }
+
+    // Soumission du formulaire
+    const invoiceForm = document.getElementById("invoiceForm");
+    invoiceForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const clientId = clientSelect.value;
+      if (!clientId) {
+        alert("Veuillez sélectionner un client débiteur.");
+        return;
+      }
+
+      const rows = linesContainer.querySelectorAll(".line-item-row");
+      if (rows.length === 0) {
+        alert("Veuillez ajouter au moins une ligne de prestation de transit.");
+        return;
+      }
+
+      const linesData = [];
+      let missingDesc = false;
+
+      rows.forEach(row => {
+        const stockId = row.querySelector(".article-select").value;
+        const description = row.querySelector(".item-desc").value.trim();
+        const price = parseFloat(row.querySelector(".item-price").value) || 0;
+        const qty = parseInt(row.querySelector(".item-qty").value) || 1;
+        const taxId = row.querySelector(".item-tax").value;
+
+        if (!description) {
+          missingDesc = true;
+        }
+
+        linesData.push({
+          stock_id: stockId || null,
+          description: description,
+          prix_unitaire: price,
+          quantite: qty,
+          taxe_id: taxId
+        });
+      });
+
+      if (missingDesc) {
+        alert("Une ou plusieurs lignes n'ont pas de désignation descriptive.");
+        return;
+      }
+
+      calculateTotals();
+
+      // UI Loading state
+      const submitBtn = document.getElementById("submitBtn");
+      const btnSpinner = document.getElementById("btnSpinner");
+      const btnIcon = document.getElementById("btnIcon");
+
+      submitBtn.disabled = true;
+      btnSpinner.style.display = "inline-block";
+      btnIcon.style.display = "none";
+
+      const payload = {
+        client_id: clientId,
+        type: documentType.value,
+        created_at: document.getElementById("invoiceDate").value,
+        due_date: document.getElementById("dueDate").value,
+        lines: linesData,
+        remise: window.calculatedTotals.remise,
+        avance: window.calculatedTotals.avance,
+        total_ht: window.calculatedTotals.total_ht,
+        total_ttc: window.calculatedTotals.total_ttc
+      };
+
+      fetch("/documents/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.href = `/documents/${data.id}`;
+        } else {
+          alert(`Erreur: ${data.message || 'Impossible de générer le document.'}`);
+          submitBtn.disabled = false;
+          btnSpinner.style.display = "none";
+          btnIcon.style.display = "inline-block";
+        }
+      })
+      .catch(error => {
+        console.error("Erreur d'émission :", error);
+        alert("Une erreur de communication est survenue lors de la validation du document.");
+        submitBtn.disabled = false;
+        btnSpinner.style.display = "none";
+        btnIcon.style.display = "inline-block";
+      });
+    });
+  });
+</script>
+
+<%- include('../partials/footer') %>

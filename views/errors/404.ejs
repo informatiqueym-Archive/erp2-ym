@@ -1,0 +1,31 @@
+<%- include('../partials/header') %>
+
+<div class="container my-5 py-5 text-center">
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+        <div class="p-5 bg-warning text-dark">
+          <i class="bi bi-exclamation-triangle-fill display-1"></i>
+          <h1 class="mt-4 font-display text-uppercase tracking-wider">Page introuvable</h1>
+          <h4 class="text-dark-50">Erreur 404 - Not Found</h4>
+        </div>
+        <div class="card-body p-5">
+          <p class="lead text-muted">
+            La page ou la ressource demandée n'existe pas ou a été déplacée.
+          </p>
+          <hr class="my-4">
+          <div class="d-flex justify-content-center gap-3 mt-4">
+            <a href="/dashboard" class="btn btn-primary btn-lg rounded-pill px-4">
+              <i class="bi bi-speedometer2 me-2"></i>Retour au tableau de bord
+            </a>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg rounded-pill px-4">
+              <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

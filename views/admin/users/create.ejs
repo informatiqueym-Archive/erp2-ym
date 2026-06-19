@@ -1,0 +1,176 @@
+<%- include('../../partials/header') %>
+
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/dashboard">Accueil</a></li>
+      <li class="breadcrumb-item"><a href="/admin/users">Utilisateurs</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Nouveau collaborateur</li>
+    </ol>
+  </nav>
+  <h1 class="h2 font-display text-slate-800">Enregistrer un Collaborateur</h1>
+  <p class="text-muted">Créez un nouveau compte d'accès ERP. Un mot de passe temporaire sera exigé pour sa première visite.</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm rounded-3">
+      <form action="/admin/users/create" method="POST" class="card-body p-4">
+        <h5 class="card-title text-slate-800 fw-bold border-bottom pb-2 mb-4"><i class="bi bi-person-plus me-2"></i>Informations personnelles & d'accès</h5>
+        
+        <div class="row mb-3">
+          <div class="col-md-6 mb-3 mb-md-0">
+            <label class="form-label fw-semibold">Nom de famille <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-person"></i></span>
+              <input type="text" name="nom" class="form-control" placeholder="Ex: NYAMBA" required>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Prénom</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-person"></i></span>
+              <input type="text" name="prenom" class="form-control" placeholder="Ex: Jean-Luc">
+            </div>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-6 mb-3 mb-md-0">
+            <label class="form-label fw-semibold">Adresse Email <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-envelope"></i></span>
+              <input type="email" name="email" class="form-control" placeholder="Ex: jl.nyamba@ym-transit.cm" required>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Société / Entité <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-building"></i></span>
+              <input type="text" name="societe" class="form-control" placeholder="Ex: YM-TRANSIT" value="YM-TRANSIT" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="row mb-4">
+          <div class="col-md-6 mb-3 mb-md-0">
+            <label class="form-label fw-semibold">Niveau d'accès / Rôle ERP <span class="text-danger">*</span></label>
+            <div class="input-group mb-2">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-lock"></i></span>
+              <select id="role-select" name="role" class="form-select" required>
+                <option value="operationnel" selected>Operational - Tâches, Tiers & Dossiers uniquement (operationnel)</option>
+                <option value="commercial">Commercial - Ventes, Facturation client & Analytics (commercial)</option>
+                <option value="comptable">Comptable - Grand Livre, Balance & Fournisseurs (comptable)</option>
+                <option value="magasinier">Magasinier - Stocks & Achats (magasinier)</option>
+                <option value="rh">Ressources Humaines (RH) (rh)</option>
+                <option value="super_admin">Super Administrateur - Tout accès + Gestion Comptes (super_admin)</option>
+                <option value="lecture">Lecture seule (Auditeur) - Aucun droit de modification (lecture)</option>
+                
+                <option value="secretariat">Secrétariat — Suivi & Tiers (secretariat)</option>
+                <option value="validation_role">Validation — Dossiers (validation_role)</option>
+                <option value="guce">GUCE — Guichet Unique (guce)</option>
+                <option value="acconage">Acconage — Opérations & Bons (acconage)</option>
+                <option value="enlevement">Enlèvement — Livraison & Bons (enlevement)</option>
+                <option value="direction">Direction — Décisions & Budgets (direction)</option>
+                <option value="agent_payeur">Agent Payeur — Trésorerie & Décaissements (agent_payeur)</option>
+                <option value="finances">Finances — Devis, Dossiers & Tiers (finances)</option>
+                <option value="comptable_ops">Comptabilité d'Opérations — Comptes & Budgets (comptable_ops)</option>
+              </select>
+            </div>
+            <!-- Live module preview container -->
+            <div id="live-module-preview" class="border rounded p-2 bg-light small text-muted">
+              <strong>Modules autorisés :</strong> <span id="live-module-list">...</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Mot de passe temporaire <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted"><i class="bi bi-key"></i></span>
+              <input type="password" name="password" class="form-control" placeholder="Saisir un mot de passe de base" value="YmTransit@2026" required>
+            </div>
+            <div class="form-text text-muted">L'utilisateur sera obligé de le changer dès la première connexion.</div>
+          </div>
+        </div>
+
+        <script>
+          const roleModulesMap = {
+            super_admin: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "rh"],
+            comptable: ["clients", "facturation", "stock", "comptabilite", "achats", "analytics"],
+            commercial: ["clients", "dossiers", "taches", "facturation", "analytics"],
+            operationnel: ["clients", "dossiers", "taches"],
+            magasinier: ["stock", "achats"],
+            rh: ["rh"],
+            lecture: ["clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics"],
+            secretariat: ["dashboard", "dossiers", "clients"],
+            validation_role: ["dashboard", "dossiers"],
+            guce: ["dashboard", "dossiers"],
+            acconage: ["dashboard", "dossiers", "bons"],
+            enlevement: ["dashboard", "dossiers", "bons"],
+            direction: ["dashboard", "bons", "analytics"],
+            agent_payeur: ["dashboard", "bons"],
+            finances: ["dashboard", "documents", "dossiers", "clients"],
+            comptable_ops: ["dashboard", "documents", "dossiers", "accounting", "reports"]
+          };
+
+          const roleSelect = document.getElementById('role-select');
+          const liveModuleList = document.getElementById('live-module-list');
+
+          function updateLiveModules() {
+            const role = roleSelect.value;
+            const modules = roleModulesMap[role] || [];
+            liveModuleList.textContent = modules.join(', ') || 'aucun';
+          }
+
+          // Pre-select via query param
+          const urlParams = new URLSearchParams(window.location.search);
+          const roleFromQuery = urlParams.get('role');
+          if (roleFromQuery && roleModulesMap[roleFromQuery]) {
+            roleSelect.value = roleFromQuery;
+          }
+
+          roleSelect.addEventListener('change', updateLiveModules);
+          updateLiveModules();
+        </script>
+
+        <div class="d-flex justify-content-end gap-2 border-top pt-4">
+          <a href="/admin/users" class="btn btn-outline-secondary rounded-pill px-4">Annuler</a>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="bi bi-check-circle me-2"></i>Enregistrer le collaborateur
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 bg-info-subtle text-info-emphasis shadow-sm rounded-3">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-info-circle-fill me-2"></i>Permissions des Rôles</h5>
+        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
+          <li>
+            <strong class="text-dark">Super Admin :</strong>
+            <p class="mb-0 small">Accès complet à la totalité de la plateforme y compris la journalisation et l'administration des utilisateurs de l'entreprise.</p>
+          </li>
+          <li>
+            <strong class="text-dark">Comptable :</strong>
+            <p class="mb-0 small">Accès aux modules Comptabilité, Chats & Fournisseurs, Devis & Facturation clients, Stocks et Analytics.</p>
+          </li>
+          <li>
+            <strong class="text-dark">Commercial :</strong>
+            <p class="mb-0 small">Gère le portefeuille clients, réalise la facturation client, suit les dossiers de transit et accède aux rapports analytiques.</p>
+          </li>
+          <li>
+            <strong class="text-dark">Opérationnel :</strong>
+            <p class="mb-0 small">Concentration sur la logistique : fiches clients, suivi opérationnel des dossiers de transit et pilotage des tâches.</p>
+          </li>
+          <li>
+            <strong class="text-dark">Lecture seule (Auditeur) :</strong>
+            <p class="mb-0 small">Peut explorer l'ensemble de l'ERP à des fins de contrôle comptable ou d'audit sans pouvoir faire de modification (POST/PATCH désactivés).</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

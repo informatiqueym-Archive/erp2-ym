@@ -1,0 +1,171 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-people-fill text-primary me-2"></i>Annuaire des Importateurs & Exportateurs</h1>
+    <p class="text-muted mb-0">Gestion centralisée des clients du cabinet YM-TRANSIT ERP.</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <button class="btn btn-primary d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#newClientModal">
+      <i class="bi bi-person-plus-fill me-2"></i> Enregistrer un Client
+    </button>
+  </div>
+</div>
+
+<!-- Clients List Card -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">ID</th>
+            <th>Nom Complet & Raison Sociale</th>
+            <th>N.I.U (Identifiant Unique)</th>
+            <th>R.C.C.M (Commerce)</th>
+            <th>Téléphone</th>
+            <th>Adresse</th>
+            <th>Dossiers gérés</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (clients && clients.length > 0) { %>
+            <% clients.forEach(cl => { %>
+              <tr>
+                <td class="ps-4 text-muted font-monospace">CLI-<%= cl.id %></td>
+                <td>
+                  <div class="fw-bold text-dark"><%= cl.nom %></div>
+                  <small class="text-muted">Partenaire de : <%= cl.societe %></small>
+                </td>
+                <td>
+                  <span class="font-monospace text-xs badge bg-light text-slate-800 border"><%= cl.niu || 'NON FOURNI' %></span>
+                </td>
+                <td>
+                  <span class="font-monospace text-xs text-muted"><%= cl.rccm || 'Non renseigné' %></span>
+                </td>
+                <td>
+                  <a href="tel:<%= cl.tel %>" class="text-secondary text-decoration-none"><i class="bi bi-telephone text-muted me-1"></i> <%= cl.tel || 'N/A' %></a>
+                </td>
+                <td>
+                  <span class="text-slate-600 truncate" title="<%= cl.adresse %>"><%= cl.adresse || 'N/A' %></span>
+                </td>
+                <td>
+                  <span class="badge bg-primary-subtle text-primary rounded-pill px-3"><%= cl._count && typeof cl._count.dossiers !== 'undefined' ? cl._count.dossiers : 0 %> dossiers</span>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group">
+                    <button class="btn btn-light btn-sm text-primary rounded-circle me-1" data-bs-toggle="modal" data-bs-target="#editClientModal<%= cl.id %>" title="Modifier">
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <!-- Delete form -->
+                    <form action="/clients/delete/<%= cl.id %>" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce client ? Tous ses dossiers et factures associés seront supprimés.');">
+                      <button type="submit" class="btn btn-light btn-sm text-danger rounded-circle">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Edit Client Modal -->
+              <div class="modal fade" id="editClientModal<%= cl.id %>" tabindex="-1" aria-labelledby="editClientModalLabel<%= cl.id %>" aria-hidden="true">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title fw-bold" id="editClientModalLabel<%= cl.id %>">Modifier l'importateur / exportateur</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="/clients/update/<%= cl.id %>" method="POST">
+                      <div class="modal-body text-start">
+                        <div class="mb-3">
+                          <label class="form-label small fw-bold">Nom / Raison Sociale <span class="text-danger">*</span></label>
+                          <input type="text" class="form-control" name="nom" value="<%= cl.nom %>" required>
+                        </div>
+                        <div class="row mb-3">
+                          <div class="col-md-6">
+                            <label class="form-label small fw-bold">N.I.U (Sénégal/Cameroun) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="niu" value="<%= cl.niu %>" placeholder="M000000000000X">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-bold">R.C.C.M</label>
+                            <input type="text" class="form-control" name="rccm" value="<%= cl.rccm %>" placeholder="RC/DLA/...">
+                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-bold">N° Téléphone</label>
+                          <input type="text" class="form-control" name="tel" value="<%= cl.tel %>" placeholder="+237 ...">
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-bold">Adresse Géographique</label>
+                          <input type="text" class="form-control" name="adresse" value="<%= cl.adresse %>" placeholder="Bassa, Douala...">
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Sauvegarder les modifications</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="bi bi-people display-4 text-slate-300 d-block mb-3"></i>
+                Aucun importateur ou exportateur enregistré pour l'instant.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- New Client Modal -->
+<div class="modal fade" id="newClientModal" tabindex="-1" aria-labelledby="newClientModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white" id="newClientModalLabel">Nouveau Client Importateur / Exportateur</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/clients/new" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Raison Sociale Complet <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="nom" placeholder="Ex: Sodecoton S.A." required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">N.I.U (Numéro Fiscal Unique)</label>
+              <input type="text" class="form-control" name="niu" placeholder="M0123456789X" required>
+              <div class="form-text" style="font-size: 0.70rem;">Lettre fiscale finale obligatoire.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">R.C.C.M (Tribunal)</label>
+              <input type="text" class="form-control" name="rccm" placeholder="RC/DLA/2014/B/..." required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">N° Téléphone</label>
+            <input type="text" class="form-control" name="tel" placeholder="Ex: +237 6xx xx xx xx" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Adresse Géographique Cameroun</label>
+            <textarea class="form-control" name="adresse" rows="2" placeholder="Ex: Rue de la Marine, Akwa, Douala" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm rounded" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm rounded"><i class="bi bi-save me-1"></i> Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

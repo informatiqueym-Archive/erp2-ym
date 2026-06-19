@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-calculator text-primary me-2"></i>Balance de Vérification des Comptes</h1>
+    <p class="text-muted mb-0">Rapport de conformité double-entrée OHADA.</p>
+  </div>
+</div>
+
+<% if (!isBalanced) { %>
+  <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center mb-4 text-start">
+    <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+    <div>
+      <strong class="d-block text-danger">ERREUR: Déséquilibre de la Balance de Vérification !</strong>
+      Le total général des débits ne correspond pas au total des crédits. Veuillez auditer les derniers mouvements de vos pièces.
+    </div>
+  </div>
+<% } else { %>
+  <div class="alert alert-success border-0 shadow-sm d-flex align-items-center mb-4 text-start">
+    <i class="bi bi-check-circle-fill fs-4 me-3 text-success"></i>
+    <div>
+      <strong class="d-block text-success">Égalité comptable vérifiée (Débit = Crédit) 🗸</strong>
+      Aucune déviation détectée dans le calcul de la balance à double-entrée.
+    </div>
+  </div>
+<% } %>
+
+<!-- Tableau de Balance -->
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-table text-secondary me-2"></i>Tableau synthétique de balance de période
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width: 15%;">N° Compte</th>
+            <th style="width: 35%;">Intitulé du Compte</th>
+            <th class="text-end" style="width: 12.5%;">Total Débit (FCFA)</th>
+            <th class="text-end" style="width: 12.5%;">Total Crédit (FCFA)</th>
+            <th class="text-end" style="width: 12.5%;">Solde Débiteur</th>
+            <th class="text-end pe-4" style="width: 12.5%;">Solde Créditeur</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(row => { %>
+            <tr>
+              <td class="ps-4 font-monospace fw-bold"><%= row.code %></td>
+              <td class="text-slate-800 fw-semibold"><%= row.nom %></td>
+              <td class="text-end font-monospace text-muted">
+                <%= row.totalDebit > 0 ? Number(row.totalDebit).toLocaleString('fr-FR') : '—' %>
+              </td>
+              <td class="text-end font-monospace text-muted">
+                <%= row.totalCredit > 0 ? Number(row.totalCredit).toLocaleString('fr-FR') : '—' %>
+              </td>
+              <td class="text-end font-monospace text-success fw-bold">
+                <%= row.soldeDebiteur > 0 ? Number(row.soldeDebiteur).toLocaleString('fr-FR') : '—' %>
+              </td>
+              <td class="text-end pe-4 font-monospace text-danger fw-bold">
+                <%= row.soldeCrediteur > 0 ? Number(row.soldeCrediteur).toLocaleString('fr-FR') : '—' %>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (rows.length === 0) { %>
+            <tr>
+              <td colspan="6" class="text-center text-muted py-5">Aucun compte initialisé ou aucune activité enregistrée.</td>
+            </tr>
+          <% } %>
+        </tbody>
+        <tfoot class="table-dark font-monospace text-end">
+          <tr>
+            <td class="ps-4 text-start fw-bold" colspan="2">Totaux Généraux de Contrôle</td>
+            <td class="fw-bold"><%= Number(totals.totalDebit).toLocaleString('fr-FR') %></td>
+            <td class="fw-bold"><%= Number(totals.totalCredit).toLocaleString('fr-FR') %></td>
+            <td class="fw-bold text-success"><%= Number(totals.soldeDebiteur).toLocaleString('fr-FR') %></td>
+            <td class="fw-bold pe-4 text-danger"><%= Number(totals.soldeCrediteur).toLocaleString('fr-FR') %></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

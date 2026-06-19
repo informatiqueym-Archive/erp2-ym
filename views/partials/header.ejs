@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' | YM-TRANSIT ERP' : 'YM-TRANSIT ERP - Transit & Logistique' %></title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bana-primary: #1e3a8a; /* Deep blue corporate */
+      --bana-secondary: #0f172a; /* Slate dark */
+      --bana-accent: #2563eb; /* Active highlight */
+      --bana-light: #f8fafc;
+      --bana-success: #10b981;
+      --bana-warning: #f59e0b;
+      --bana-danger: #ef4444;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-sans: 'Inter', sans-serif;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #f1f5f9;
+      color: #334155;
+    }
+
+    h1, h2, h3, h4, h5, .display-logo {
+      font-family: var(--font-display);
+      font-weight: 600;
+    }
+
+    .wrapper {
+      display: flex;
+      width: 100%;
+      align-items: stretch;
+      min-height: 100vh;
+    }
+
+    /* Sidebar styling */
+    #sidebar {
+      min-width: 260px;
+      max-width: 260px;
+      background: var(--bana-secondary);
+      color: #94a3b8;
+      transition: all 0.3s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #sidebar .sidebar-header {
+      padding: 1.5rem;
+      background: #020617;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    #sidebar .sidebar-header h3 {
+      color: #f8fafc;
+      margin-bottom: 0;
+      font-size: 1.4rem;
+      letter-spacing: 0.5px;
+    }
+
+    #sidebar ul.components {
+      padding: 1.5rem 0;
+      flex-grow: 1;
+    }
+
+    #sidebar ul li {
+      padding: 0 1rem;
+      margin-behavior: smooth;
+    }
+
+    #sidebar ul li a {
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      color: #94a3b8;
+      border-radius: 0.375rem;
+      text-decoration: none;
+      transition: all 0.2s ease-in-out;
+      margin-bottom: 0.25rem;
+    }
+
+    #sidebar ul li a i {
+      font-size: 1.1rem;
+      margin-right: 0.85rem;
+    }
+
+    #sidebar ul li a:hover {
+      color: #f1f5f9;
+      background: #1e293b;
+    }
+
+    #sidebar ul li.active a {
+      color: #ffffff;
+      background: var(--bana-accent);
+    }
+
+    .sidebar-footer {
+      padding: 1rem;
+      background: #020617;
+      border-top: 1px solid #1e293b;
+      font-size: 0.8rem;
+    }
+
+    /* Page Content */
+    #content {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top navbar */
+    .top-navbar {
+      background-color: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0.75rem 2rem;
+    }
+
+    .card {
+      border: none;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      background-color: transparent;
+      border-bottom: 1px solid #f1f5f9;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background-color: var(--bana-accent);
+      border-color: var(--bana-accent);
+    }
+
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+
+    .bg-primary-subtle {
+      background-color: #eff6ff !important;
+      color: var(--bana-accent) !important;
+    }
+
+    /* Badge specific statuses in Douala / Kribi contexts */
+    .badge-import {
+      background-color: #ede9fe;
+      color: #6d28d9;
+    }
+    .badge-export {
+      background-color: #ecfdf5;
+      color: #047857;
+    }
+    .badge-transit {
+      background-color: #fff7ed;
+      color: #c2410c;
+    }
+  </style>
+</head>
+<body class="h-100">
+
+<div class="wrapper">
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-header d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <div class="bg-primary text-white rounded p-2 me-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 40px;">
+          <span class="fw-bold fs-6 display-logo text-white">YM</span>
+        </div>
+        <div>
+          <h3 class="display-logo text-light" style="font-size: 1.25rem;">YM-TRANSIT</h3>
+          <small class="text-xs text-muted" style="font-size: 0.7rem;">Cameroun Transit</small>
+        </div>
+      </div>
+    </div>
+
+    <% const currentPath = typeof path !== 'undefined' ? path : ''; %>
+    <ul class="list-unstyled components text-start">
+      <li class="<%= currentPath === '/dashboard' ? 'active' : '' %>">
+        <a href="/dashboard">
+          <i class="bi bi-speedometer2"></i>
+          <span>Tableau de bord</span>
+        </a>
+      </li>
+
+      <% if (typeof user !== 'undefined') { %>
+        
+        <% if (['super_admin', 'comptable', 'commercial', 'operationnel', 'lecture', 'secretariat', 'finances'].includes(user.role)) { %>
+          <li class="<%= currentPath.startsWith('/clients') ? 'active' : '' %>">
+            <a href="/clients">
+              <i class="bi bi-people"></i>
+              <span>Clients</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'commercial', 'operationnel', 'lecture', 'secretariat', 'validation_role', 'guce', 'acconage', 'enlevement', 'finances', 'comptable_ops', 'direction', 'agent_payeur'].includes(user.role)) { %>
+          <li class="<%= currentPath === '/dossiers' || (currentPath.startsWith('/dossiers') && !currentPath.includes('/archives')) ? 'active' : '' %>">
+            <a href="/dossiers">
+              <i class="bi bi-folder-fill"></i>
+              <span>Dossiers de Transit</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'comptable', 'direction', 'comptable_ops', 'commercial', 'operationnel', 'lecture', 'secretariat', 'validation_role', 'guce', 'acconage', 'enlevement', 'finances', 'agent_payeur'].includes(user.role)) { %>
+          <li class="<%= currentPath.startsWith('/archives') || currentPath.startsWith('/dossiers/archives') ? 'active' : '' %>">
+            <a href="/archives">
+              <i class="bi bi-archive-fill"></i>
+              <span>Archives Dossiers</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'comptable', 'commercial', 'lecture', 'finances', 'comptable_ops'].includes(user.role)) { %>
+          <li class="<%= currentPath.startsWith('/documents') ? 'active' : '' %>">
+            <a href="/documents">
+              <i class="bi bi-receipt"></i>
+              <span>Factures & Devis</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'commercial', 'operationnel', 'lecture'].includes(user.role)) { %>
+          <li class="<%= currentPath.startsWith('/taches') ? 'active' : '' %>">
+            <a href="/taches">
+              <i class="bi bi-kanban"></i>
+              <span>Suivi des Tâches</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'comptable', 'commercial', 'lecture', 'direction'].includes(user.role)) { %>
+          <li class="<%= currentPath.startsWith('/analytics') ? 'active' : '' %>">
+            <a href="/analytics">
+              <i class="bi bi-bar-chart-line-fill"></i>
+              <span>Analyses & Rapports</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'comptable', 'lecture', 'comptable_ops'].includes(user.role)) { %>
+          <li class="<%= currentPath === '/accounting/journal' ? 'active' : '' %>">
+            <a href="/accounting/journal">
+              <i class="bi bi-book"></i>
+              <span>Livre Journal</span>
+            </a>
+          </li>
+          <li class="<%= currentPath === '/accounting/grand-livre' ? 'active' : '' %>">
+            <a href="/accounting/grand-livre">
+              <i class="bi bi-journals"></i>
+              <span>Grand Livre</span>
+            </a>
+          </li>
+          <li class="<%= currentPath === '/accounting/balance' ? 'active' : '' %>">
+            <a href="/accounting/balance">
+              <i class="bi bi-calculator"></i>
+              <span>Balance Générale</span>
+            </a>
+          </li>
+          <li class="<%= currentPath === '/accounting/periodes' ? 'active' : '' %>">
+            <a href="/accounting/periodes">
+              <i class="bi bi-lock-fill"></i>
+              <span>Clôtures & Périodes</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'magasinier', 'comptable', 'lecture'].includes(user.role)) { %>
+          <li class="<%= currentPath.startsWith('/stock') ? 'active' : '' %>">
+            <a href="/stock">
+              <i class="bi bi-box-seam"></i>
+              <span>Gestion du Stock</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'comptable', 'magasinier', 'lecture'].includes(user.role)) { %>
+          <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Achats & Fournisseurs</li>
+          <li class="<%= currentPath.startsWith('/fournisseurs') ? 'active' : '' %>">
+            <a href="/fournisseurs">
+              <i class="bi bi-person-rolodex"></i>
+              <span>Fournisseurs</span>
+            </a>
+          </li>
+          <li class="<%= currentPath.startsWith('/commandes') ? 'active' : '' %>">
+            <a href="/commandes">
+              <i class="bi bi-cart-check"></i>
+              <span>Bons de commande</span>
+            </a>
+          </li>
+          <li class="<%= currentPath.startsWith('/factures-fournisseur') ? 'active' : '' %>">
+            <a href="/factures-fournisseur">
+              <i class="bi bi-file-earmark-ruled"></i>
+              <span>Factures Directes</span>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (['super_admin', 'acconage', 'enlevement', 'direction', 'agent_payeur'].includes(user.role)) { %>
+          <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Trésorerie & Caisse</li>
+          <li class="<%= currentPath.startsWith('/bons') ? 'active' : '' %>">
+            <a href="/bons/provisoir/pending">
+              <i class="bi bi-wallet2 text-success"></i>
+              <span class="text-success">Bons de caisse</span>
+              <% if (typeof pendingBonsCount !== 'undefined' && pendingBonsCount > 0) { %>
+                <span class="badge bg-danger ms-auto rounded-pill"><%= pendingBonsCount %></span>
+              <% } %>
+            </a>
+          </li>
+        <% } %>
+
+        <% if (user.role === 'super_admin') { %>
+          <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Administration</li>
+          <li class="<%= currentPath.startsWith('/admin/users') ? 'active' : '' %>">
+            <a href="/admin/users">
+              <i class="bi bi-people-fill text-warning"></i>
+              <span class="text-warning">Utilisateurs & Droits</span>
+            </a>
+          </li>
+          <li class="<%= currentPath.startsWith('/logs') ? 'active' : '' %>">
+            <a href="/logs">
+              <i class="bi bi-journal-text text-warning"></i>
+              <span class="text-warning">Notes d'activités</span>
+            </a>
+          </li>
+        <% } %>
+
+      <% } %>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="text-muted text-center">YM-TRANSIT ERP v1.1.0</div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <div id="content">
+    <!-- Top Navbar -->
+    <header class="top-navbar d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <span class="text-muted me-3">
+          <i class="bi bi-building"></i> <strong><%= typeof user !== 'undefined' ? user.societe : 'YM-TRANSIT Logistics' %></strong>
+        </span>
+        <span class="badge bg-secondary-subtle text-secondary py-1.5 px-3 rounded-pill">
+          <i class="bi bi-clock"></i> <%= new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %>
+        </span>
+      </div>
+      
+      <div class="d-flex align-items-center">
+        <% if (typeof user !== 'undefined') { %>
+          <div class="dropdown">
+            <button class="btn btn-link text-decoration-none text-dark dropdown-toggle d-flex align-items-center" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="bg-dark text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                <i class="bi bi-person"></i>
+              </div>
+              <div class="text-start me-1">
+                <div class="fw-bold" style="font-size: 0.85rem;"><%= user.nom %></div>
+                <div class="text-muted" style="font-size: 0.75rem;"><%= user.role %></div>
+              </div>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" aria-labelledby="profileDropdown">
+              <li><div class="dropdown-header text-muted border-bottom mb-1 font-sans">Compte YM-TRANSIT ERP</div></li>
+              <li><a class="dropdown-item py-2" href="/profile"><i class="bi bi-gear me-2"></i>Mon Profil</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item py-2 text-danger" href="/logout">
+                  <i class="bi bi-box-arrow-right me-2"></i>Se déconnecter
+                </a>
+              </li>
+            </ul>
+          </div>
+        <% } else { %>
+          <a href="/login" class="btn btn-outline-primary btn-sm rounded-pill px-3">Connexion</a>
+        <% } %>
+      </div>
+    </header>
+
+    <!-- App Messages (flash messages style) -->
+    <main class="container-fluid py-4 flex-grow-1">
+      <% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" id="glbErrAlert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i><%= error_msg %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <% } %>
+      <% if (typeof success_msg !== 'undefined' && success_msg && success_msg.length > 0) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert" id="glbSucAlert">
+          <i class="bi bi-check-circle-fill me-2"></i><%= success_msg %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <% } %>

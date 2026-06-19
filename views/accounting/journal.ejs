@@ -1,0 +1,138 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-book text-primary me-2"></i>Livre Journal Général</h1>
+    <p class="text-muted mb-0">Visualisez et filtrez l'historique complet des écritures comptables sous normes OHADA.</p>
+  </div>
+  <% if (userRole === 'ADMIN') { %>
+    <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+      <form action="/accounting/setup" method="POST" class="d-inline">
+        <button type="submit" class="btn btn-outline-primary btn-sm rounded shadow-sm">
+          <i class="bi bi-gear-fill me-1"></i> Réinitialiser / Seeder Plan OHADA
+        </button>
+      </form>
+    </div>
+  <% } %>
+</div>
+
+<!-- Zone de Filtres -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form action="/accounting/journal" method="GET" class="row g-3">
+      <div class="col-md-2">
+        <label class="form-label text-slate-600 fw-semibold" style="font-size: 0.85rem;">Code Journal</label>
+        <select name="journal" class="form-select form-select-sm">
+          <option value="">Tous les journaux</option>
+          <option value="VTE" <%= filters.journal === 'VTE' ? 'selected' : '' %>>VTE (Ventes)</option>
+          <option value="BNQ" <%= filters.journal === 'BNQ' ? 'selected' : '' %>>BNQ (Banque)</option>
+          <option value="CAI" <%= filters.journal === 'CAI' ? 'selected' : '' %>>CAI (Caisse)</option>
+          <option value="ACH" <%= filters.journal === 'ACH' ? 'selected' : '' %>>ACH (Achats / Charges)</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-slate-600 fw-semibold" style="font-size: 0.85rem;">Compte de filtre</label>
+        <select name="compte_id" class="form-select form-select-sm">
+          <option value="">Tous les comptes</option>
+          <% comptes.forEach(c => { %>
+            <option value="<%= c.id %>" <%= String(filters.compte_id) === String(c.id) ? 'selected' : '' %>><%= c.code %> — <%= c.nom %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-slate-600 fw-semibold" style="font-size: 0.85rem;">Date du</label>
+        <input type="date" name="date_from" value="<%= filters.date_from %>" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-slate-600 fw-semibold" style="font-size: 0.85rem;">Au</label>
+        <input type="date" name="date_to" value="<%= filters.date_to %>" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-1 d-flex align-items-end justify-content-end">
+        <button type="submit" class="btn btn-primary btn-sm w-100 py-1.5"><i class="bi bi-search"></i></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table du Livre Journal -->
+<div class="card border-0 shadow-sm text-start">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-clock-history text-secondary me-2"></i>Registre des opérations à partie double
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+        <thead class="table-light text-slate-700">
+          <tr>
+            <th class="ps-4">Date</th>
+            <th>Journal</th>
+            <th>Réf Pièce</th>
+            <th>N° Compte</th>
+            <th>Intitulé du Compte</th>
+            <th>Description / Libellé</th>
+            <th class="text-end">Débit (FCFA)</th>
+            <th class="text-end">Crédit (FCFA)</th>
+            <th class="text-end pe-4">Solde Progressif</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (entries && entries.length > 0) { %>
+            <% entries.forEach(entry => { %>
+              <tr>
+                <td class="ps-4 text-nowrap"><%= new Date(entry.date).toLocaleDateString('fr-FR') %></td>
+                <td>
+                  <span class="badge <%= entry.journal === 'VTE' ? 'bg-primary-subtle text-primary' : entry.journal === 'BNQ' ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' %> px-2 py-1" style="font-size: 0.75rem;">
+                    <%= entry.journal %>
+                  </span>
+                </td>
+                <td class="font-monospace text-muted"><%= entry.piece_ref %></td>
+                <td class="fw-bold font-monospace"><%= entry.compte.code %></td>
+                <td class="text-slate-700"><%= entry.compte.nom %></td>
+                <td><%= entry.libelle %></td>
+                <td class="text-end text-success font-monospace fw-semibold">
+                  <%= entry.debit > 0 ? Number(entry.debit).toLocaleString('fr-FR') : '—' %>
+                </td>
+                <td class="text-end text-danger font-monospace fw-semibold">
+                  <%= entry.credit > 0 ? Number(entry.credit).toLocaleString('fr-FR') : '—' %>
+                </td>
+                <td class="text-end pe-4 font-monospace fw-bold <%= entry.runningBalance >= 0 ? 'text-primary' : 'text-danger' %>">
+                  <%= Number(entry.runningBalance).toLocaleString('fr-FR') %> FCFA
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="9" class="text-center text-muted py-5">
+                <i class="bi bi-file-earmark-bar-graph fs-2 text-slate-300 d-block mb-2"></i>
+                Aucune écriture comptable trouvée pour cette période ou ces filtres.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Pagination -->
+<% if (pagination.totalPages > 1) { %>
+  <nav class="mt-4 d-flex justify-content-center">
+    <ul class="pagination pagination-sm">
+      <li class="page-item <%= pagination.page === 1 ? 'disabled' : '' %>">
+        <a class="page-link" href="?page=<%= pagination.page - 1 %>&journal=<%= filters.journal %>&compte_id=<%= filters.compte_id %>&date_from=<%= filters.date_from %>&date_to=<%= filters.date_to %>">Précédent</a>
+      </li>
+      <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+        <li class="page-item <%= pagination.page === i ? 'active' : '' %>">
+          <a class="page-link" href="?page=<%= i %>&journal=<%= filters.journal %>&compte_id=<%= filters.compte_id %>&date_from=<%= filters.date_from %>&date_to=<%= filters.date_to %>"><%= i %></a>
+        </li>
+      <% } %>
+      <li class="page-item <%= pagination.page === pagination.totalPages ? 'disabled' : '' %>">
+        <a class="page-link" href="?page=<%= pagination.page + 1 %>&journal=<%= filters.journal %>&compte_id=<%= filters.compte_id %>&date_from=<%= filters.date_from %>&date_to=<%= filters.date_to %>">Suivant</a>
+      </li>
+    </ul>
+  </nav>
+<% } %>
+
+<%- include('../partials/footer') %>

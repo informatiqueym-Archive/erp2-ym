@@ -1,0 +1,228 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3 text-start">
+  <div class="col-12">
+    <a href="/fournisseurs" class="text-primary text-decoration-none fw-semibold mb-2 d-inline-block">
+      <i class="bi bi-arrow-left me-1"></i> Retour au registre
+    </a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+      <div>
+        <h1 class="h3 text-slate-800 mb-1">
+          <i class="bi bi-building text-primary me-2"></i><%= fournisseur.nom %>
+          <% if (!fournisseur.actif) { %>
+            <span class="badge bg-danger-subtle text-danger ms-2" style="font-size: 0.75rem;">Inactif</span>
+          <% } else { %>
+            <span class="badge bg-success-subtle text-success ms-2" style="font-size: 0.75rem;">Actif</span>
+          <% } %>
+        </h1>
+        <p class="text-muted mb-0">Partenaire ID: #<%= fournisseur.id %> • Devise par défaut: <%= fournisseur.devise %></p>
+      </div>
+      <div class="mt-2 mt-sm-0">
+        <a href="/fournisseurs/edit/<%= fournisseur.id %>" class="btn btn-outline-primary btn-sm me-2">
+          <i class="bi bi-pencil me-1"></i> Modifier la fiche
+        </a>
+        <a href="/commandes/create" class="btn btn-primary btn-sm">
+          <i class="bi bi-cart-plus me-1"></i> Nouveau Bon de Commande
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cartes Synthétiques -->
+<div class="row g-3 mb-4 text-start">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm border-start border-primary border-4 h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase fw-bold text-xs mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em;">Total des Achats Facturés</div>
+        <div class="h3 mb-0 fw-bold font-monospace text-slate-800">
+          <%= Number(totalAchats).toLocaleString('fr-FR') %> <span class="fs-6 text-muted"><%= fournisseur.devise %></span>
+        </div>
+        <div class="text-muted mt-2 small">Calculé sur <%= fournisseur.factures.length %> factures fournisseurs</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm border-start border-success border-4 h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase fw-bold text-xs mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em;">Total des Règlements Versés</div>
+        <div class="h3 mb-0 fw-bold font-monospace text-success">
+          <%= Number(totalPaye).toLocaleString('fr-FR') %> <span class="fs-6 text-muted"><%= fournisseur.devise %></span>
+        </div>
+        <div class="text-muted mt-2 small">Comptabilisé en partie double (Livre ACH/BNQ)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm border-start border-danger border-4 h-100">
+      <div class="card-body">
+        <div class="text-muted text-uppercase fw-bold text-xs mb-1" style="font-size: 0.72rem; letter-spacing: 0.05em;">Encours / Solde Dû</div>
+        <div class="h3 mb-0 fw-bold font-monospace <%= soldeDu > 0 ? 'text-danger' : 'text-success' %>">
+          <%= Number(soldeDu).toLocaleString('fr-FR') %> <span class="fs-6 text-muted"><%= fournisseur.devise %></span>
+        </div>
+        <div class="text-muted mt-2 small">Reste à payer aux échéances légales</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  
+  <!-- Fiche de renseignements -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-info-circle text-secondary me-2"></i>Détails contractuels
+        </h5>
+      </div>
+      <div class="card-body" style="font-size: 0.88rem;">
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">NIU (Unique Ident. Number)</label>
+          <strong class="text-slate-800 font-monospace"><%= fournisseur.niu || 'Non fourni' %></strong>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">RCCM (Trade Register)</label>
+          <strong class="text-slate-800 font-monospace"><%= fournisseur.rccm || 'Non fourni' %></strong>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">Téléphone portable / Bureau</label>
+          <strong class="text-slate-800"><%= fournisseur.tel || 'Non fourni' %></strong>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted d-block small mb-0">Adresse Courriel</label>
+          <% if (fournisseur.email) { %>
+            <a href="mailto:<%= fournisseur.email %>" class="text-decoration-none fw-semibold"><%= fournisseur.email %></a>
+          <% } else { %>
+            <strong class="text-slate-800">Non fourni</strong>
+          <% } %>
+        </div>
+        <div class="mb-0">
+          <label class="text-muted d-block small mb-0">Siège social</label>
+          <strong class="text-slate-800"><%= fournisseur.adresse || 'Cameroun' %></strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historique commandes et facturations -->
+  <div class="col-lg-8">
+    
+    <!-- Liste des Factures -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-file-earmark-bar-graph text-secondary me-2"></i>Factures Fournisseur émises
+        </h5>
+        <a href="/factures-fournisseur" class="text-primary text-decoration-none small fw-semibold">Gérer les règlements →</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">N° Facture</th>
+                <th>Date d'émission</th>
+                <th>Échéance</th>
+                <th>État</th>
+                <th class="text-end pe-3">Montant TTC</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (fournisseur.factures && fournisseur.factures.length > 0) { %>
+                <% fournisseur.factures.forEach(fact => { %>
+                  <tr style="cursor: pointer;" onclick="window.location.href='/factures-fournisseur/show/<%= fact.id %>'">
+                    <td class="ps-3">
+                      <a href="/factures-fournisseur/<%= fact.id %>" class="fw-bold font-monospace text-decoration-none">
+                        <%= fact.numero %>
+                      </a>
+                    </td>
+                    <td><%= new Date(fact.date).toLocaleDateString('fr-FR') %></td>
+                    <td>
+                      <% if (fact.echeance) { %>
+                        <%= new Date(fact.echeance).toLocaleDateString('fr-FR') %>
+                      <% } else { %>
+                        —
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (fact.etat === 'Payée') { %>
+                        <span class="badge bg-success-subtle text-success px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Payée</span>
+                      <% } else if (fact.etat === 'Partielle') { %>
+                        <span class="badge bg-warning-subtle text-warning px-2 py-1"><i class="bi bi-hourglass-split me-1"></i>Partielle</span>
+                      <% } else { %>
+                        <span class="badge bg-danger-subtle text-danger px-2 py-1"><i class="bi bi-clock me-1"></i>En attente</span>
+                      <% } %>
+                    </td>
+                    <td class="text-end font-monospace fw-bold pe-3"><%= Number(fact.montant_ttc).toLocaleString('fr-FR') %> FCFA</td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-4">Aucune facture enregistrée pour ce fournisseur.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bons de commande émis -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-cart-check text-secondary me-2"></i>Bons de Commande passés
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Numéro BC</th>
+                <th>Date</th>
+                <th>État de livraison / BC</th>
+                <th class="text-end pe-3">Total HT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (fournisseur.commandes && fournisseur.commandes.length > 0) { %>
+                <% fournisseur.commandes.forEach(cmd => { %>
+                  <tr style="cursor: pointer;" onclick="window.location.href='/commandes/<%= cmd.id %>'">
+                    <td class="ps-3">
+                      <a href="/commandes/<%= cmd.id %>" class="fw-bold font-monospace text-decoration-none">
+                        <%= cmd.numero %>
+                      </a>
+                    </td>
+                    <td><%= new Date(cmd.date).toLocaleDateString('fr-FR') %></td>
+                    <td>
+                      <% if (cmd.etat === 'Brouillon') { %>
+                        <span class="badge bg-secondary-subtle text-secondary px-2 py-1">Brouillon</span>
+                      <% } else if (cmd.etat === 'Validé') { %>
+                        <span class="badge bg-primary-subtle text-primary px-2 py-1"><i class="bi bi-check me-1"></i>Validé (Non livré)</span>
+                      <% } else if (cmd.etat === 'Reçu') { %>
+                        <span class="badge bg-success-subtle text-success px-2 py-1"><i class="bi bi-box-seam me-1"></i>Reçu / Livré</span>
+                      <% } else { %>
+                        <span class="badge bg-warning-subtle text-warning px-2 py-1"><%= cmd.etat %></span>
+                      <% } %>
+                    </td>
+                    <td class="text-end font-monospace fw-bold pe-3"><%= Number(cmd.total_ht).toLocaleString('fr-FR') %> FCFA</td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Aucun bon de commande passé avec ce partenaire.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<%- include('../partials/footer') %>

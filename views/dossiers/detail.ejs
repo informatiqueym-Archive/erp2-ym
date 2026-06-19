@@ -1,0 +1,1609 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-12 py-2 text-start">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-2" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/dashboard">Tableau de bord</a></li>
+        <li class="breadcrumb-item"><a href="/dossiers">Dossiers de Transit</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><%= dossier.numero %></li>
+      </ol>
+    </nav>
+    
+    <!-- 1. HEADER section -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 border-bottom pb-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+          <h1 class="h3 mb-0 text-slate-800 font-sans fw-bold">
+            <i class="bi bi-folder2-open text-primary me-2"></i>Dossier <%= dossier.numero %>
+          </h1>
+          <span class="badge rounded-pill bg-slate-100 text-slate-800 border px-3 py-1 text-xs fw-semibold">
+            <i class="bi bi-anchor me-1"></i> <%= dossier.port %>
+          </span>
+          <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 text-xs fw-bold">
+            <i class="bi bi-truck me-1"></i> <%= dossier.nature %>
+          </span>
+          <% if (dossier.etat === 'CLOTURE') { %>
+            <span class="badge rounded-pill bg-success text-white px-3 py-1 text-xs fw-bold" id="dossier-state-badge">
+              <i class="bi bi-lock-fill me-1"></i> CLÔTURÉ
+            </span>
+          <% } else if (dossier.etat === 'FIN DE TRANSIT') { %>
+            <span class="badge rounded-pill bg-info text-dark px-3 py-1 text-xs fw-bold" id="dossier-state-badge">
+              <i class="bi bi-check-circle-fill me-1"></i> FIN DE TRANSIT
+            </span>
+          <% } else if (dossier.etat === 'EN_COURS') { %>
+            <span class="badge rounded-pill bg-warning text-dark px-3 py-1 text-xs fw-bold" id="dossier-state-badge">
+              <i class="bi bi-arrow-repeat me-1 animate-spin"></i> EN COURS
+            </span>
+          <% } else { %>
+            <span class="badge rounded-pill bg-secondary text-white px-3 py-1 text-xs fw-bold" id="dossier-state-badge">
+              <i class="bi bi-folder-fill me-1"></i> OUVERT
+            </span>
+          <% } %>
+        </div>
+        <p class="text-muted mb-0">
+          Client donneur d'ordre : <strong class="text-dark"><%= dossier.client.nom %></strong> 
+          • Date de création : <span class="font-monospace text-xs"><%= new Date(dossier.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></span>
+        </p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Change State form -->
+        <form action="/dossiers/update-status/<%= dossier.id %>" method="POST" class="d-inline-flex gap-1 align-items-center">
+          <select name="etat" class="form-select form-select-sm" style="width: 170px;" onchange="this.form.submit()">
+            <option value="OUVERT" <%= dossier.etat === 'OUVERT' ? 'selected' : '' %>>OUVERT / ATTENTE</option>
+            <option value="EN_COURS" <%= dossier.etat === 'EN_COURS' ? 'selected' : '' %>>EN COURS</option>
+            <option value="FIN DE TRANSIT" <%= dossier.etat === 'FIN DE TRANSIT' ? 'selected' : '' %>>FIN DE TRANSIT</option>
+            <option value="CLOTURE" <%= dossier.etat === 'CLOTURE' ? 'selected' : '' %>>CLÔTURÉ & ARCHIVÉ</option>
+          </select>
+        </form>
+        <a href="/dossiers" class="btn btn-outline-secondary d-inline-flex align-items-center rounded-pill px-3 btn-sm">
+          <i class="bi bi-chevron-left me-1"></i> Retour
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%
+  const pipelineSteps = [
+    { key: "CREE", label: "Créé" },
+    { key: "VALIDATION", label: "Validation" },
+    { key: "EN_TRAITEMENT", label: "En traitement" },
+    { key: "BON_PROVISOIR", label: "Bon Provisoir" },
+    { key: "BON_REEL", label: "Bon Réel" },
+    { key: "FACTURATION", label: "Facturation" },
+    { key: "CLOTURE", label: "Clôturé" },
+    { key: "ARCHIVE", label: "Archivé" }
+  ];
+
+  const currentStatus = dossier.pipeline_status || "CREE";
+  const currentStepIndex = pipelineSteps.findIndex(s => s.key === currentStatus);
+  const approvedBP = dossier.bons_provisoir ? dossier.bons_provisoir.find(b => b.etat === "APPROUVE") : null;
+%>
+
+<!-- A. PIPELINE STATUS TRACKER BAR -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 text-start">
+  <div class="card-body p-4 pb-3">
+    <h6 class="text-xs text-uppercase text-muted tracking-wider mb-4 fw-bold">
+      <i class="bi bi-bezier2 me-1.5 text-primary"></i>Pipeline opérationnel de Transit & Bons de caisse
+    </h6>
+    <div class="d-flex justify-content-between align-items-center position-relative flex-wrap gap-y-4">
+      <!-- Track Background Line -->
+      <div class="position-absolute top-50 start-0 translate-middle-y w-100 bg-secondary-subtle d-none d-md-block" style="height: 4px; z-index: 1;"></div>
+      <!-- Progress Fill Line -->
+      <div class="position-absolute top-50 start-0 translate-middle-y bg-success d-none d-md-block" style="height: 4px; z-index: 1; width: <%= (currentStepIndex / (pipelineSteps.length - 1)) * 100 %>%; transition: width 0.4s ease-in-out;"></div>
+
+      <% pipelineSteps.forEach((step, idx) => { %>
+        <% 
+          const isCompleted = idx < currentStepIndex;
+          const isActive = idx === currentStepIndex;
+          
+          let circleBg = "bg-white border text-muted";
+          let labelClass = "text-muted small";
+          if (isActive) {
+            circleBg = "bg-primary border border-primary text-white shadow";
+            labelClass = "text-primary fw-bold";
+          } else if (isCompleted) {
+            circleBg = "bg-success border border-success text-white";
+            labelClass = "text-success fw-semibold";
+          }
+        %>
+        <div class="d-flex flex-column align-items-center position-relative text-center flex-grow-1" style="z-index: 2; min-width: 90px;">
+          <div class="rounded-circle d-flex align-items-center justify-content-center <%= circleBg %>" style="width: 32px; height: 32px; transition: all 0.3s;">
+            <% if (isCompleted) { %>
+              <i class="bi bi-check-lg" style="font-size: 1rem;"></i>
+            <% } else { %>
+              <span style="font-size: 0.85rem;" class="fw-bold"><%= idx + 1 %></span>
+            <% } %>
+          </div>
+          <span class="mt-2 <%= labelClass %>" style="font-size: 0.8rem;"><%= step.label %></span>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<!-- B. CONDITIONAL ACTION SYSTEM BOARD -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 text-start border-start border-primary border-4">
+  <div class="card-body p-4">
+    <div class="d-sm-flex justify-content-between align-items-center gap-3">
+      <div>
+        <h5 class="fw-bold text-slate-800 mb-1"><i class="bi bi-gear-fill me-1.5 text-primary"></i>Contrôle d'Étape Dossier</h5>
+        <p class="text-sm text-muted mb-0">Rôle actif : <strong class="text-slate-700 font-sans uppercase"><%= user.role %></strong> • Étape courante : <strong class="text-primary"><%= pipelineSteps[currentStepIndex].label %></strong></p>
+      </div>
+      <div class="mt-3 mt-sm-0">
+        <span class="badge bg-primary-subtle text-primary border px-3 py-1.5 rounded-pill text-xs fw-semibold lowercase">
+          status: <%= currentStatus %>
+        </span>
+      </div>
+    </div>
+    <hr class="my-3">
+
+    <div class="workflow-actions-area">
+      <% if (currentStatus === "CREE") { %>
+        <% if (["secretariat", "super_admin"].includes(user.role)) { %>
+          <div class="p-3 bg-light rounded border d-sm-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="fw-bold mb-1">Transmission pour Vérification</h6>
+              <p class="text-xs text-muted mb-0">Veuillez soumettre le dossier aux agents de contrôle pour la validation d'usage.</p>
+            </div>
+            <form action="/dossiers/<%= dossier.id %>/pipeline/valider" method="POST" class="mt-2 mt-sm-0">
+              <button type="submit" class="btn btn-primary rounded-pill px-4 btn-sm fw-bold">
+                <i class="bi bi-send-check-fill me-1"></i>Soumettre à la validation
+              </button>
+            </form>
+          </div>
+        <% } else { %>
+          <div class="text-muted italic small py-2"><i class="bi bi-info-circle me-1"></i>En attente de transmission par le secrétariat administratif.</div>
+        <% } %>
+
+      <% } else if (currentStatus === "VALIDATION") { %>
+        <% if (["validation_role", "super_admin"].includes(user.role)) { %>
+          <div class="p-3 bg-light rounded border">
+            <h6 class="fw-bold mb-2">Décision administrative requise</h6>
+            <p class="text-xs text-muted mb-3">Vérifiez les pièces jointes importées avant de prendre une décision sur l'exploration financière.</p>
+            <div class="d-flex gap-2">
+              <form action="/dossiers/<%= dossier.id %>/pipeline/approuver" method="POST">
+                <button type="submit" class="btn btn-success rounded-pill px-4 btn-sm fw-bold">
+                  <i class="bi bi-check-circle-fill me-1"></i>Approuver
+                </button>
+              </form>
+              <form action="/dossiers/<%= dossier.id %>/pipeline/rejeter" method="POST">
+                <button type="submit" class="btn btn-danger rounded-pill px-4 btn-sm fw-bold">
+                  <i class="bi bi-x-circle-fill me-1"></i>Rejeter (Retour au début)
+                </button>
+              </form>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="text-warning italic small py-2"><i class="bi bi-clock-history me-1"></i>Dossier en attente de visa réglementaire par l'agent de validation.</div>
+        <% } %>
+
+      <% } else if (currentStatus === "EN_TRAITEMENT") { %>
+        <% if (["acconage", "enlevement", "super_admin"].includes(user.role)) { %>
+          <div class="p-3 bg-light rounded border text-start">
+            <h6 class="fw-bold text-slate-800 mb-2"><i class="bi bi-cash-stack text-success me-1"></i>Créer une Demande d'Avance (Bon Provisoire)</h6>
+            
+            <form action="/bons/provisoir" method="POST" id="provisoirBonForm">
+              <input type="hidden" name="dossier_id" value="<%= dossier.id %>">
+              <input type="hidden" id="bp_items_json" name="items_json" value="[]">
+              
+              <div class="mb-3">
+                <label class="form-label text-xs fw-bold text-muted">Objet global du décaissement <span class="text-danger">*</span></label>
+                <input type="text" name="objet" class="form-control form-control-sm" placeholder="Ex: Frais acconage et manutention pour conteneurs..." required>
+              </div>
+
+              <!-- Lignes de charges -->
+              <div class="table-responsive mb-2">
+                <table class="table table-bordered table-sm align-middle fs-7 mb-1" id="bpItemsTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-2" style="width: 70%;">Désignation de la charge</th>
+                      <th style="width: 25%;">Montant (FCFA)</th>
+                      <th style="width: 5%;" class="text-center">#</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="bp-item-row">
+                      <td class="p-1">
+                        <input type="text" class="form-control form-control-xs bp-desc-input" placeholder="Ex: Manutention Guichet Unique" required>
+                      </td>
+                      <td class="p-1">
+                        <input type="number" class="form-control form-control-xs bp-amount-input text-end" placeholder="0" min="0" required>
+                      </td>
+                      <td class="p-1 text-center">
+                        <button type="button" class="btn btn-outline-danger btn-xs border-0 py-0 px-1 remove-bp-row" disabled><i class="bi bi-trash"></i></button>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td class="text-end fw-bold ps-2 py-2">TOTAL AUTOMATIQUE :</td>
+                      <td class="text-end p-1">
+                        <span id="bp_calculated_total" class="fw-bold text-primary font-monospace fs-6">0</span> <small class="text-muted">F</small>
+                        <input type="hidden" name="montant_demande" id="bp_montant_demande_input" value="0">
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div class="text-start mb-1 d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-primary btn-xs" id="addBPItemBtn">
+                  <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne de dépense
+                </button>
+                <button type="submit" class="btn btn-success btn-sm rounded-pill px-4 fw-bold">
+                  <i class="bi bi-plus-lg me-1"></i>Émettre le Bon Provisoire
+                </button>
+              </div>
+            </form>
+          </div>
+        <% } else { %>
+          <div class="text-muted italic small py-2"><i class="bi bi-info-circle me-1"></i>Dossier en traitement logistique. En attente de demande de fonds (Bons) par le service d'acconage ou d'enlèvement.</div>
+        <% } %>
+
+      <% } else if (currentStatus === "BON_PROVISOIR") { %>
+        <% 
+          // Find the active pending BP
+          const pendingBP = dossier.bons_provisoir ? dossier.bons_provisoir.find(b => b.etat === "EN_ATTENTE") : null;
+        %>
+        <% if (pendingBP) { %>
+          <% 
+            const allTicksApproved = pendingBP.tick_pdg && pendingBP.tick_dg && pendingBP.tick_dga && pendingBP.tick_daf && pendingBP.tick_audit;
+          %>
+          <% if (user.role === "agent_payeur" && !allTicksApproved) { %>
+            <div class="p-3 bg-light text-muted rounded border border-secondary text-start">
+              <h6 class="fw-bold mb-1 text-slate-800"><i class="bi bi-shield-lock-fill text-danger me-1"></i>Contrôle de conformité de la Caisse</h6>
+              <p class="small mb-0 mt-2 text-italic"><i class="bi bi-hourglass me-1 text-warning"></i>Ce bon provisoire est en cours de traitement par le management. Ses détails et son PDF ne seront visibles pour la Caisse qu'une fois les 5 visas obligatoires validés.</p>
+            </div>
+          <% } else { %>
+            <div class="p-3 bg-warning-subtle text-slate-800 rounded border border-warning text-start">
+              <h6 class="fw-bold mb-1 text-slate-950 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-file-earmark-lock-fill me-1"></i>Bon Provisoire <%= pendingBP.numero %> en cours de signature</span>
+                <a href="/bons/<%= pendingBP.id %>/pdf" target="_blank" class="btn btn-xs btn-outline-danger font-bold rounded-pill">
+                  <i class="bi bi-file-earmark-pdf-fill me-1"></i> Consulter l'Imprimé PDF
+                </a>
+              </h6>
+              <div class="small my-2">
+                <strong>Demandeur :</strong> <%= pendingBP.demandeur.prenom || '' %> <%= pendingBP.demandeur.nom %> (<%= pendingBP.service %>)<br>
+                <strong>Objet :</strong> <%= pendingBP.objet %><br>
+                <strong>Montant demandé :</strong> <strong class="fs-6 text-primary"><%= pendingBP.montant_demande.toLocaleString('fr-FR') %> F</strong>
+              </div>
+
+            <!-- Visas checking block (PDG, DG, DGA, DAF, Audit) -->
+            <div class="row g-2 my-2.5 p-2 bg-white rounded border text-start">
+              <div class="col-12 border-bottom pb-1 mb-1">
+                <span class="text-xs fw-bold text-slate-700 uppercase" style="font-size: 0.72rem;"><i class="bi bi-shield-check text-success me-1"></i>Contrôle de conformité des visas requis :</span>
+              </div>
+              <% 
+                const ticks = [
+                  { key: 'pdg', label: 'Visa PDG', val: pendingBP.tick_pdg, by: pendingBP.tick_pdg_by },
+                  { key: 'dg', label: 'Visa DG', val: pendingBP.tick_dg, by: pendingBP.tick_dg_by },
+                  { key: 'dga', label: 'Visa DGA', val: pendingBP.tick_dga, by: pendingBP.tick_dga_by },
+                  { key: 'daf', label: 'Visa DAF', val: pendingBP.tick_daf, by: pendingBP.tick_daf_by },
+                  { key: 'audit', label: 'Visa Audit', val: pendingBP.tick_audit, by: pendingBP.tick_audit_by }
+                ];
+              %>
+              <% ticks.forEach(tick => { %>
+                <div class="col-6 col-md-2" style="width: 20%;">
+                  <div class="p-1 px-2 border rounded bg-light d-flex align-items-center justify-content-between" style="font-size: 0.72rem;">
+                    <div>
+                      <span class="fw-bold text-slate-800 d-block" style="font-size: 0.72rem;"><%= tick.label %></span>
+                      <% if (tick.by) { %>
+                        <span class="text-muted d-block text-truncate" style="font-size: 0.6rem; max-width: 65px;" title="Signé par <%= tick.by %>">Par: <%= tick.by.split(' ')[0] %></span>
+                      <% } else { %>
+                        <span class="text-danger d-block text-italic" style="font-size: 0.6rem;">Absent</span>
+                      <% } %>
+                    </div>
+                    <div class="form-check form-switch p-0 m-0">
+                      <input class="form-check-input ms-0 top-mgmt-checkbox" type="checkbox" 
+                             data-bon-id="<%= pendingBP.id %>" data-tick-key="<%= tick.key %>"
+                             style="width: 1.5rem; height: 0.75rem; cursor: pointer;"
+                             <%= tick.val ? 'checked' : '' %>
+                             <%= !["direction", "super_admin"].includes(user.role) ? 'disabled' : '' %>>
+                    </div>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+
+            <% 
+              const allTicksApproved = pendingBP.tick_pdg && pendingBP.tick_dg && pendingBP.tick_dga && pendingBP.tick_daf && pendingBP.tick_audit;
+            %>
+
+            <% if (["direction", "super_admin"].includes(user.role)) { %>
+              <div class="d-flex gap-2 mt-3">
+                <button onclick="workflowApproveBP(<%= pendingBP.id %>)" class="btn btn-success btn-sm rounded-pill px-3 fw-bold" <%= !allTicksApproved ? 'disabled title="Veuillez d\'abord appliquer les 5 visas physiquement"' : '' %>>
+                  <i class="bi bi-check-lg me-1"></i>Approuver et autoriser le décaissement
+                </button>
+                <button onclick="workflowRejectBP(<%= pendingBP.id %>, '<%= pendingBP.numero %>')" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold">
+                  <i class="bi bi-x-lg me-1"></i>Rejeter avec motif
+                </button>
+              </div>
+            <% } else if (user.role === "agent_payeur") { %>
+               <% if (allTicksApproved) { %>
+                  <div class="mt-3 p-3 bg-success-subtle border border-success rounded text-success-emphasis text-start">
+                    <p class="small mb-2 fw-medium"><i class="bi bi-check-circle-fill me-1"></i>Tous les visas du Top Management ont été vérifiés et visés. Vous pouvez décaisser les fonds aux guichets.</p>
+                    <button onclick="workflowApproveBP(<%= pendingBP.id %>)" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+                      <i class="bi bi-cash-coin me-1"></i>Valider et décaisser les fonds du Bon
+                    </button>
+                  </div>
+               <% } else { %>
+                  <div class="text-danger small mt-3 fw-bold p-2.5 border border-danger rounded bg-danger-subtle text-start animate-pulse">
+                    <i class="bi bi-shield-slash-fill me-1"></i>CONTRÔLE CAISSE : Décaissement non autorisé. Les signatures des 5 Directeurs (PDG, DG, DGA, DAF, Audit) ne sont pas au complet sur le document.
+                  </div>
+               <% } %>
+            <% } else { %>
+              <div class="text-amber-800 small text-italic mt-2">
+                <i class="bi bi-hourglass text-amber-600 me-1"></i>En attente de visa par le directeur ou de décaissement par la Caisse.
+              </div>
+            <% } %>
+          </div>
+          <% } %>
+        <% } else { %>
+          <div class="text-muted italic small py-2"><i class="bi bi-exclamation-triangle me-1"></i>Aucun bon provisoire actif trouvé au statut 'En attente'. Transitionnement intermédiaire.</div>
+        <% } %>
+
+      <% } else if (currentStatus === "BON_REEL") { %>
+        <% 
+          // Uses the globally defined approvedBP
+        %>
+        
+        <% if (approvedBP && !approvedBP.bon_reel) { %>
+          <% if (["acconage", "enlevement", "super_admin"].includes(user.role)) { %>
+            <div class="p-3 bg-light rounded border text-start">
+              <h6 class="fw-bold text-slate-800 mb-1"><i class="bi bi-receipt-cutoff me-1 text-primary"></i>Saisir l'utilisation réelle des fonds (Justificatif d'Écart)</h6>
+              <p class="text-xs text-muted mb-3">Enregistrez les montants dépensés pour le Bon Provisoire <strong class="text-primary"><%= approvedBP.numero %></strong> afin de restituer le reliquat ou acter le dépassement.</p>
+              
+              <form action="/bons/reel" method="POST" id="reelBonForm">
+                <input type="hidden" name="bon_provisoir_id" value="<%= approvedBP.id %>">
+                <input type="hidden" id="br_items_json" name="items_json" value="[]">
+
+                <div class="row g-3 mb-3 text-start">
+                  <div class="col-md-6">
+                    <label class="form-label text-xs fw-bold text-muted">Observations de clôture / Raisons d'écart <span class="text-danger">*</span></label>
+                    <input type="text" name="observations" class="form-control form-control-sm" placeholder="Ex: Justificatif douane et quittances jointes..." required>
+                  </div>
+                  <div class="col-md-6 border-start text-end">
+                    <span class="text-muted small">Avance provisoire perçue :</span>
+                    <strong class="text-primary font-monospace fs-6 d-block mt-1"><%= approvedBP.montant_demande.toLocaleString('fr-FR') %> F CFA</strong>
+                  </div>
+                </div>
+
+                <!-- Lignes de charges réelles -->
+                <div class="table-responsive mb-2">
+                  <table class="table table-bordered table-sm align-middle fs-7 mb-1" id="brItemsTable">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="ps-2" style="width: 70%;">Prestation / Dépense réelle</th>
+                        <th style="width: 25%;">Montant Réel (FCFA)</th>
+                        <th style="width: 5%;" class="text-center">#</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% 
+                        let bpItems = [];
+                        if (approvedBP.items_json) {
+                          try {
+                            bpItems = JSON.parse(approvedBP.items_json);
+                          } catch(e){}
+                        }
+                        if (bpItems.length === 0) {
+                          bpItems = [{ designation: approvedBP.objet, montant: approvedBP.montant_demande }];
+                        }
+                        bpItems.forEach((it, idx) => {
+                      %>
+                        <tr class="br-item-row">
+                          <td class="p-1">
+                            <input type="text" class="form-control form-control-xs br-desc-input" value="<%= it.designation %>" placeholder="Ex: Manutention" required>
+                          </td>
+                          <td class="p-1">
+                            <input type="number" class="form-control form-control-xs br-amount-input text-end" value="<%= it.montant %>" placeholder="0" min="0" required>
+                          </td>
+                          <td class="p-1 text-center">
+                            <button type="button" class="btn btn-outline-danger btn-xs border-0 py-0 px-1 remove-br-row" <%= bpItems.length <= 1 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
+                          </td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td class="text-end fw-bold ps-2 py-2">TOTAL DEPENSES REELLES :</td>
+                        <td class="text-end p-1">
+                          <span id="br_calculated_total" class="fw-bold text-success font-monospace fs-6">0</span> <small class="text-muted">F</small>
+                          <input type="hidden" name="montant_reel" id="br_montant_reel_input" value="0">
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td class="text-end fw-bold ps-2 py-1 text-secondary">ÉCART PREVISIONNEL/REEL :</td>
+                        <td class="text-end p-1">
+                          <span id="br_calculated_ecart" class="fw-bold font-monospace">0</span> <small class="text-muted">F</small>
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <div class="text-start mb-1.5 d-flex justify-content-between align-items-center">
+                  <button type="button" class="btn btn-outline-primary btn-xs" id="addBRItemBtn">
+                    <i class="bi bi-plus-lg me-1"></i>Ajouter un article de charge réelle
+                  </button>
+                  <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+                    <i class="bi bi-file-earmark-check me-1"></i>Soumettre le Bon Réel Définitif
+                  </button>
+                </div>
+              </form>
+            </div>
+          <% } else { %>
+            <div class="text-muted italic small py-2"><i class="bi bi-info-circle me-1"></i>En attente de justificatifs réels d'utilisation par l'agent de terrain.</div>
+          <% } %>
+        <% } else if (approvedBP && approvedBP.bon_reel) { %>
+          <!-- If Bon Reel exists but has not been confirmed yet -->
+          <div class="p-3 bg-info-subtle border border-info rounded text-slate-800 text-start">
+            <h6 class="fw-bold text-slate-900 mb-1"><i class="bi bi-cash me-1"></i>Justificatifs de frais soumis</h6>
+            <div class="small my-2">
+              <strong>Fonds Avancés :</strong> <%= approvedBP.montant_demande.toLocaleString('fr-FR') %> F<br>
+              <strong>Fonds Dépensés :</strong> <%= approvedBP.bon_reel.montant_reel.toLocaleString('fr-FR') %> F<br>
+              <strong>Écart de caisse :</strong> 
+              <% if (approvedBP.bon_reel.ecart >= 0) { %>
+                <span class="text-success fw-bold">+<%= approvedBP.bon_reel.ecart.toLocaleString('fr-FR') %> F CFA (Reliquat versé en caisse)</span>
+              <% } else { %>
+                <span class="text-danger fw-bold"><%= approvedBP.bon_reel.ecart.toLocaleString('fr-FR') %> F CFA (Remboursement requis)</span>
+              <% } %>
+            </div>
+
+            <% if (["agent_payeur", "super_admin"].includes(user.role)) { %>
+              <div class="mt-3 text-start">
+                <button onclick="workflowConfirmDecaissement(<%= approvedBP.bon_reel.id %>)" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+                  <i class="bi bi-check-circle-fill me-1"></i>Confirmer décaissement et valider le bon de caisse
+                </button>
+              </div>
+            <% } else { %>
+              <div class="text-info-emphasis text-italic small mt-2">
+                <i class="bi bi-clock-history me-1"></i>En attente de confirmation finale de caisse par le Trésorier payeur.
+              </div>
+            <% } %>
+          </div>
+        <% } %>
+
+      <% } else if (currentStatus === "FACTURATION") { %>
+        <% if (["comptable", "commercial", "super_admin", "comptable_ops", "finances"].includes(user.role)) { %>
+          <div class="p-3 bg-light rounded border d-sm-flex justify-content-between align-items-center text-start">
+            <div>
+              <h6 class="fw-bold mb-1 col-md-9" style="font-size: 0.9rem;">Régularisation Complétée • Facturation Client d'Honoraires</h6>
+              <p class="text-xs text-muted mb-0">Tous les bons de dépenses sont clos. Veuillez marquer l'envoi de la facture client d'honoraires pour clore logistiquement ce dossier.</p>
+            </div>
+            <div class="d-flex gap-2 mt-2 mt-sm-0 flex-shrink-0">
+              <a href="/documents/create?dossier_id=<%= dossier.id %>" class="btn btn-outline-primary rounded-pill px-3 btn-sm fw-bold d-inline-flex align-items-center">
+                <i class="bi bi-file-earmark-plus-fill me-1"></i>Facturer le Transit
+              </a>
+              <form action="/dossiers/<%= dossier.id %>/pipeline/facturer" method="POST">
+                <button type="submit" class="btn btn-success rounded-pill px-3 btn-sm fw-bold">
+                  <i class="bi bi-lock-fill me-1"></i>Clôture Logistique
+                </button>
+              </form>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="text-muted italic small py-2"><i class="bi bi-info-circle me-1"></i>Traitement opérationnel clos. Les comptes de transit organisent la facturation d'honoraires globale pour le client.</div>
+        <% } %>
+
+      <% } else if (currentStatus === "CLOTURE") { %>
+        <% if (["comptable_ops", "super_admin", "direction", "comptable"].includes(user.role)) { %>
+          <div class="p-3 bg-light rounded border d-sm-flex justify-content-between align-items-center text-start">
+            <div>
+              <h6 class="fw-bold mb-1">Passer à l'archivage définitif</h5>
+              <p class="text-xs text-muted mb-0">Tous les règlements comptables et factures sont payés. Marquez le dossier comme Archivé pour l'archivage réglementaire.</p>
+            </div>
+            <form action="/dossiers/<%= dossier.id %>/pipeline/cloturer" method="POST" class="mt-2 mt-sm-0">
+              <button type="submit" class="btn btn-dark rounded-pill px-4 btn-sm fw-bold">
+                <i class="bi bi-archive-fill me-1"></i>Archiver Définitivement
+              </button>
+            </form>
+          </div>
+        <% } else { %>
+          <div class="text-muted italic small py-2"><i class="bi bi-info-circle me-1"></i>Facturation validée. En attente de l'archivage comptable définitif par le comptable général maritime.</div>
+        <% } %>
+
+      <% } else if (currentStatus === "ARCHIVE") { %>
+        <div class="p-3 bg-success-subtle text-success rounded border border-success d-flex align-items-center">
+          <i class="bi bi-archive-fill me-2 fs-5"></i>
+          <div>
+            <strong>Dossier clôturé administrativement et archivé officiellement</strong>
+            <% if (dossier.archived_at) { %>
+              <div class="text-xs text-muted mt-0.5">Le <%= new Date(dossier.archived_at).toLocaleString('fr-FR') %></div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (currentStatus !== "CREE" && currentStatus !== "ARCHIVE") { %>
+        <div class="mt-3.5 pt-3 border-top d-flex justify-content-between align-items-center">
+          <div class="text-xs text-muted">
+            <i class="bi bi-info-circle me-1"></i>Une information d'une étape validée est erronée ?
+          </div>
+          <button type="button" class="btn btn-outline-warning btn-xs rounded-pill px-3 fw-semibold" data-bs-toggle="modal" data-bs-target="#retourArriereModal">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Demander une correction (Rétrograder)
+          </button>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Demande de retour arrière / Correction -->
+<div class="modal fade" id="retourArriereModal" tabindex="-1" aria-hidden="true" style="text-align: left;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-warning text-dark py-3">
+        <h5 class="modal-title fw-bold"><i class="bi bi-arrow-counterclockwise me-2"></i>Demander une modification rétroactive</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/dossiers/<%= dossier.id %>/pipeline/retour-arriere" method="POST">
+        <div class="modal-body p-4 text-start">
+          <p class="small text-muted mb-3">
+            Le renvoi du dossier à l'étape précédente verrouillera les étapes futures et créera une tâche automatique de correction urgente. Vous ne pouvez modifier que vos propres informations correspondantes.
+          </p>
+          <div class="mb-3">
+            <label class="form-label fw-bold small text-slate-700">Raison / Motif de la demande de correction <span class="text-danger">*</span></label>
+            <textarea name="motif" class="form-control text-sm" rows="3" placeholder="Ex: Ajustement de la valeur en douane suite aux nouvelles consignes..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer p-3 bg-light border-top-0">
+          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold">Rétrograder l'étape</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reject BP inside Dossier Detail page -->
+<div class="modal fade" id="workflowRejectModal" tabindex="-1" aria-hidden="true" style="text-align: left;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white py-3">
+        <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Rejeter le Bon Provisoire <span id="workflowRejectBonNum"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Motif du rejet <span class="text-danger">*</span></label>
+          <textarea id="workflowMotifRejetInput" class="form-control" rows="3" placeholder="Saisissez la raison précise du rejet..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer p-3 bg-light border-top-0">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" id="workflowConfirmRejectBtn" class="btn btn-danger rounded-pill px-4">Soumettre le rejet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let wRejectId = null;
+
+  async function workflowApproveBP(bpId) {
+    if(!confirm("Voulez-vous approuver formellement ce bon provisoire d'avance ?")) return;
+    try {
+      const res = await fetch(`/bons/provisoir/${bpId}/approuver`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if(data.ok) {
+        alert("Bon provisoire approuvé avec succès ! Le dossier passe au statut 'Bon Réel'.");
+        window.location.reload();
+      } else {
+        alert("Erreur: " + data.message);
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Une erreur de communication est survenue.");
+    }
+  }
+
+  function workflowRejectBP(bpId, numero) {
+    wRejectId = bpId;
+    document.getElementById("workflowRejectBonNum").innerText = numero;
+    document.getElementById("workflowMotifRejetInput").value = "";
+    const modal = new bootstrap.Modal(document.getElementById("workflowRejectModal"));
+    modal.show();
+  }
+
+  document.getElementById("workflowConfirmRejectBtn").addEventListener("click", async () => {
+    const motif = document.getElementById("workflowMotifRejetInput").value;
+    if(!motif || motif.trim() === "") {
+      alert("Le motif de rejet est obligatoire.");
+      return;
+    }
+    try {
+      const res = await fetch(`/bons/provisoir/${wRejectId}/rejeter`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motif_rejet: motif })
+      });
+      const data = await res.json();
+      if(data.ok) {
+        alert("Bon provisoire rejeté. Le dossier d'exploitation a été rétrogradé au statut 'En traitement'.");
+        window.location.reload();
+      } else {
+        alert("Erreur: " + data.message);
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Une erreur est survenue.");
+    }
+  });
+
+  async function workflowConfirmDecaissement(bonReelId) {
+    if(!confirm("Êtes-vous sûr de vouloir confirmer que les fonds justificatifs ont été décaissés pour ce règlement réel ?")) return;
+    try {
+      const res = await fetch(`/bons/reel/${bonReelId}/confirmer`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if(data.ok) {
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert("Erreur: " + data.message);
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Une erreur de communication est survenue.");
+    }
+  }
+
+  // ----------------------------------------------------
+  // Dynamic items table management for Bon Provisoire
+  // ----------------------------------------------------
+  document.addEventListener("DOMContentLoaded", function() {
+    const bpTable = document.getElementById("bpItemsTable");
+    const addBPBtn = document.getElementById("addBPItemBtn");
+    const bpItemsJsonInput = document.getElementById("bp_items_json");
+    const bpMontantDemandeInput = document.getElementById("bp_montant_demande_input");
+    const bpCalculatedTotalSpan = document.getElementById("bp_calculated_total");
+    const provisoirForm = document.getElementById("provisoirBonForm");
+
+    function calculateBPTotals() {
+      if (!bpTable) return;
+      const rows = bpTable.querySelectorAll(".bp-item-row");
+      let total = 0;
+      const items = [];
+
+      rows.forEach(row => {
+        const descInput = row.querySelector(".bp-desc-input");
+        const amountInput = row.querySelector(".bp-amount-input");
+        if (descInput && amountInput) {
+          const desc = descInput.value.trim();
+          const amt = parseFloat(amountInput.value) || 0;
+          total += amt;
+          if (desc) {
+            items.push({ designation: desc, montant: amt });
+          }
+        }
+      });
+
+      if (bpCalculatedTotalSpan) {
+        bpCalculatedTotalSpan.textContent = total.toLocaleString("fr-FR");
+      }
+      if (bpMontantDemandeInput) {
+        bpMontantDemandeInput.value = total;
+      }
+      if (bpItemsJsonInput) {
+        bpItemsJsonInput.value = JSON.stringify(items);
+      }
+
+      // Enable/disable delete buttons
+      const removeButtons = bpTable.querySelectorAll(".remove-bp-row");
+      removeButtons.forEach(btn => {
+        btn.disabled = rows.length <= 1;
+      });
+    }
+
+    if (addBPBtn) {
+      addBPBtn.addEventListener("click", () => {
+        const tbody = bpTable.querySelector("tbody");
+        const newRow = document.createElement("tr");
+        newRow.className = "bp-item-row";
+        newRow.innerHTML = `
+          <td class="p-1">
+            <input type="text" class="form-control form-control-xs bp-desc-input" placeholder="Ex: Manutention Guichet Unique" required>
+          </td>
+          <td class="p-1">
+            <input type="number" class="form-control form-control-xs bp-amount-input text-end" placeholder="0" min="0" required>
+          </td>
+          <td class="p-1 text-center">
+            <button type="button" class="btn btn-outline-danger btn-xs border-0 py-0 px-1 remove-bp-row"><i class="bi bi-trash"></i></button>
+          </td>
+        `;
+        tbody.appendChild(newRow);
+        calculateBPTotals();
+
+        // Listeners
+        newRow.querySelector(".bp-desc-input").addEventListener("input", calculateBPTotals);
+        newRow.querySelector(".bp-amount-input").addEventListener("input", calculateBPTotals);
+        newRow.querySelector(".remove-bp-row").addEventListener("click", () => {
+          newRow.remove();
+          calculateBPTotals();
+        });
+      });
+    }
+
+    if (bpTable) {
+      bpTable.querySelectorAll(".bp-desc-input").forEach(el => el.addEventListener("input", calculateBPTotals));
+      bpTable.querySelectorAll(".bp-amount-input").forEach(el => el.addEventListener("input", calculateBPTotals));
+      bpTable.querySelectorAll(".remove-bp-row").forEach(el => {
+        el.addEventListener("click", function() {
+          this.closest("tr").remove();
+          calculateBPTotals();
+        });
+      });
+      calculateBPTotals();
+    }
+
+    if (provisoirForm) {
+      provisoirForm.addEventListener("submit", function(e) {
+        calculateBPTotals();
+        const total = parseFloat(bpMontantDemandeInput.value) || 0;
+        if (total <= 0) {
+          e.preventDefault();
+          alert("Veuillez saisir au moins une ligne de charge avec un montant valide (> 0).");
+        }
+      });
+    }
+
+
+    // ----------------------------------------------------
+    // Dynamic items table management for Bon Réel
+    // ----------------------------------------------------
+    const brTable = document.getElementById("brItemsTable");
+    const addBRBtn = document.getElementById("addBRItemBtn");
+    const brItemsJsonInput = document.getElementById("br_items_json");
+    const brMontantReelInput = document.getElementById("br_montant_reel_input");
+    const brCalculatedTotalSpan = document.getElementById("br_calculated_total");
+    const brCalculatedEcartSpan = document.getElementById("br_calculated_ecart");
+    const reelForm = document.getElementById("reelBonForm");
+
+    // Fetch approved value if it exists
+    const brApprovedMontant = <%= approvedBP ? approvedBP.montant_demande : 0 %>;
+
+    function calculateBRTotals() {
+      if (!brTable) return;
+      const rows = brTable.querySelectorAll(".br-item-row");
+      let total = 0;
+      const items = [];
+
+      rows.forEach(row => {
+        const descInput = row.querySelector(".br-desc-input");
+        const amountInput = row.querySelector(".br-amount-input");
+        if (descInput && amountInput) {
+          const desc = descInput.value.trim();
+          const amt = parseFloat(amountInput.value) || 0;
+          total += amt;
+          if (desc) {
+            items.push({ designation: desc, montant: amt });
+          }
+        }
+      });
+
+      if (brCalculatedTotalSpan) {
+        brCalculatedTotalSpan.textContent = total.toLocaleString("fr-FR");
+      }
+      if (brMontantReelInput) {
+        brMontantReelInput.value = total;
+      }
+      if (brItemsJsonInput) {
+        brItemsJsonInput.value = JSON.stringify(items);
+      }
+
+      // Ecart calculation: Avance minus Real expenses
+      const ecart = brApprovedMontant - total;
+      if (brCalculatedEcartSpan) {
+        if (ecart >= 0) {
+          brCalculatedEcartSpan.className = "fw-bold text-success font-monospace";
+          brCalculatedEcartSpan.textContent = "+" + ecart.toLocaleString("fr-FR");
+        } else {
+          brCalculatedEcartSpan.className = "fw-bold text-danger font-monospace";
+          brCalculatedEcartSpan.textContent = ecart.toLocaleString("fr-FR");
+        }
+      }
+
+      // Enable/disable delete buttons
+      const removeButtons = brTable.querySelectorAll(".remove-br-row");
+      removeButtons.forEach(btn => {
+        btn.disabled = rows.length <= 1;
+      });
+    }
+
+    if (addBRBtn) {
+      addBRBtn.addEventListener("click", () => {
+        const tbody = brTable.querySelector("tbody");
+        const newRow = document.createElement("tr");
+        newRow.className = "br-item-row";
+        newRow.innerHTML = `
+          <td class="p-1">
+            <input type="text" class="form-control form-control-xs br-desc-input" placeholder="Ex: Frais de manutention" required>
+          </td>
+          <td class="p-1">
+            <input type="number" class="form-control form-control-xs br-amount-input text-end" placeholder="0" min="0" required>
+          </td>
+          <td class="p-1 text-center">
+            <button type="button" class="btn btn-outline-danger btn-xs border-0 py-0 px-1 remove-br-row"><i class="bi bi-trash"></i></button>
+          </td>
+        `;
+        tbody.appendChild(newRow);
+        calculateBRTotals();
+
+        // Listeners
+        newRow.querySelector(".br-desc-input").addEventListener("input", calculateBRTotals);
+        newRow.querySelector(".br-amount-input").addEventListener("input", calculateBRTotals);
+        newRow.querySelector(".remove-br-row").addEventListener("click", () => {
+          newRow.remove();
+          calculateBRTotals();
+        });
+      });
+    }
+
+    if (brTable) {
+      brTable.querySelectorAll(".br-desc-input").forEach(el => el.addEventListener("input", calculateBRTotals));
+      brTable.querySelectorAll(".br-amount-input").forEach(el => el.addEventListener("input", calculateBRTotals));
+      brTable.querySelectorAll(".remove-br-row").forEach(el => {
+        el.addEventListener("click", function() {
+          this.closest("tr").remove();
+          calculateBRTotals();
+        });
+      });
+      calculateBRTotals();
+    }
+
+    if (reelForm) {
+      reelForm.addEventListener("submit", function(e) {
+        calculateBRTotals();
+        const total = parseFloat(brMontantReelInput.value) || 0;
+        if (total <= 0) {
+          e.preventDefault();
+          alert("Veuillez saisir au moins une ligne de frais réel.");
+        }
+      });
+    }
+
+
+    // ----------------------------------------------------
+    // Top Management Approval Ticks AJAX Toggle Toter
+    // ----------------------------------------------------
+    document.querySelectorAll(".top-mgmt-checkbox").forEach(chk => {
+      chk.addEventListener("change", async function() {
+        const bpId = this.getAttribute("data-bon-id");
+        const tickKey = this.getAttribute("data-tick-key");
+        const isChecked = this.checked;
+
+        try {
+          const response = await fetch(`/bons/provisoir/${bpId}/tick`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              tick_key: tickKey,
+              checked: isChecked
+            })
+          });
+
+          const resData = await response.json();
+          if (resData.ok) {
+            // Real-time quick reload for state updates and security checklist checks!
+            window.location.reload();
+          } else {
+            this.checked = !isChecked;
+            alert("Erreur visa : " + (resData.message || "Impossible de mettre à jour le visa de direction."));
+          }
+        } catch (e) {
+          this.checked = !isChecked;
+          console.error("Error toggling direction visa:", e);
+          alert("Erreur de connexion réseau lors du visa.");
+        }
+      });
+    });
+  });
+</script>
+
+<!-- Stats / Client Header Card -->
+<div class="row g-4 mb-4 text-start">
+  <!-- Owner Card -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 border-0">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-person-fill text-muted me-2"></i>Fiche de l'Importateur / Exportateur
+        </h5>
+      </div>
+      <div class="card-body pt-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-borderless mb-0 text-slate-700" style="font-size: 0.85rem;">
+            <tbody>
+              <tr>
+                <td class="text-muted py-1" style="width: 25%;">Raison Sociale :</td>
+                <td class="fw-bold py-1"><%= dossier.client.nom %></td>
+              </tr>
+              <tr>
+                <td class="text-muted py-1">N.I.U / R.C.C.M :</td>
+                <td class="font-monospace text-xs py-1">
+                  <%= dossier.client.niu || 'Non enregistré' %> / <%= dossier.client.rccm || 'Non enregistré' %>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted py-1">Téléphone & Loc :</td>
+                <td class="py-1">
+                  <%= dossier.client.tel || 'NR' %> • <%= dossier.client.adresse || 'Douala, Cameroun' %>
+                </td>
+              </tr>
+              <% if (dossier.representant) { %>
+              <tr>
+                <td class="text-muted py-1">Représentant :</td>
+                <td class="fw-bold py-1 text-primary"><i class="bi bi-person-badge-fill me-1"></i><%= dossier.representant %></td>
+              </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. PROGRESS BAR section -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100 d-flex flex-column justify-content-between">
+      <div class="card-header bg-white py-3 border-0">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-pie-chart-fill text-success me-2"></i>Progression Logistique Globale
+        </h5>
+      </div>
+      <div class="card-body pt-0 pb-4 flex-grow-1 d-flex flex-column justify-content-center">
+        <% 
+          const totalTasks = dossier.taches ? dossier.taches.length : 0;
+          const doneTasks = dossier.taches ? dossier.taches.filter(t => t.etat.toUpperCase() === 'FAIT' || t.etat.toUpperCase() === 'TERMINE').length : 0;
+          const percentage = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+        %>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="text-slate-600 small fw-semibold" id="progress-done-summary"><%= doneTasks %> sur <%= totalTasks %> jalons de dédouanement validés</span>
+          <span class="h4 mb-0 fw-bold text-success font-monospace" id="progress-percent-label"><%= percentage %>%</span>
+        </div>
+        <div class="progress" style="height: 14px; border-radius: 20px; background-color: #f1f5f9;">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+               id="dossier-progress-bar" 
+               role="progressbar" 
+               style="width: <%= percentage %>%; border-radius: 20px;" 
+               aria-valuenow="<%= percentage %>" 
+               aria-valuemin="0" 
+               aria-valuemax="100">
+          </div>
+        </div>
+        <div class="text-slate-500 mt-2" style="font-size: 0.75rem;">
+          <i class="bi bi-info-circle me-1"></i> Cochez un jalon ci-dessous pour actualiser l'avancement maritime instantanément.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Customs & Container Info Card -->
+<div class="row mb-4 text-start">
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Spécifications Logistiques, Douane & Marchandise
+        </h5>
+        <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center rounded-pill px-3 py-1" style="font-size: 0.78rem;" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
+          <i class="bi bi-pencil-square me-1"></i> Ajuster les Spécifications
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <span class="text-muted text-xs text-uppercase d-block mb-1">N° de BL / Connaissement</span>
+            <div class="d-flex align-items-start gap-1.5">
+              <i class="bi bi-file-earmark-text-fill text-primary mt-0.5 me-1.5"></i>
+              <strong class="text-slate-900 font-monospace" style="font-size: 0.95rem;"><%= dossier.bl || 'Non renseigné' %></strong>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted text-xs text-uppercase d-block mb-1">Marchandises / Contenu</span>
+            <div class="d-flex align-items-start gap-1.5">
+              <i class="bi bi-box-seam-fill text-secondary mt-0.5 me-1.5"></i>
+              <strong class="text-slate-800" style="font-size: 0.9rem;"><%= dossier.contenu || 'Non renseigné' %></strong>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <span class="text-muted text-xs text-uppercase d-block mb-1">Valeur de Douane (CIF)</span>
+            <div class="d-flex align-items-start gap-1.5">
+              <i class="bi bi-cash-coin text-success mt-0.5 me-1.5"></i>
+              <strong class="text-slate-800" style="font-size: 0.9rem;">
+                <%= dossier.valeur_douane ? dossier.valeur_douane.toLocaleString('fr-FR') + ' FCFA' : 'Non renseigné' %>
+              </strong>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <span class="text-muted text-xs text-uppercase d-block mb-1">Droits de Douane Liquidés</span>
+            <div class="d-flex align-items-start gap-1.5">
+              <i class="bi bi-credit-card-2-front text-info mt-0.5 me-1.5"></i>
+              <strong class="text-slate-800" style="font-size: 0.9rem;">
+                <%= dossier.droits_douane ? dossier.droits_douane.toLocaleString('fr-FR') + ' FCFA' : 'Non renseigné' %>
+              </strong>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <span class="text-muted text-xs text-uppercase d-block mb-1">Statut de Validation</span>
+            <div>
+              <% if (dossier.validation) { %>
+                <span class="badge bg-success d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill" style="font-size: 0.75rem;">
+                  <i class="bi bi-check-circle-fill"></i> VALIDÉ DOUANE
+                </span>
+              <% } else { %>
+                <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill" style="font-size: 0.75rem;">
+                  <i class="bi bi-hourglass-split"></i> EN ATTENTE VAL.
+                </span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 text-start">
+  <!-- Left Column: Tasks and Invoices -->
+  <div class="col-lg-8">
+    
+    <!-- 3. TASK CHECKLIST section -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-bookmark-star-fill text-warning me-2"></i>Manifeste des Étapes & Émissions Douanières
+        </h5>
+        <button class="btn btn-primary btn-sm rounded-pill px-3 d-inline-flex align-items-center text-xs" data-bs-toggle="modal" data-bs-target="#quickTaskModal">
+          <i class="bi bi-plus-lg me-1"></i> Ajouter Jalon
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush" id="task-checklist-group">
+          <% if (dossier.taches && dossier.taches.length > 0) { %>
+            <% dossier.taches.forEach((t) => { %>
+              <% const isDone = t.etat.toUpperCase() === 'FAIT' || t.etat.toUpperCase() === 'TERMINE'; %>
+              <li class="list-group-item p-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 task-item-container transition-all" 
+                  data-tname="<%= t.titre.toLowerCase() %>" 
+                  style="<%= isDone ? 'background-color: #fbfdfb; opacity: 0.9;' : '' %>"
+                  id="task-row-<%= t.id %>">
+                
+                <div class="d-flex align-items-start gap-2.5 flex-grow-1">
+                  <!-- Checkbox triggers patching instantly -->
+                  <div class="form-check p-0 m-0 d-flex align-items-center" style="min-height: 24px;">
+                    <input class="form-check-input task-toggle-checkbox bg-white" 
+                           type="checkbox" 
+                           id="chk-<%= t.id %>" 
+                           data-task-id="<%= t.id %>"
+                           style="width: 1.2rem; height: 1.2rem; cursor: pointer;" 
+                           <%= isDone ? 'checked' : '' %>>
+                  </div>
+                  <div class="ms-1">
+                    <label class="fw-bold mb-0 text-slate-800 d-block cursor-pointer task-label <%= isDone ? 'text-decoration-line-through text-slate-500' : '' %>" 
+                           for="chk-<%= t.id %>" 
+                           id="label-text-<%= t.id %>">
+                      <%= t.titre %>
+                    </label>
+                    <div class="d-flex flex-wrap gap-2 mt-1 align-items-center small text-slate-500">
+                      <% if (t.intervenant) { %>
+                        <span class="badge rounded bg-light text-slate-800 border font-sans" style="font-size: 0.7rem;">
+                          <i class="bi bi-person text-slate-500"></i> <%= t.intervenant.nom %>
+                        </span>
+                      <% } %>
+                      <% if (t.deadline) { %>
+                        <span class="font-monospace text-xs <%= new Date(t.deadline) < new Date() && !isDone ? 'text-danger fw-bold' : '' %>" style="font-size: 0.72rem;">
+                          <i class="bi bi-calendar-event me-1"></i> Échéance : <%= new Date(t.deadline).toLocaleDateString('fr-FR') %>
+                        </span>
+                      <% } %>
+                    </div>
+                    <% if (t.observations) { %>
+                      <p class="text-slate-600 small mb-0 mt-2 bg-light p-2 rounded border border-light-subtle italic" style="font-size: 0.8rem; line-height: 1.3;">
+                        <i class="bi bi-chat-left-quote text-muted me-1"></i>Réf: <%= t.observations %>
+                      </p>
+                    <% } %>
+                  </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-1.5 ms-auto">
+                  <a href="/taches/<%= t.id %>" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 px-2.5 rounded-pill border-light-subtle" title="Ouvrir le fil de discussion" style="font-size: 0.75rem;">
+                    <i class="bi bi-chat-left-text-fill"></i>
+                    <span class="d-none d-md-inline" style="font-weight: 600;">Suivi & Discussion</span>
+                  </a>
+
+                  <span class="badge rounded-pill px-2.5 py-1 text-xs font-monospace fw-bold <%= isDone ? 'bg-success text-white' : 'bg-warning text-dark' %>" 
+                        id="status-badge-<%= t.id %>">
+                    <%= isDone ? 'VALIDÉ' : 'EN COURS' %>
+                  </span>
+                  
+                  <button class="btn btn-light btn-sm text-slate-500 p-1 rounded-circle" 
+                          data-bs-toggle="modal" 
+                          data-bs-target="#editTaskModal<%= t.id %>" 
+                          title="Modifier les observations ou l'intervenant">
+                    <i class="bi bi-pencil-fill" style="font-size: 0.8rem;"></i>
+                  </button>
+
+                  <form action="/dossiers/<%= dossier.id %>/taches/<%= t.id %>/modifier" method="POST" class="d-inline" onsubmit="return confirm('Retirer définitivement cette étape ?');">
+                    <input type="hidden" name="delete_task" value="yes">
+                    <button type="submit" class="btn btn-light btn-sm text-danger p-1 rounded-circle" title="Enlever">
+                      <i class="bi bi-trash-fill" style="font-size: 0.8rem;"></i>
+                    </button>
+                  </form>
+                </div>
+              </li>
+
+              <!-- Modal Edit per Task -->
+              <div class="modal fade" id="editTaskModal<%= t.id %>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                  <div class="modal-content shadow border-0 text-start">
+                    <div class="modal-header bg-slate-900 text-white">
+                      <h5 class="modal-title fw-bold text-white fs-6">Modifier Jalon : <%= t.titre %></h5>
+                      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="/dossiers/<%= dossier.id %>/taches/<%= t.id %>/modifier" method="POST">
+                      <div class="modal-body">
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">Description / Titre du jalon <span class="text-danger">*</span></label>
+                          <input type="text" class="form-control" name="titre" value="<%= t.titre %>" required>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">Réf / Observations douanières ou BL :</label>
+                          <textarea class="form-control font-monospace" name="observations" rows="3" placeholder="Saisir observations..." style="font-size: 0.85rem;"><%= t.observations %></textarea>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">Assigner cet agent transitaire :</label>
+                          <select class="form-select" name="intervenant_id">
+                            <option value="">-- Non assigné --</option>
+                            <% if (users && users.length > 0) { %>
+                              <% users.forEach(u => { %>
+                                <option value="<%= u.id %>" <%= t.intervenant_id === u.id ? 'selected' : '' %>><%= u.nom %> (<%= u.role %>)</option>
+                              <% }) %>
+                            <% } %>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center text-muted py-5 px-3">
+              <i class="bi bi-card-checklist display-4 text-slate-300 d-block mb-3"></i>
+              Aucun jalon configuré pour ce convoi.
+              <p class="small mb-0">Ajoutez les étapes clés pour lancer le planning réglementaire.</p>
+            </div>
+          <% } %>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 4. LINKED INVOICES section -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+          <i class="bi bi-receipt-cutoff text-primary me-2"></i>Facturation & Devis Associés (<%= linkedInvoices ? linkedInvoices.length : 0 %>)
+        </h5>
+        <a href="/facturation?action=new&client_id=<%= dossier.client_id %>" class="btn btn-outline-primary btn-sm rounded-pill px-3 text-xs">
+          <i class="bi bi-file-earmark-plus"></i> Facturer le Client
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">N° Pièce</th>
+                <th>Type</th>
+                <th>Date d'émission</th>
+                <th>Montant Global</th>
+                <th>Statut Règlement</th>
+                <th class="text-end pe-4">Fiche</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (linkedInvoices && linkedInvoices.length > 0) { %>
+                <% linkedInvoices.forEach(inv => { %>
+                  <tr>
+                    <td class="ps-4 fw-bold font-monospace text-primary"><%= inv.numero %></td>
+                    <td>
+                      <span class="badge <%= inv.type === 'FACTURE' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle' %> rounded" style="font-size: 0.72rem;">
+                        <%= inv.type %>
+                      </span>
+                    </td>
+                    <td class="text-muted"><%= new Date(inv.created_at).toLocaleDateString('fr-FR') %></td>
+                    <td class="fw-bold font-monospace"><%= inv.total_ttc.toLocaleString('fr-FR') %> FCFA</td>
+                    <td>
+                      <% if (inv.etat === 'PAYE') { %>
+                        <span class="badge bg-success text-white px-2 py-1" style="font-size: 0.75rem;"><i class="bi bi-check-circle"></i> SOLDÉ</span>
+                      <% } else if (inv.etat === 'EMIS') { %>
+                        <span class="badge bg-warning text-dark px-2 py-1" style="font-size: 0.75rem;"><i class="bi bi-clock"></i> EN ATTENTE</span>
+                      <% } else if (inv.etat === 'BROUILLON') { %>
+                        <span class="badge bg-secondary text-white px-2 py-1" style="font-size: 0.75rem;">BROUILLON</span>
+                      <% } else { %>
+                        <span class="badge bg-danger text-white px-2 py-1" style="font-size: 0.75rem;">ANNULÉ</span>
+                      <% } %>
+                    </td>
+                    <td class="text-end pe-4">
+                      <a href="/facturation/<%= inv.id %>" class="btn btn-sm btn-light text-dark rounded-circle" title="Ouvrir">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">
+                    <i class="bi bi-cash display-6 text-slate-300 d-block mb-2"></i>
+                    Aucun document financier n'a été rattaché à la référence <strong class="text-secondary"><%= dossier.numero %></strong>.
+                    <p class="text-slate-500 text-xs mb-0 mt-1">Créez une facture portant la mention de ce dossier dans son détail.</p>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Document Attachments and Logs Activity -->
+  <div class="col-lg-4">
+    
+    <!-- 5. DOCUMENT ATTACHMENTS section (File upload PDFs zone) -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Dossier d'Archives PDF
+        </h5>
+      </div>
+      <div class="card-body">
+        
+        <!-- Upload Form PDF -->
+        <form action="/dossiers/<%= dossier.id %>/upload" method="POST" enctype="multipart/form-data" class="mb-3">
+          <label class="form-label small fw-semibold text-slate-600 mb-1">Téléverser document officiel (BL, LTA, SGS) :</label>
+          <div class="input-group input-group-sm mb-1.5">
+            <input type="file" class="form-control" name="pdf_file" accept=".pdf" required>
+            <button class="btn btn-dark d-inline-flex align-items-center" type="submit">
+              <i class="bi bi-cloud-upload-fill me-1"></i> Charger
+            </button>
+          </div>
+          <div class="form-text text-slate-500" style="font-size: 0.71rem;">
+            Format : <strong>PDF uniquement</strong> (Max 10 Mo).
+          </div>
+        </form>
+
+        <!-- Attachments List -->
+        <div class="border-top pt-3">
+          <h6 class="fw-bold text-slate-700 mb-2.5" style="font-size: 0.85rem;"><i class="bi bi-files text-secondary me-1.5"></i>Pièces de bord disponibles :</h6>
+          <% if (attachments && attachments.length > 0) { %>
+            <div class="list-group list-group-flush border rounded overflow-hidden" style="max-height: 250px; overflow-y: auto;">
+              <% attachments.forEach(file => { %>
+                <div class="list-group-item list-group-item-action py-2.5 px-3 d-flex align-items-center justify-content-between">
+                  <div class="text-truncate me-2" style="font-size: 0.82rem;">
+                    <!-- Netoyer le suffix timestamp lors du rendu visuel -->
+                    <% 
+                      const baseName = file.name.substring(file.name.indexOf('-') + 1);
+                      const cleanLabel = baseName.substring(baseName.indexOf('-') + 1);
+                    %>
+                    <span class="fw-semibold text-slate-800 d-block text-truncate" title="<%= cleanLabel %>">
+                      <i class="bi bi-file-pdf text-danger me-1"></i><%= cleanLabel %>
+                    </span>
+                    <span class="text-slate-500 font-monospace text-xs mt-0.5 d-block">
+                      <%= file.size %> • <%= file.uploadedAt %>
+                    </span>
+                  </div>
+                  <div>
+                    <a href="/dossiers/<%= dossier.id %>/download/<%= file.name %>" class="btn btn-sm btn-outline-primary rounded-circle p-1.5" title="Télécharger le PDF">
+                      <i class="bi bi-download" style="font-size: 0.8rem;"></i>
+                    </a>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div class="text-center text-muted py-4 border rounded bg-light">
+              <i class="bi bi-folder-symlink display-6 text-slate-300 d-block mb-2"></i>
+              Aucun fichier PDF importé.
+            </div>
+          <% } %>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 6. ACTIVITY TIMELINE section -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-clock-history text-secondary me-2"></i>Journal des Activités de Transit
+        </h5>
+      </div>
+      <div class="card-body">
+        <% if (logs && logs.length > 0) { %>
+          <div class="timeline-container px-2" style="max-height: 380px; overflow-y: auto;">
+            <% logs.forEach((log, index) => { %>
+              <div class="d-flex mb-3 text-start position-relative">
+                <!-- Timeline Dot Line divider -->
+                <% if (index < logs.length - 1) { %>
+                  <div class="position-absolute" style="left: 6.5px; top: 15px; bottom: -20px; width: 1px; background-color: #e2e8f0;"></div>
+                <% } %>
+                <div class="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center border" style="width: 14px; height: 14px; margin-top: 4px; z-index: 10;">
+                  <div class="bg-primary rounded-circle" style="width: 5px; height: 5px;"></div>
+                </div>
+                <div class="ms-3 flex-grow-1">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-light text-slate-800 border" style="font-size: 0.7rem; font-weight: bold;"><%= log.action %></span>
+                    <span class="text-slate-500 font-monospace text-xs">
+                      <%= new Date(log.created_at).toLocaleDateString('fr-FR', {hour: '2-digit', minute: '2-digit'}) %>
+                    </span>
+                  </div>
+                  <p class="mb-0 text-slate-700 small mt-1" style="font-size: 0.78rem;">
+                    Exécuté par <strong class="text-slate-900"><%= log.user ? log.user.nom : 'Système' %></strong>
+                  </p>
+                  <span class="text-slate-500 text-xs" style="font-size: 0.7rem;">Cible: <%= log.entity %> (ID: <%= log.entity_id %>)</span>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <p class="text-center text-muted small py-4 mb-0">
+            <i class="bi bi-clock text-slate-300 display-6 d-block mb-2"></i>
+            Aucun historique consigné.
+          </p>
+        <% } %>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-clock-history text-secondary me-2"></i>Historique d'activité
+    </h5>
+  </div>
+  <div class="card-body">
+  <% timeline.forEach(entry => {
+    const meta = (() => { try{return JSON.parse(entry.meta||'{}')}catch{return {}} })();
+    const cfg = {
+      'tache.status':  {icon:'bi-check-circle-fill', color:'#28a745', label: `a changé la tâche ${meta.titre||''} : ${meta.from} → ${meta.to}`},
+      'document.created': {icon:'bi-file-earmark-text-fill', color:'#0d6efd', label:`a créé la facture ${meta.numero||''} — ${Number(meta.montant||0).toLocaleString('fr-FR')} FCFA`},
+      'fichier.uploaded': {icon:'bi-paperclip', color:'#6c757d', label:`a ajouté le fichier ${meta.filename||''}`},
+      'comment.added':    {icon:'bi-chat-fill', color:'#6f42c1', label:`a commenté sur ${meta.task_titre||''} : ${meta.preview||''}...`}
+    }[entry.action] || {icon:'bi-dot', color:'#aaa', label: entry.action};
+  %>
+  <div class="d-flex align-items-center mb-3">
+    <div class="rounded-circle d-flex align-items-center justify-content-center text-white" style="width:28px; height:28px; background-color:<%=cfg.color%>">
+      <i class="bi <%=cfg.icon%>" style="font-size:14px"></i>
+    </div>
+    <div class="ms-3">
+      <p class="mb-0 text-dark" style="font-size:0.9rem">
+        <strong><%=entry.user.nom%></strong> <%- cfg.label %>
+      </p>
+      <span class="text-muted" style="font-size:0.8rem"><%=timeAgo(entry.created_at)%></span>
+    </div>
+  </div>
+  <% }) %>
+  <% if(timeline.length===0) { %>
+    <p class="text-center text-muted py-3">Aucune activité enregistrée</p>
+  <% } %>
+  </div>
+</div>
+
+<!-- Modal Quick Task -->
+<div class="modal fade" id="quickTaskModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white fs-6">Saisir un Jalon d'expédition rapide</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/dossiers/<%= dossier.id %>/taches/new" method="POST">
+        <div class="modal-body text-start">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Intitulé du jalon <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="titre" placeholder="Ex: Livraison d'acconage à l'entrepôt" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Assigner un agent transit :</label>
+            <select class="form-select" name="intervenant_id">
+              <option value="">-- Non assigné --</option>
+              <% if (users && users.length > 0) { %>
+                <% users.forEach(u => { %>
+                  <option value="<%= u.id %>"><%= u.nom %> (<%= u.role %>)</option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Échéances / Date limite :</label>
+            <input type="date" class="form-control" name="deadline" value="2026-06-15" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Observations initiales / BL :</label>
+            <textarea class="form-control" name="observations" rows="3" placeholder="Saisir informations importantes..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm">Enregistrer le jalon</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Edit Custom Specifications and Client -->
+<div class="modal fade" id="editCustomFieldsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow text-start">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white fs-6">Ajuster les Spécifications Logistiques & Douane</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/dossiers/<%= dossier.id %>/update-custom" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-slate-700">Client / Donneur d'ordre <span class="text-danger">*</span></label>
+            <select class="form-select" name="client_id" required>
+              <% if (clients && clients.length > 0) { %>
+                <% clients.forEach(cl => { %>
+                  <option value="<%= cl.id %>" <%= cl.id === dossier.client_id ? 'selected' : '' %>><%= cl.nom %></option>
+                <% }) %>
+              <% } %>
+            </select>
+            <div class="form-text" style="font-size: 0.72rem;">Vous pouvez modifier l'association du client si nécessaire.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-slate-700">Numéro de BL / Connaissement <span class="text-danger">*</span></label>
+            <input type="text" class="form-control font-monospace" name="bl" value="<%= dossier.bl || '' %>" placeholder="Ex: MSCU1234567" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-slate-700">Marchandises du conteneur (Contenu)</label>
+            <input type="text" class="form-control" name="contenu" value="<%= dossier.contenu || '' %>" placeholder="Ex: 120 cartons de matériel informatique">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-slate-700">Valeur en Douane estimée (FCFA)</label>
+            <input type="number" step="any" min="0" class="form-control" name="valeur_douane" value="<%= dossier.valeur_douane || '' %>" placeholder="Ex: 15000000">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-slate-700">Montant des droits de douane (FCFA)</label>
+            <input type="number" step="any" min="0" class="form-control" name="droits_douane" value="<%= dossier.droits_douane || '' %>" placeholder="Ex: 3500000">
+          </div>
+
+          <div class="mb-3 mt-4">
+            <div class="form-check form-switch p-1 d-flex align-items-center gap-2">
+              <input class="form-check-input ms-0" type="checkbox" id="modal_validation" name="validation" style="width: 2.2rem; height: 1.1rem; cursor: pointer;" <%= dossier.validation ? 'checked' : '' %>>
+              <label class="form-check-label small fw-bold text-slate-800 cursor-pointer" for="modal_validation">
+                <i class="bi bi-shield-fill-check text-success"></i> Déclarer validé par l'administration des douanes
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm">Enregistrer les modifications</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Ajax script for checklist toggling -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const checkboxes = document.querySelectorAll(".task-toggle-checkbox");
+  
+  checkboxes.forEach(function(box) {
+    box.addEventListener("change", function() {
+      const taskId = this.getAttribute("data-task-id");
+      const isChecked = this.checked;
+      
+      // Determine new status payload
+      const statusValue = isChecked ? "FAIT" : "EN_COURS";
+      
+      // Instant PATCH to server
+      fetch(`/taches/${taskId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ etat: statusValue })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Erreur lors de la mise à jour");
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          // 1. Update status badge & text-decoration
+          const statusBadge = document.getElementById(`status-badge-${taskId}`);
+          const labelText = document.getElementById(`label-text-${taskId}`);
+          const rowItem = document.getElementById(`task-row-${taskId}`);
+          
+          if (isChecked) {
+            statusBadge.textContent = "VALIDÉ";
+            statusBadge.className = "badge rounded-pill px-2.5 py-1 text-xs font-monospace fw-bold bg-success text-white";
+            labelText.classList.add("text-decoration-line-through", "text-slate-500");
+            rowItem.style.backgroundColor = "#fbfdfb";
+            rowItem.style.opacity = "0.9";
+          } else {
+            statusBadge.textContent = "EN COURS";
+            statusBadge.className = "badge rounded-pill px-2.5 py-1 text-xs font-monospace fw-bold bg-warning text-dark";
+            labelText.classList.remove("text-decoration-line-through", "text-slate-500");
+            rowItem.style.backgroundColor = "";
+            rowItem.style.opacity = "";
+          }
+          
+          // 2. Recalculate global progress percentage on client side instantly!
+          recalculateProgressBar();
+        } else {
+          // Revert checkbox state if failed
+          this.checked = !isChecked;
+          alert("Impossible de modifier le statut : " + (data.message || "Erreur système"));
+        }
+      })
+      .catch(error => {
+        this.checked = !isChecked;
+        console.error("Erreur toggle checkbox :", error);
+        alert("Une erreur de réseau s'est produite lors de l'enregistrement instantané.");
+      });
+    });
+  });
+
+  function recalculateProgressBar() {
+    const allBoxes = document.querySelectorAll(".task-toggle-checkbox");
+    const totalCount = allBoxes.length;
+    
+    if (totalCount === 0) return;
+    
+    let checkedCount = 0;
+    allBoxes.forEach(b => {
+      if (b.checked) checkedCount++;
+    });
+    
+    const pct = Math.round((checkedCount / totalCount) * 100);
+    
+    // Update DOM indicators
+    const progressBar = document.getElementById("dossier-progress-bar");
+    const progressLabel = document.getElementById("progress-percent-label");
+    const doneSummary = document.getElementById("progress-done-summary");
+    
+    if (progressBar) {
+      progressBar.style.width = pct + "%";
+      progressBar.setAttribute("aria-valuenow", pct);
+    }
+    if (progressLabel) {
+      progressLabel.textContent = pct + "%";
+    }
+    if (doneSummary) {
+      doneSummary.textContent = checkedCount + " sur " + totalCount + " jalons de dédouanement validés";
+    }
+  }
+});
+</script>
+
+<%- include('../partials/footer') %>

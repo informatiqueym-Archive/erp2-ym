@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion | YM-TRANSIT ERP</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+      color: #334155;
+    }
+    h1, .display-logo {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .card-login {
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    .btn-login {
+      background-color: #2563eb;
+      border-color: #2563eb;
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-login:hover {
+      background-color: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+    .logo-badge {
+      background: #2563eb;
+      color: white;
+      border-radius: 0.75rem;
+      width: 56px;
+      height: 56px;
+      font-size: 1.8rem;
+    }
+  </style>
+</head>
+<body class="d-flex align-items-center py-5 h-100">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-5 col-lg-4">
+        
+        <!-- YM-TRANSIT Branding Logo Header -->
+        <div class="text-center mb-4 text-white">
+          <div class="logo-badge mx-auto mb-3 d-flex align-items-center justify-content-center fw-bold">
+            YM
+          </div>
+          <h1 class="h3 fw-bold">YM-TRANSIT ERP</h1>
+          <p class="text-white-50 small">Transit, Douane & Facturation Logistique</p>
+        </div>
+
+        <!-- Iframe warning / new tab helper (shown only if loaded inside iframe) -->
+        <div id="iframeHelper" class="alert alert-warning p-3 mb-4 text-center rounded border-0 shadow-sm" style="display: none; background-color: #fef08a; color: #854d0e;">
+          <div class="fw-bold mb-1"><i class="bi bi-window-fullscreen me-1"></i> Mode d'aperçu détecté</div>
+          <p class="text-xs mb-2 text-start" style="font-size: 0.8rem; line-height: 1.4;">
+            Les navigateurs modernes (Chrome, Safari, etc.) restreignent souvent la persistance des sessions (cookies tiers) dans les fenêtres imbriquées. Si la connexion échoue en boucle, cliquez ci-dessous pour ouvrir l'application en plein écran dans un nouvel onglet :
+          </p>
+          <a href="#" id="openInNewTabBtn" target="_blank" class="btn btn-sm btn-dark w-100 rounded fw-semibold">
+            <i class="bi bi-box-arrow-up-right me-1"></i> Ouvrir dans un nouvel onglet
+          </a>
+        </div>
+
+        <!-- Login Card -->
+        <div class="card card-login p-4">
+          <div class="card-body">
+            <h2 class="h5 fw-bold mb-4 text-center text-dark">Accéder au portail</h2>
+            
+            <% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
+              <div class="alert alert-danger px-3 py-2" id="loginErrorAlert" role="alert">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-exclamation-circle-fill me-2" style="font-size: 1.1rem;"></i>
+                  <small><%= error_msg %></small>
+                </div>
+              </div>
+            <% } %>
+
+            <form action="/login" method="POST" id="loginForm">
+              <!-- Nom d'utilisateur (Username) -->
+              <div class="mb-3">
+                <label for="nom" class="form-label small fw-semibold text-muted">Nom d'utilisateur</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-person text-muted"></i></span>
+                  <input type="text" class="form-control" id="nom" name="nom" placeholder="Ex: Yannick Abega" required autofocus>
+                </div>
+              </div>
+
+              <!-- Mot de passe (Password) -->
+              <div class="mb-4">
+                <label for="password" class="form-label small fw-semibold text-muted">Mot de passe</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-lock text-muted"></i></span>
+                  <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+                </div>
+              </div>
+
+              <!-- Connexion Button -->
+              <button type="submit" class="btn btn-login w-100 py-2.5 text-white fw-semibold rounded" id="loginSubmitBtn">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+              </button>
+            </form>
+
+            <div class="hr-text text-muted my-3 text-center small text-uppercase" style="display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 0.75rem; background: #fff; padding: 0 10px; z-index: 1;">Ou</span>
+              <span style="position: absolute; left: 0; right: 0; height: 1px; background: #e2e8f0; z-index: 0;"></span>
+            </div>
+
+            <!-- Instant One-Click Administrative Login -->
+            <a href="/demo-login" class="btn btn-outline-success w-100 py-2 fw-semibold rounded shadow-sm d-flex align-items-center justify-content-center" id="demoLoginBtn">
+              <i class="bi bi-lightning-charge-fill text-warning me-2"></i> Connexion Démo Administrateur
+            </a>
+          </div>
+        </div>
+
+        <!-- Testing assistance box (showing seeded users) -->
+        <div class="mt-4 p-3 bg-white bg-opacity-10 border border-white border-opacity-10 rounded text-white text-center">
+          <div class="text-white-50 small fw-bold mb-2"><i class="bi bi-info-circle me-1"></i> Identifiants d'essai (Mot de passe: <code class="text-warning">Nom ou rôle + 123</code> ou voir ci-dessous) :</div>
+          <div class="row text-start" style="font-size: 0.75rem; max-height: 250px; overflow-y: auto;">
+            <div class="col-12 mb-1"><strong>Admin :</strong> <code class="text-warning">admin</code> / <code class="text-warning">admin123</code></div>
+            <div class="col-12 mb-1"><strong>Svc Acconage :</strong> <code class="text-warning">acconage</code> / <code class="text-warning">acconage123</code></div>
+            <div class="col-12 mb-1"><strong>Svc Enlèvement :</strong> <code class="text-warning">enlevement</code> / <code class="text-warning">enlevement123</code></div>
+            <div class="col-12 mb-1"><strong>Top Management / Dir :</strong> <code class="text-warning">direction</code> / <code class="text-warning">direction123</code></div>
+            <div class="col-12 mb-1"><strong>La Caisse / Payeur :</strong> <code class="text-warning">caisse</code> / <code class="text-warning">caisse123</code></div>
+            <div class="col-12 mb-1"><strong>Directeur Financier :</strong> <code class="text-warning">finances</code> / <code class="text-warning">finances123</code></div>
+            <div class="col-12 mb-1"><strong>Comptable Opérations :</strong> <code class="text-warning">compta_ops</code> / <code class="text-warning">comptaops123</code></div>
+            <div class="col-12 mb-1"><strong>Transit Opérateur :</strong> <code class="text-warning">transit</code> / <code class="text-warning">transit123</code></div>
+            <div class="col-12"><strong>Comptabilité Standard :</strong> <code class="text-warning">compta</code> / <code class="text-warning">compta123</code></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Détecter si la page est chargée dans un iframe (ex: cadre d'aperçu d'AI Studio)
+      const isInIframe = window.self !== window.top;
+      if (isInIframe) {
+        const helperDiv = document.getElementById("iframeHelper");
+        const openBtn = document.getElementById("openInNewTabBtn");
+        if (helperDiv && openBtn) {
+          helperDiv.style.display = "block";
+          openBtn.href = window.location.href;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

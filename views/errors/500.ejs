@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+
+<div class="container my-5 py-5 text-center">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+        <div class="p-5 bg-dark text-white">
+          <i class="bi bi-bug-fill display-1 text-danger"></i>
+          <h1 class="mt-4 font-display text-uppercase tracking-wider">Erreur Interne</h1>
+          <h4 class="text-white-50">Erreur 500 - Server Error</h4>
+        </div>
+        <div class="card-body p-5 text-start">
+          <p class="lead text-muted text-center">
+            Une erreur interne inattendue s'est produite sur le serveur.
+          </p>
+          
+          <% if (typeof error !== 'undefined' && error) { %>
+            <div class="bg-light p-3 rounded-3 border mt-4">
+              <strong class="text-danger d-block mb-1">Détails techniques :</strong>
+              <code class="text-dark small style-code" style="word-break: break-all; white-space: pre-wrap;"><%= error.stack || error.message || error %></code>
+            </div>
+          <% } %>
+
+          <hr class="my-4">
+          <div class="d-flex justify-content-center gap-3 mt-4">
+            <a href="/dashboard" class="btn btn-primary btn-lg rounded-pill px-4">
+              <i class="bi bi-speedometer2 me-2"></i>Espace d'accueil
+            </a>
+            <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg rounded-pill px-4">
+              <i class="bi bi-arrow-left me-2"></i>Retour
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

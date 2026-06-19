@@ -1,0 +1,199 @@
+<%- include('../partials/header') %>
+
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/dashboard">Accueil</a></li>
+      <li class="breadcrumb-item"><a href="/dossiers">Dossiers</a></li>
+      <li class="breadcrumb-item"><a href="/dossiers/<%= bon.dossier.id %>">Dossier <%= bon.dossier.numero %></a></li>
+      <li class="breadcrumb-item active" aria-current="page">Détail Bon <%= bon.numero %></li>
+    </ol>
+  </nav>
+  <div class="d-flex justify-content-between align-items-center">
+    <h1 class="h2 font-display text-slate-800 mb-0">Bon d'Opération <%= bon.numero %></h1>
+    <a href="/dossiers/<%= bon.dossier.id %>" class="btn btn-outline-secondary rounded-pill px-3">
+      <i class="bi bi-arrow-left me-1"></i>Retour au Dossier
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-7 mb-4">
+    <!-- Section 1 : Bon Provisoire -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-slate-700 fw-bold"><i class="bi bi-wallet2 me-2 text-primary"></i>Étape 1 : Bon Provisoire (Demande d'avance)</h5>
+        <% if (bon.etat === 'EN_ATTENTE') { %>
+          <span class="badge bg-warning text-dark px-3 py-2 rounded-pill uppercase font-sans tracking-wide">En attente d'approbation</span>
+        <% } else if (bon.etat === 'APPROUVE') { %>
+          <span class="badge bg-success text-white px-3 py-2 rounded-pill uppercase font-sans tracking-wide">Approuvé</span>
+        <% } else if (bon.etat === 'REJETE') { %>
+          <span class="badge bg-danger text-white px-3 py-2 rounded-pill uppercase font-sans tracking-wide">Rejeté</span>
+        <% } %>
+      </div>
+      <div class="card-body p-4">
+        <div class="row mb-3">
+          <div class="col-sm-4 text-muted fw-semibold">N° de Bon :</div>
+          <div class="col-sm-8 fw-bold text-slate-800"><%= bon.numero %></div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-sm-4 text-muted fw-semibold">Dossier Associé :</div>
+          <div class="col-sm-8 fw-semibold">
+            <a href="/dossiers/<%= bon.dossier.id %>" class="text-primary"><%= bon.dossier.numero %></a>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-sm-4 text-muted fw-semibold">Service émetteur :</div>
+          <div class="col-sm-8"><span class="badge bg-secondary uppercase text-light"><%= bon.service %></span></div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-sm-4 text-muted fw-semibold">Demandeur :</div>
+          <div class="col-sm-8 fw-semibold"><%= bon.demandeur.prenom || '' %> <%= bon.demandeur.nom %></div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-sm-4 text-muted fw-semibold">Objet du décaissement :</div>
+          <div class="col-sm-8 text-slate-700 bg-light p-3 rounded border"><%= bon.objet %></div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-sm-4 text-muted fw-semibold">Montant d'avance demandé :</div>
+          <div class="col-sm-8 fs-4 fw-bold text-slate-900 text-primary"><%= bon.montant_demande.toLocaleString('fr-FR') %> F CFA</div>
+        </div>
+
+        <% if (bon.approved_at) { %>
+          <hr>
+          <div class="row mb-3">
+            <div class="col-sm-4 text-muted fw-semibold">Approuvé par :</div>
+            <div class="col-sm-8 fw-semibold">
+              <i class="bi bi-person-check-fill text-success me-1"></i>
+              <%= bon.approver ? (bon.approver.prenom || '') + ' ' + bon.approver.nom : 'Admin' %>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-sm-4 text-muted fw-semibold">Date d'approbation :</div>
+            <div class="col-sm-8 text-muted small"><%= new Date(bon.approved_at).toLocaleString('fr-FR') %></div>
+          </div>
+        <% } %>
+
+        <% if (bon.motif_rejet) { %>
+          <div class="alert alert-danger-subtle border border-danger d-flex align-items-start mt-3">
+            <i class="bi bi-exclamation-octagon-fill text-danger me-2 fs-5"></i>
+            <div>
+              <strong>Motif du rejet :</strong>
+              <p class="mb-0 mt-1 text-slate-700 italic"><%= bon.motif_rejet %></p>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5 mb-4">
+    <!-- Section 2 : Bon Réel (Justification après dépenses) -->
+    <div class="card border-0 shadow-sm rounded-3">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 text-slate-700 fw-bold"><i class="bi bi-shield-check me-2 text-success"></i>Étape 2 : Justification (Bon Réel)</h5>
+      </div>
+      <div class="card-body p-4 text-center">
+        <% if (!bon.bon_reel) { %>
+          <div class="py-4">
+            <i class="bi bi-hourglass-bottom display-4 text-muted d-block mb-3"></i>
+            <span class="d-block fw-bold text-slate-700">En attente de justificatifs</span>
+            <p class="text-sm text-muted mt-2">Dès que l'avance sera obtenue et la dépense opérationnelle effectuée, l'opérationnel saisira le montant réel pour produire le bon justificatif.</p>
+          </div>
+        <% } else { %>
+          <div class="text-start">
+            <div class="row mb-3">
+              <div class="col-sm-5 text-muted fw-semibold">Montant avance (provisoire) :</div>
+              <div class="col-sm-7 fw-bold text-slate-600"><%= bon.bon_reel.montant_provisoir.toLocaleString('fr-FR') %> F</div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-sm-5 text-muted fw-semibold">Montant réel dépensé :</div>
+              <div class="col-sm-7 fw-extrabold text-slate-800 fs-5"><%= bon.bon_reel.montant_reel.toLocaleString('fr-FR') %> F</div>
+            </div>
+            
+            <div class="row mb-3 align-items-center">
+              <div class="col-sm-5 text-muted fw-semibold">Écart de caisse :</div>
+              <div class="col-sm-7">
+                <% if (bon.bon_reel.ecart >= 0) { %>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-bold">
+                    <i class="bi bi-caret-up-fill me-1"></i>
+                    Reliquat : +<%= bon.bon_reel.ecart.toLocaleString('fr-FR') %> F (Économisé)
+                  </span>
+                <% } else { %>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fw-bold">
+                    <i class="bi bi-caret-down-fill me-1"></i>
+                    Dépassement : <%= bon.bon_reel.ecart.toLocaleString('fr-FR') %> F (Dette d'exploitation)
+                  </span>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-sm-5 text-muted fw-semibold">Observations :</div>
+              <div class="col-sm-7 text-slate-700 bg-light p-2 rounded small border text-italic">
+                <%= bon.bon_reel.observations || 'Aucune observation enregistrée.' %>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-sm-5 text-muted fw-semibold">Justifié par :</div>
+              <div class="col-sm-7 fw-semibold"><%= bon.bon_reel.soumis_par ? bon.bon_reel.soumis_par.prenom + ' ' + bon.bon_reel.soumis_par.nom : 'Opérateur' %></div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-sm-5 text-muted fw-semibold">Soumis le :</div>
+              <div class="col-sm-7 text-muted small"><%= new Date(bon.bon_reel.created_at).toLocaleString('fr-FR') %></div>
+            </div>
+
+            <hr>
+
+            <!-- Confirmation Décaissement pour l'Agent Payeur / Trésorier -->
+            <div class="bg-gray-100 p-3 rounded border mt-3">
+              <h6 class="fw-bold text-slate-800 mb-2"><i class="bi bi-cash me-1 text-primary"></i>Statut de décaissement (Trésor)</h6>
+              <% if (bon.bon_reel.confirme_par_id) { %>
+                <div class="text-success fw-bold small">
+                  <i class="bi bi-patch-check-fill me-1"></i>
+                  Décaissement et justification validés par le trésorier (<%= bon.bon_reel.confirme_par ? bon.bon_reel.confirme_par.nom : 'Agent Payeur' %>)
+                  <div class="text-muted small mt-1 fw-normal">Le <%= new Date(bon.bon_reel.confirme_at).toLocaleString('fr-FR') %></div>
+                </div>
+              <% } else { %>
+                <div class="text-warning fw-semibold small mb-3">
+                  <i class="bi bi-hourglass-top me-1"></i>En attente de confirmation de remise des fonds.
+                </div>
+                <% if (['agent_payeur', 'super_admin'].includes(user.role)) { %>
+                  <button onclick="confirmDecaissement(<%= bon.bon_reel.id %>)" class="btn btn-primary w-100 rounded-pill py-2 font-display fw-bold shadow-sm">
+                    <i class="bi bi-check-circle me-1"></i>Confirmer la sortie de fonds
+                  </button>
+                <% } %>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function confirmDecaissement(bonReelId) {
+    if(!confirm("Êtes-vous sûr de vouloir confirmer que les fonds de caisse correspondants ont été décaissés et remis à l'opérationnel ?")) return;
+    try {
+      const res = await fetch(`/bons/reel/${bonReelId}/confirmer`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if(data.ok) {
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert("Erreur: " + data.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Une erreur de communication est survenue.");
+    }
+  }
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,99 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center text-start">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-file-earmark-ruled text-primary me-2"></i>Factures Fournisseurs</h1>
+    <p class="text-muted mb-0">Contrôlez les factures d'achat émises par vos fournisseurs et l'analyse de vieillissement des retards.</p>
+  </div>
+</div>
+
+<!-- Synthèse des Factures Fournisseurs -->
+<div class="card border-0 shadow-sm text-start mb-4">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-clock-history text-secondary me-2"></i>Grand livre auxiliaire d'achats fournisseurs & échéanciers de retard
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Numéro Facture</th>
+            <th>Fournisseur</th>
+            <th>Date Facture</th>
+            <th>Échéance de Règlement</th>
+            <th>État Réf.</th>
+            <th>Analyse de retards (Vieillissement)</th>
+            <th class="text-end">Reste à payer</th>
+            <th class="text-end pe-4">Total Facturation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (factures && factures.length > 0) { %>
+            <% factures.forEach(fact => { %>
+              <tr style="cursor: pointer;" onclick="window.location.href='/factures-fournisseur/<%= fact.id %>'">
+                <td class="ps-4">
+                  <a href="/factures-fournisseur/<%= fact.id %>" class="fw-bold font-monospace text-primary text-decoration-none">
+                    <%= fact.numero %>
+                  </a>
+                  <% if (fact.commande) { %>
+                    <small class="text-muted d-block" style="font-size: 0.72rem;">Bon d'achat : <%= fact.commande.numero %></small>
+                  <% } %>
+                </td>
+                <td class="fw-semibold">
+                  <a href="/fournisseurs/<%= fact.fournisseur_id %>" class="text-slate-800 text-decoration-none">
+                    <%= fact.fournisseur.nom %>
+                  </a>
+                </td>
+                <td><%= new Date(fact.date).toLocaleDateString('fr-FR') %></td>
+                <td>
+                  <% if (fact.echeance) { %>
+                    <%= new Date(fact.echeance).toLocaleDateString('fr-FR') %>
+                  <% } else { %>
+                    Instantané
+                  <% } %>
+                </td>
+                <td>
+                  <% if (fact.etat === 'Payée') { %>
+                    <span class="badge bg-success-subtle text-success px-2.5 py-1">Payée (Soldé)</span>
+                  <% } else if (fact.etat === 'Partielle') { %>
+                    <span class="badge bg-warning-subtle text-warning px-2.5 py-1">Partielle (Acompte)</span>
+                  <% } else { %>
+                    <span class="badge bg-danger-subtle text-danger px-2.5 py-1">En attente</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (fact.etat === 'Payée') { %>
+                    <span class="text-success fw-bold small"><i class="bi bi-clock-history me-1"></i>Déchargée 🗸</span>
+                  <% } else if (fact.isOverdue) { %>
+                    <span class="text-danger fw-bold font-monospace" style="font-size: 0.82rem;">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i>Retard de <%= fact.overdueDays %> jours !
+                    </span>
+                  <% } else { %>
+                    <span class="text-secondary small">Dans les délais</span>
+                  <% } %>
+                </td>
+                <td class="text-end font-monospace fw-bold <%= fact.remainingAmount > 0 ? 'text-danger' : 'text-success' %>">
+                  <%= Number(fact.remainingAmount).toLocaleString('fr-FR') %> FCFA
+                </td>
+                <td class="text-end font-monospace fw-bold pe-4 text-slate-800">
+                  <%= Number(fact.montant_ttc).toLocaleString('fr-FR') %> FCFA
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="bi bi-wallet-fill fs-2 text-slate-300 d-block mb-3"></i>
+                Aucune facture fournisseur enregistrée. Elles proviennent de la validation de vos bons de commande.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
