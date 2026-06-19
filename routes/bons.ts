@@ -487,9 +487,25 @@ router.post("/bons/provisoir/:id/tick", requireAuth, async (req: any, res: any) 
     }
 
     const bonId = parseInt(req.params.id);
-    const { tick } = req.body; // 'pdg', 'dg', 'dga', 'daf' ou 'audit'
+    const tick = req.body.tick || req.body.tick_key; // Support both format variants
     if (!["pdg", "dg", "dga", "daf", "audit"].includes(tick)) {
-      return res.status(400).json({ ok: false, message: "Type de visa invalide." });
+      return res.status(400).json({ ok: false, message: `Type de visa invalide ou absent (${tick}).` });
+    }
+
+    // Role-specific check: Standard user can only toggle their own visa
+    if (user.role !== "super_admin") {
+      const isPDGAllowed = (tick === "pdg" && user.role === "pdg");
+      const isDGAllowed = (tick === "dg" && user.role === "dg");
+      const isDGAAllowed = (tick === "dga" && user.role === "dga");
+      const isDAFAllowed = (tick === "daf" && user.role === "daf");
+      const isAuditAllowed = (tick === "audit" && (user.role === "auditeur1" || user.role === "auditeur2"));
+
+      if (!isPDGAllowed && !isDGAllowed && !isDGAAllowed && !isDAFAllowed && !isAuditAllowed) {
+        return res.status(403).json({
+          ok: false,
+          message: `Vous n'êtes pas autorisé à signer le ${tick.toUpperCase()}. Seul le titulaire désigné de cette fonction ou un Super Administrateur peut le faire.`
+        });
+      }
     }
 
     const bon = await prisma.bonProvisoir.findUnique({
@@ -831,6 +847,30 @@ router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) =>
         }
       });
     }
+
+    // Récupérer les tâches actives assignées à l'utilisateur connecté pour notification
+    const activeTasks = await prisma.tache.findMany({
+      where: {
+        intervenant_id: user.id,
+        etat: { in: ["EN_COURS", "A_FAIRE", "ATTENTE_VALIDATION"] },
+        archive: false
+      },
+      include: {
+        dossier: { select: { numero: true } }
+      },
+      orderBy: { created_at: "desc" },
+      take: 5
+    });
+
+    activeTasks.forEach(task => {
+      const isCorrection = task.titre.startsWith("[Demande de modification]");
+      notifications.push({
+        id: `task-${task.id}-assigned`,
+        title: isCorrection ? "⚠️ Action - Demande de Correction (Rétrogadé)" : "📋 Tâche de transit assignée",
+        content: `Pour le Dossier ${task.dossier?.numero || "N/A"} : ${task.titre}`,
+        url: `/taches/${task.id}`
+      });
+    });
 
     return res.json({ ok: true, notifications });
   } catch (error) {

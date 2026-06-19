@@ -52,7 +52,12 @@
                   <span class="badge bg-light text-dark border font-monospace py-1 px-2"><%= t.dossier.numero %></span>
                 </td>
                 <td>
-                  <div class="fw-bold text-slate-800" style="font-size: 0.95rem;"><%= t.titre %></div>
+                  <div class="fw-bold text-slate-800" style="font-size: 0.95rem;">
+                    <a href="/taches/<%= t.id %>" class="text-slate-800 text-decoration-none hover:text-primary transition-colors d-inline-flex align-items-center gap-1">
+                      <span><%= t.titre %></span>
+                      <i class="bi bi-chat-left-text text-muted" style="font-size: 0.75rem;"></i>
+                    </a>
+                  </div>
                   <% if (t.subtasks && t.subtasks.length > 0) { %>
                     <div class="mt-1.5 d-flex flex-wrap gap-1.5">
                       <% t.subtasks.forEach(sub => { %>

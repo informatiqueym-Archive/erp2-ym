@@ -131,6 +131,12 @@ router.get("/dossiers/archives", requireAuth, handleGetArchives);
 // GET /dossiers/create - Formulaire de création de dossiers
 router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
   try {
+    const user = req.session.user;
+    if (user.role !== "secretariat" && user.role !== "super_admin") {
+      req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
+      return res.redirect("/dossiers");
+    }
+
     const clients = await prisma.client.findMany({ orderBy: { nom: "asc" } });
     res.render("dossiers/create", {
       clients,
@@ -145,6 +151,12 @@ router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
 // POST /dossiers/create - Enregistrement d'un dossier (et route compatible /dossiers/new)
 const handleDossierCreation = async (req: any, res: any) => {
   try {
+    const user = req.session.user;
+    if (user.role !== "secretariat" && user.role !== "super_admin") {
+      req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
+      return res.redirect("/dossiers");
+    }
+
     const { client_id, numero, port, nature, etat, bl, contenu, droits_douane, validation, valeur_douane, representant } = req.body;
 
     if (!client_id || !numero || !port || !nature || !bl) {
@@ -247,6 +259,11 @@ router.post("/dossiers/:id/update-custom", requireAuth, async (req: any, res: an
       (contenu !== undefined && (contenu ? contenu.trim() : "") !== (dossier.contenu || ""));
 
     if (wantsToChangeGroup1) {
+      const userObj = req.session.user;
+      if (userObj.role !== "secretariat" && userObj.role !== "super_admin") {
+        req.session.error_msg = "Accès refusé : Seul le secrétariat administratif (ou le Super Administrateur) peut modifier les informations d'origine de ce dossier.";
+        return res.redirect(`/dossiers/${id}`);
+      }
       if (dossier.pipeline_status !== "CREE") {
         req.session.error_msg = "Modification refusée : Les champs initiaux (BL, Client, Contenu) sont verrouillés. Veuillez soumettre une Demande de Correction (Retour arrière) pour les modifier.";
         return res.redirect(`/dossiers/${id}`);
@@ -273,6 +290,11 @@ router.post("/dossiers/:id/update-custom", requireAuth, async (req: any, res: an
       (isValChecked !== dossier.validation);
 
     if (wantsToChangeGroup2) {
+      const userObj = req.session.user;
+      if (userObj.role !== "validation" && userObj.role !== "validation_role" && userObj.role !== "super_admin") {
+        req.session.error_msg = "Accès refusé : Seul le pôle de Validation / Contrôle de Conformité (ou le Super Administrateur) peut modifier les détails douaniers.";
+        return res.redirect(`/dossiers/${id}`);
+      }
       if (dossier.pipeline_status !== "VALIDATION") {
         req.session.error_msg = "Modification refusée : Les informations douanières sont validées et verrouillées. Veuillez soumettre une Demande de Correction (Retour arrière) pour les modifier.";
         return res.redirect(`/dossiers/${id}`);
@@ -534,6 +556,12 @@ router.post("/dossiers/update-status/:id", requireAuth, async (req: any, res: an
 router.post("/dossiers/delete/:id", requireAuth, async (req: any, res: any) => {
   try {
     const folderId = parseInt(req.params.id);
+    const user = req.session.user;
+
+    if (user.role !== "super_admin") {
+      req.session.error_msg = "Accès refusé : Seul le Super Administrateur peut supprimer définitivement un dossier.";
+      return res.redirect(`/dossiers/${folderId}`);
+    }
 
     const ds = await prisma.dossier.findUnique({ where: { id: folderId } });
     if (!ds) {
@@ -943,11 +971,32 @@ router.post("/dossiers/:id/pipeline/retour-arriere", requireAuth, async (req: an
       `${id} - Motif: ${motif.trim()}`
     );
 
+    // Mappage pour affecter automatiquement la tâche à l'acteur de l'étape précédente
+    const statusToRoleMap: Record<string, string> = {
+      "CREE": "secretariat",
+      "GUCE": "guce",
+      "VALIDATION": "validation",
+      "EN_TRAITEMENT": "acconage",
+      "BON_PROVISOIR": "acconage",
+      "BON_REEL": "acconage",
+      "FACTURATION": "facturation",
+      "CLOTURE": "comptable_ops"
+    };
+    
+    const prevRole = statusToRoleMap[prevStatus];
+    let prevUser = null;
+    if (prevRole) {
+      prevUser = await prisma.user.findFirst({
+        where: { role: prevRole, actif: true }
+      });
+    }
+
     // Créer une tâche automatique de correction
     await prisma.tache.create({
       data: {
         dossier_id: id,
         titre: `[Demande de modification] Retour à ${prevStatus} : ${motif.trim()}`,
+        intervenant_id: prevUser ? prevUser.id : null,
         etat: "A_FAIRE"
       }
     });

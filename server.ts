@@ -119,6 +119,7 @@ app.use((req: any, res: any, next: any) => {
 // Body Parser
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use("/assets", express.static(path.join(process.cwd(), "assets")));
 
 // Configuration du moteur EJS
 app.set("view engine", "ejs");
@@ -253,7 +254,7 @@ app.get("/", (req: any, res: any) => {
   if (req.session && req.session.userId) {
     res.redirect("/dashboard");
   } else {
-    res.redirect("/login");
+    res.render("welcome", { session: req.session });
   }
 });
 

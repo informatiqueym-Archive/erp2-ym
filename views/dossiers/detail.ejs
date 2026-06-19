@@ -124,6 +124,24 @@
   </div>
 </div>
 
+<% 
+  // Trouver s'il y a une demande de correction active sur ce dossier
+  const backtrackTask = (dossier.taches && dossier.taches.length > 0) ? dossier.taches.find(t => t.titre.startsWith("[Demande de modification]") && t.etat !== "FAIT" && t.etat !== "TERMINE") : null;
+%>
+<% if (backtrackTask) { %>
+  <div class="alert alert-warning border-0 shadow-sm d-flex align-items-start gap-3 p-3.5 mb-4 rounded-3 text-start" style="background-color: #fffbeb; border-left: 4px solid #f59e0b !important;">
+    <span class="fs-4">⚠️</span>
+    <div>
+      <h6 class="fw-bold text-amber-950 mb-1">Dossier Rétrogadé - Demande de Correction active</h6>
+      <p class="text-sm text-slate-700 mb-2">Ce dossier fait l'objet d'un retour en arrière pour corrections.</p>
+      <div class="bg-white bg-opacity-70 p-2.5 rounded border border-warning-subtle small font-monospace text-slate-800">
+        <%= backtrackTask.titre %>
+      </div>
+      <span class="text-xs text-muted d-block mt-2">L'acteur concerné a été notifié en temps réel. Veuillez effectuer les modifications requises et valider la tâche associée pour reprendre le pipeline d'approbation.</span>
+    </div>
+  </div>
+<% } %>
+
 <!-- B. CONDITIONAL ACTION SYSTEM BOARD -->
 <div class="card border-0 shadow-sm rounded-3 mb-4 text-start border-start border-primary border-4">
   <div class="card-body p-4">
@@ -337,11 +355,23 @@
                       <% } %>
                     </div>
                     <div class="form-check form-switch p-0 m-0">
+                      <%
+                        let isAuthorizedToTick = false;
+                        if (user.role === "super_admin") {
+                          isAuthorizedToTick = true;
+                        } else {
+                          if (tick.key === "pdg" && user.role === "pdg") isAuthorizedToTick = true;
+                          if (tick.key === "dg" && user.role === "dg") isAuthorizedToTick = true;
+                          if (tick.key === "dga" && user.role === "dga") isAuthorizedToTick = true;
+                          if (tick.key === "daf" && user.role === "daf") isAuthorizedToTick = true;
+                          if (tick.key === "audit" && (user.role === "auditeur1" || user.role === "auditeur2")) isAuthorizedToTick = true;
+                        }
+                      %>
                       <input class="form-check-input ms-0 top-mgmt-checkbox" type="checkbox" 
                              data-bon-id="<%= pendingBP.id %>" data-tick-key="<%= tick.key %>"
                              style="width: 1.5rem; height: 0.75rem; cursor: pointer;"
                              <%= tick.val ? 'checked' : '' %>
-                             <%= !["direction", "super_admin"].includes(user.role) ? 'disabled' : '' %>>
+                             <%= !isAuthorizedToTick ? 'disabled' : '' %>>
                     </div>
                   </div>
                 </div>
@@ -352,9 +382,9 @@
               const allTicksApproved = pendingBP.tick_pdg && pendingBP.tick_dg && pendingBP.tick_dga && pendingBP.tick_daf && pendingBP.tick_audit;
             %>
 
-            <% if (["direction", "super_admin"].includes(user.role)) { %>
+            <% if (["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"].includes(user.role)) { %>
               <div class="d-flex gap-2 mt-3">
-                <button onclick="workflowApproveBP(<%= pendingBP.id %>)" class="btn btn-success btn-sm rounded-pill px-3 fw-bold" <%= !allTicksApproved ? 'disabled title="Veuillez d\'abord appliquer les 5 visas physiquement"' : '' %>>
+                <button onclick="workflowApproveBP(<%= pendingBP.id %>)" class="btn btn-success btn-sm rounded-pill px-3 fw-bold" <%= !allTicksApproved ? 'disabled title="Veuillez d\'abord cocher les 5 visas obligatoires"' : '' %>>
                   <i class="bi bi-check-lg me-1"></i>Approuver et autoriser le décaissement
                 </button>
                 <button onclick="workflowRejectBP(<%= pendingBP.id %>, '<%= pendingBP.numero %>')" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold">
