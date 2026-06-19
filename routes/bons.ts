@@ -151,7 +151,8 @@ router.post("/bons/provisoir", requireAuth, async (req: any, res: any) => {
 router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin", "agent_payeur"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "agent_payeur", "caisse", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       req.session.error_msg = "Accès refusé.";
       return res.redirect("/dashboard");
     }
@@ -159,7 +160,7 @@ router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) =>
     const whereClause: any = { etat: "EN_ATTENTE" };
     
     // Si l'utilisateur est l'agent payeur (La Caisse), il ne voit le bon que s'il a reçu TOUS les 5 visas du Top Management
-    if (user.role === "agent_payeur") {
+    if (user.role === "agent_payeur" || user.role === "caisse") {
       whereClause.tick_pdg = true;
       whereClause.tick_dg = true;
       whereClause.tick_dga = true;
@@ -196,7 +197,8 @@ router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) =>
 router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin", "agent_payeur"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "agent_payeur", "caisse", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -211,7 +213,7 @@ router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res:
     }
 
     // Si l'utilisateur est l'agent payeur (La Caisse), s'assurer que les 5 visas sont au complet
-    if (user.role === "agent_payeur") {
+    if (user.role === "agent_payeur" || user.role === "caisse") {
       const allTicksApproved = bon.tick_pdg && bon.tick_dg && bon.tick_dga && bon.tick_daf && bon.tick_audit;
       if (!allTicksApproved) {
         return res.status(403).json({ ok: false, message: "Décaissement non autorisé : Les 5 signatures de visa du Top Management ne sont pas complètes." });
@@ -269,7 +271,8 @@ router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res:
 router.patch("/bons/provisoir/:id/rejeter", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -407,7 +410,7 @@ router.post("/bons/reel", requireAuth, async (req: any, res: any) => {
 router.patch("/bons/reel/:id/confirmer", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["agent_payeur", "super_admin"].includes(user.role)) {
+    if (!["agent_payeur", "caisse", "super_admin"].includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -478,7 +481,8 @@ router.get("/bons/:id", requireAuth, async (req: any, res: any) => {
 router.post("/bons/provisoir/:id/tick", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès refusé. Réservé à la Direction." });
     }
 
@@ -771,7 +775,8 @@ router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) =>
       });
     }
 
-    if (["direction", "super_admin"].includes(user.role)) {
+    const isManagement = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"].includes(user.role);
+    if (isManagement) {
       // Pour le management : Bons Provisoires en attente de signatures/visas
       const pendingBons = await prisma.bonProvisoir.findMany({
         where: {

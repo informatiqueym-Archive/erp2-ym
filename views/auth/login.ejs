@@ -26,9 +26,15 @@
     h1, h2, h3, h4, .display-logoBy {
       font-family: 'Space Grotesk', sans-serif;
     }
+    .text-muted {
+      color: #cbd5e1 !important; /* brighter elegant gray/white for awesome legibility on dark background */
+    }
+    .text-muted.small, .form-text.text-muted, .text-white-50 {
+      color: #cbd5e1 !important; /* clear subheader contrast */
+    }
     .department-card {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 1.25rem;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
@@ -245,6 +251,22 @@
                 </div>
               </div>
               <p class="text-muted small mb-0">Indicateurs de performance de transit, statistiques de déchargement portuaire, flux douaniers et déboursages.</p>
+            </div>
+          </div>
+
+          <!-- 9. Super Administration -->
+          <div class="col-md-6 col-lg-4">
+            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('super_admin', 'Super Administrateur', 'admin@ym-transit.cm', 'admin123')">
+              <div class="d-flex align-items-center mb-3">
+                <div class="bg-danger bg-opacity-20 text-danger p-3 rounded-3 me-3">
+                  <i class="bi bi-shield-lock-fill fs-4"></i>
+                </div>
+                <div>
+                  <h3 class="h5 fw-bold text-white mb-0">9. Super Administration</h3>
+                  <span class="text-muted small">Pôle Informatique & Système</span>
+                </div>
+              </div>
+              <p class="text-muted small mb-0">Accès direct au portail Super Administrateur. Audit, gestion des comptes d'utilisateurs et de la DB.</p>
             </div>
           </div>
 

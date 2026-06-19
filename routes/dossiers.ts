@@ -836,7 +836,7 @@ router.post("/dossiers/:id/pipeline/facturer", requireAuth, async (req: any, res
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["comptable", "commercial", "super_admin", "comptable_ops", "finances"].includes(user.role)) {
+    if (!["comptable", "commercial", "super_admin", "comptable_ops", "finances", "pdg", "dg", "dga", "daf", "auditeur1"].includes(user.role)) {
       req.session.error_msg = "Accès non autorisé.";
       return res.redirect(`/dossiers/${id}`);
     }
@@ -864,7 +864,7 @@ router.post("/dossiers/:id/pipeline/cloturer", requireAuth, async (req: any, res
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["comptable_ops", "super_admin", "direction", "comptable"].includes(user.role)) {
+    if (!["comptable_ops", "super_admin", "direction", "comptable", "pdg", "dg", "dga", "daf", "auditeur1"].includes(user.role)) {
       req.session.error_msg = "Seule la comptabilité, la direction ou un administrateur peut clôturer définitivement et archiver.";
       return res.redirect(`/dossiers/${id}`);
     }
