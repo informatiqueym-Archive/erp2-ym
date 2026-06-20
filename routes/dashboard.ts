@@ -4,208 +4,313 @@ import prisma from "../lib/prismaClient";
 
 const router = Router();
 
-// GET /dashboard
 router.get("/dashboard", requireAuth, async (req: any, res: any) => {
   try {
     const userId = req.session.userId;
+    const userRole = req.session.user?.role || "";
+    const user = req.session.user;
+    
     const today = new Date();
-
-    // Début et fin du mois courant
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Une seule transaction/Promise.all efficace pour charger toutes les statistiques et les listes
-    const [
-      revenueAggregate,
-      unpaidInvoices,
-      activeDossiersCount,
-      userPendingTasksCount,
-      allInvoicesForOverdue,
-      blockedTasks,
-      allStocks,
-      last5Invoices,
-      activeDossiersList
-    ] = await Promise.all([
-      // 1. Chiffre d'affaires HT du mois courant (Factures émises non annulées)
-      prisma.document.aggregate({
-        where: {
-          type: { in: ["FACTURE", "Facture"] },
-          created_at: {
-            gte: startOfMonth,
-            lte: endOfMonth
+    // Get notifications count if any
+    const unreadNotificationsCount = await prisma.notification.count({
+      where: { user_id: userId, lu: false }
+    });
+
+    // ----------------------------------------------------
+    // SECTION A: Mon Espace de Travail (Role-based pending work)
+    // ----------------------------------------------------
+    let pendingWork: any = null;
+    let extraData: any = {};
+
+    switch (userRole) {
+      case "secretariat": {
+        const logs = await prisma.activityLog.findMany({
+          where: {
+            user_id: userId,
+            action: "OUVERTURE_DOSSIER",
+            entity: "Dossier"
           },
-          etat: { not: "ANNULE" }
-        },
-        _sum: {
-          total_ht: true
-        }
-      }),
+          select: { entity_id: true }
+        });
+        const createdDossierIds = logs
+          .map(l => l.entity_id ? parseInt(l.entity_id) : null)
+          .filter((id): id is number => id !== null && !isNaN(id));
 
-      // 2. Factures non réglées (état Brouillon, Émis, En attente de paiement, EN_ATTENTE)
-      prisma.document.findMany({
-        where: {
-          type: { in: ["FACTURE", "Facture"] },
-          etat: { in: ["EMIS", "BROUILLON", "En attente de paiement", "EN_ATTENTE"] }
-        },
-        include: {
-          payments: true
-        }
-      }),
+        const dossiers = await prisma.dossier.findMany({
+          where: {
+            id: { in: createdDossierIds },
+            pipeline_status: "CREE"
+          },
+          include: { client: true }
+        });
+        pendingWork = dossiers;
 
-      // 3. Nombre de dossiers de transit actifs (non clôturés)
-      prisma.dossier.count({
-        where: {
-          etat: { notIn: ["CLOTURE", "Clôturé"] }
-        }
-      }),
-
-      // 4. Nombre de tâches de l'utilisateur connecté en cours de traitement
-      prisma.tache.count({
-        where: {
-          intervenant_id: userId,
-          etat: { in: ["EN_COURS", "En cours", "en cours"] }
-        }
-      }),
-
-      // 5. Recherche de toutes les factures actives pour calcul des factures en retard
-      prisma.document.findMany({
-        where: {
-          type: { in: ["FACTURE", "Facture"] },
-          etat: { notIn: ["PAYE", "ANNULE"] }
-        },
-        include: {
-          client: true,
-          payments: true
-        }
-      }),
-
-      // 6. Tâches bloquées (En cours et dépassées)
-      prisma.tache.findMany({
-        where: {
-          etat: { in: ["EN_COURS", "En cours"] },
-          deadline: {
-            lt: today
+        const countThisMonth = await prisma.activityLog.count({
+          where: {
+            user_id: userId,
+            action: "OUVERTURE_DOSSIER",
+            entity: "Dossier",
+            created_at: { gte: startOfMonth }
           }
-        },
-        include: {
-          dossier: true,
-          intervenant: true
-        }
-      }),
+        });
+        extraData = { createdThisMonthCount: countThisMonth };
+        break;
+      }
+      case "guce": {
+        pendingWork = await prisma.dossier.findMany({
+          where: { pipeline_status: "GUCE" },
+          include: { client: true }
+        });
+        break;
+      }
+      case "validation":
+      case "validation_role": {
+        pendingWork = await prisma.dossier.findMany({
+          where: { pipeline_status: "VALIDATION" },
+          include: { client: true }
+        });
+        break;
+      }
+      case "acconage":
+      case "enlevement": {
+        const dossiersEnTraitement = await prisma.dossier.findMany({
+          where: { pipeline_status: "EN_TRAITEMENT" },
+          include: { client: true }
+        });
+        const myPendingBons = await prisma.bonProvisoir.findMany({
+          where: { demandeur_id: userId, etat: "EN_ATTENTE" },
+          include: { dossier: true }
+        });
+        const dossiersBonReel = await prisma.dossier.findMany({
+          where: { pipeline_status: "BON_REEL" },
+          include: { client: true }
+        });
 
-      // 7. Tous les stocks pour filtrer en mémoire de façon robuste
-      prisma.stock.findMany(),
+        pendingWork = {
+          dossiersEnTraitement,
+          myPendingBons,
+          dossiersBonReel
+        };
+        break;
+      }
+      case "pdg":
+      case "dg":
+      case "dga":
+      case "daf": {
+        pendingWork = await prisma.bonProvisoir.findMany({
+          where: { etat: "EN_ATTENTE" },
+          include: { dossier: true, demandeur: true }
+        });
+        break;
+      }
+      case "caisse":
+      case "agent_payeur": {
+        const approvedBons = await prisma.bonProvisoir.findMany({
+          where: { etat: "APPROUVE" },
+          include: { dossier: true, demandeur: true, bon_reel: true }
+        });
+        pendingWork = approvedBons.filter(b => !b.bon_reel);
+        break;
+      }
+      case "finances":
+      case "facturation": {
+        pendingWork = await prisma.dossier.findMany({
+          where: { pipeline_status: "FACTURATION" },
+          include: { client: true }
+        });
+        break;
+      }
+      case "cloture": {
+        pendingWork = await prisma.dossier.findMany({
+          where: { pipeline_status: "CLOTURE" },
+          include: { client: true }
+        });
+        break;
+      }
+      case "archiviste": {
+        pendingWork = await prisma.dossier.findMany({
+          where: { pipeline_status: "ARCHIVE" },
+          include: { client: true },
+          orderBy: { archived_at: "desc" },
+          take: 10
+        });
+        const archiveCount = await prisma.dossier.count({
+          where: { pipeline_status: "ARCHIVE" }
+        });
+        extraData = { archiveCount };
+        break;
+      }
+      case "analyste":
+      case "auditeur1":
+      case "auditeur2": {
+        const dossiersThisMonth = await prisma.dossier.count({
+          where: { created_at: { gte: startOfMonth } }
+        });
+        const invoicesAgg = await prisma.document.aggregate({
+          where: {
+            type: { in: ["FACTURE", "Facture"] },
+            created_at: { gte: startOfMonth },
+            etat: { not: "ANNULE" }
+          },
+          _sum: { total_ttc: true }
+        });
+        const pendingBonsCount = await prisma.bonProvisoir.count({
+          where: { etat: "EN_ATTENTE" }
+        });
+        pendingWork = {
+          dossiersThisMonth,
+          totalInvoicedThisMonth: invoicesAgg._sum.total_ttc || 0,
+          pendingBonsCount
+        };
+        break;
+      }
+      case "comptable":
+      case "comptable_ops": {
+        const unpaidInvoices = await prisma.document.findMany({
+          where: {
+            type: { in: ["FACTURE", "Facture"] },
+            etat: { in: ["BROUILLON", "EMIS", "EN_ATTENTE", "En attente de paiement"] }
+          },
+          include: { payments: true }
+        });
+        let unpaidCount = 0;
+        let unpaidTotal = 0;
+        unpaidInvoices.forEach(inv => {
+          const paid = inv.payments.reduce((sum, p) => sum + p.montant, 0);
+          const remains = inv.total_ttc - paid;
+          if (remains > 0) {
+            unpaidCount++;
+            unpaidTotal += remains;
+          }
+        });
+        const recentEntries = await prisma.ecritureComptable.findMany({
+          orderBy: { date: "desc" },
+          take: 10,
+          include: { compte: true }
+        });
+        pendingWork = {
+          unpaidCount,
+          unpaidTotal,
+          recentEntries
+        };
+        break;
+      }
+      case "super_admin": {
+        pendingWork = "SUPER_ADMIN";
+        break;
+      }
+      default: {
+        pendingWork = null;
+        break;
+      }
+    }
 
-      // 8. 5 dernières factures créées
-      prisma.document.findMany({
-        where: {
-          type: { in: ["FACTURE", "Facture"] }
-        },
-        orderBy: {
-          created_at: "desc"
-        },
-        take: 5,
-        include: {
-          client: true,
-          payments: true
-        }
-      }),
-
-      // 9. Tous os dossiers de transit actifs pour statistiques douanières
-      prisma.dossier.findMany({
-        where: {
-          etat: { notIn: ["CLOTURE", "Clôturé"] }
-        },
-        include: {
-          client: true,
-          taches: true,
-        },
-        orderBy: {
-          created_at: "desc",
-        }
-      })
+    // ----------------------------------------------------
+    // SECTION B: Vue d'Ensemble de l'Entreprise (Company overview)
+    // ----------------------------------------------------
+    const [
+      creeCount,
+      guceCount,
+      validationCount,
+      enTraitementCount,
+      bonProvisoirCount,
+      bonReelCount,
+      facturationCount,
+      clotureCount
+    ] = await Promise.all([
+      prisma.dossier.count({ where: { pipeline_status: "CREE" } }),
+      prisma.dossier.count({ where: { pipeline_status: "GUCE" } }),
+      prisma.dossier.count({ where: { pipeline_status: "VALIDATION" } }),
+      prisma.dossier.count({ where: { pipeline_status: "EN_TRAITEMENT" } }),
+      prisma.dossier.count({ where: { pipeline_status: "BON_PROVISOIR" } }),
+      prisma.dossier.count({ where: { pipeline_status: "BON_REEL" } }),
+      prisma.dossier.count({ where: { pipeline_status: "FACTURATION" } }),
+      prisma.dossier.count({ where: { pipeline_status: "CLOTURE" } }),
     ]);
 
-    // --- TRAITEMENT DES DONNÉES EN MÉMOIRE ---
+    const pipelineSummary = {
+      CREE: creeCount,
+      GUCE: guceCount,
+      VALIDATION: validationCount,
+      EN_TRAITEMENT: enTraitementCount,
+      BON_PROVISOIR: bonProvisoirCount,
+      BON_REEL: bonReelCount,
+      FACTURATION: facturationCount,
+      CLOTURE: clotureCount
+    };
 
-    // Chiffre d'affaires
-    const monthlyRevenue = revenueAggregate._sum.total_ht || 0;
-
-    // Calculs statistiques douanières
-    let totalDroitsDouane = 0;
-    let totalValeurDouane = 0;
-    let valideDossiersCount = 0;
-    let attenteDossiersCount = 0;
-
-    activeDossiersList.forEach((d) => {
-      if (d.droits_douane) totalDroitsDouane += d.droits_douane;
-      if (d.valeur_douane) totalValeurDouane += d.valeur_douane;
-      if (d.validation) {
-        valideDossiersCount++;
-      } else {
-        attenteDossiersCount++;
-      }
+    const last5Dossiers = await prisma.dossier.findMany({
+      orderBy: { created_at: "desc" },
+      take: 5,
+      include: { client: true }
     });
 
-    // Factures non payées cumulées
-    let unpaidInvoicesCount = 0;
-    let unpaidInvoicesTotalSum = 0;
+    const isAdminRole = ["pdg", "dg", "dga", "daf", "auditeur1", "auditeur2", "super_admin"].includes(userRole);
+    let adminMetrics: any = null;
 
-    unpaidInvoices.forEach((inv) => {
-      const sumPaid = inv.payments.reduce((sum, p) => sum + p.montant, 0);
-      const remaining = inv.total_ttc - sumPaid;
-      if (remaining > 0) {
-        unpaidInvoicesCount++;
-        unpaidInvoicesTotalSum += remaining;
-      }
-    });
+    if (isAdminRole) {
+      const revenueAndBons = await Promise.all([
+        prisma.document.aggregate({
+          where: {
+            type: { in: ["FACTURE", "Facture"] },
+            etat: { not: "ANNULE" },
+            created_at: { gte: startOfMonth, lte: endOfMonth }
+          },
+          _sum: { total_ttc: true }
+        }),
+        prisma.bonProvisoir.aggregate({
+          where: { etat: "EN_ATTENTE" },
+          _sum: { montant_demande: true }
+        }),
+        prisma.document.findMany({
+          where: {
+            type: { in: ["FACTURE", "Facture"] },
+            etat: { notIn: ["PAYE", "ANNULE"] }
+          },
+          include: { payments: true }
+        })
+      ]);
 
-    // Alertes 1 : Factures en retard (Date d'échéance dépassée [30 jours par défaut] et reste à payer > 0)
-    const overdueInvoices = allInvoicesForOverdue.map((inv) => {
-      const sumPaid = inv.payments.reduce((sum, p) => sum + p.montant, 0);
-      const remains = inv.total_ttc - sumPaid;
+      const monthlyRevenue = revenueAndBons[0]._sum.total_ttc || 0;
+      const totalPendingBonsAmount = revenueAndBons[1]._sum.montant_demande || 0;
 
-      // Calcul date d'échéance par défaut : Émission + 30 jours
-      const dateEcheance = new Date(inv.created_at);
-      dateEcheance.setDate(dateEcheance.getDate() + 30);
+      const activeInvoices = revenueAndBons[2];
+      let overdueCount = 0;
+      activeInvoices.forEach(inv => {
+        const sumPaid = inv.payments.reduce((sum, p) => sum + p.montant, 0);
+        const remaining = inv.total_ttc - sumPaid;
+        const echeanceDate = new Date(inv.created_at);
+        echeanceDate.setDate(echeanceDate.getDate() + 30);
+        if (remaining > 0 && echeanceDate < today) {
+          overdueCount++;
+        }
+      });
 
-      return {
-        ...inv,
-        dateEcheance,
-        resteAPayer: remains
-      };
-    }).filter((inv) => inv.dateEcheance < today && inv.resteAPayer > 0);
-
-    // Alertes 3 : Matériels logistiques en seuil de stock critique
-    const lowStockItems = allStocks.filter((s) => s.quantite <= s.stock_min);
-
-    // Préparation de la vue avec les données calculées
-    res.render("dashboard/index", {
-      stats: {
+      adminMetrics = {
         monthlyRevenue,
-        unpaidCount: unpaidInvoicesCount,
-        unpaidAmount: unpaidInvoicesTotalSum,
-        activeDossiers: activeDossiersCount,
-        userPendingTasks: userPendingTasksCount
-      },
-      customsStats: {
-        totalDroitsDouane,
-        totalValeurDouane,
-        valideDossiersCount,
-        attenteDossiersCount
-      },
-      alerts: {
-        overdueInvoices,
-        blockedTasks,
-        lowStock: lowStockItems
-      },
-      lastInvoices: last5Invoices,
-      activeDossiersList,
-      title: "Tableau de Bord Général"
+        totalPendingBonsAmount,
+        overdueCount
+      };
+    }
+
+    res.render("dashboard/index", {
+      user,
+      role: userRole,
+      pendingWork,
+      extraData,
+      pipelineSummary,
+      last5Dossiers,
+      isAdminRole,
+      adminMetrics,
+      unreadNotificationsCount,
+      title: "Tableau de Bord — YM-TRANSIT"
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erreur de chargement du tableau de bord :", error);
-    res.status(500).send("Erreur interne lors de la génération du tableau de bord complet.");
+    res.status(500).render("errors/500", { error });
   }
 });
 

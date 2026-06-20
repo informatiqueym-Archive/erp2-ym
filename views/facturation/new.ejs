@@ -1,0 +1,463 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center no-print">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-file-earmark-plus-fill text-primary me-2"></i>Facturation Logistique</h1>
+    <p class="text-muted mb-0">Création assistée de facture d'après les frais d'acconage réels du dossier.</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/dossiers/<%= prefill ? prefill.dossier_id : '' %>" class="btn btn-outline-secondary me-2">
+      <i class="bi bi-arrow-left me-1"></i> Retour au Dossier
+    </a>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Left Side: Interactive Invoice Composer -->
+  <div class="col-lg-8">
+    <form action="/facturation/new" method="POST" id="invoiceForm">
+      <% if (prefill) { %>
+        <!-- Prefill Hidden Params -->
+        <input type="hidden" name="dossier_id" value="<%= prefill.dossier_id %>">
+      <% } %>
+      <input type="hidden" name="etat" value="VALIDE">
+
+      <!-- printable invoice header block -->
+      <div class="invoice-container bg-white p-4 p-md-5 rounded shadow-sm mb-4 border border-light position-relative">
+        
+        <!-- Printable header watermarks -->
+        <div class="d-none d-print-block pb-4 mb-4 border-bottom">
+          <div class="row align-items-center">
+            <div class="col-6">
+              <h3 class="text-primary fw-bold mb-1">YM-TRANSIT</h3>
+              <p class="text-xs text-muted mb-0">
+                Transit, Douanes, Acconage et Logistique Routière<br>
+                B.P. 1245 Douala / Kribi, Cameroun<br>
+                Tél: +237 677 88 99 00 | Email: contact@ym-transit.com<br>
+                Régime du Réel — Contribuable N° M0123456789A
+              </p>
+            </div>
+            <div class="col-6 text-end">
+              <h2 class="text-uppercase fw-bold text-slate-800 mb-1" style="font-size: 1.8rem; letter-spacing: -0.5px;">Facture Finale</h2>
+              <span class="badge bg-success-subtle text-success px-3 py-1.5 rounded fw-bold text-xs">AQUITTÉE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <!-- Column 1: Invoice metadata -->
+          <div class="col-md-6 text-start">
+            <div class="mb-3">
+              <label class="form-label text-xs fw-bold text-uppercase tracking-wider text-slate-600 no-print">N° Facture (Auto-généré)</label>
+              <input type="text" name="numero" class="form-control fw-bold text-dark font-monospace" value="<%= prefill ? prefill.autoNumero : '' %>" required placeholder="Ex: FAC-2026-0001">
+              <div class="form-text text-xxs text-muted no-print">Modifiable au besoin selon vos classifications internes.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-xs fw-bold text-uppercase tracking-wider text-slate-600 no-print">Émetteur du service de transit</label>
+              <input type="text" name="societe" class="form-control" value="YM-TRANSIT Transit & Logistics Ltd" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label text-xs fw-bold text-uppercase tracking-wider text-slate-600 no-print">Type de pièce comptable</label>
+              <select name="type" class="form-select font-sans fw-semibold" required>
+                <option value="FACTURE" selected>FACTURE FINALE DE TRANSIT</option>
+                <option value="DEVIS">NOTE DE DÉBITS / DEVIS ESTIMATIF</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Column 2: Client debtor details -->
+          <div class="col-md-6 text-start">
+            <div class="p-3 bg-light rounded border mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                <span class="text-xs fw-bold text-slate-700 uppercase"><i class="bi bi-person-fill text-primary me-1"></i>Importateur Débiteur</span>
+                <% if (prefill) { %>
+                  <span class="badge bg-primary text-xxs">Dossier lié</span>
+                <% } %>
+              </div>
+              
+              <div class="no-print mb-2">
+                <label class="form-label text-xxs fw-semibold text-slate-500 mb-0.5">Sélectionner ou confirmer l'importateur :</label>
+                <select name="client_id" class="form-select form-select-sm fw-bold text-slate-800" required>
+                  <% clients.forEach(cl => { %>
+                    <option value="<%= cl.id %>" <%= prefill && prefill.client_id === cl.id ? 'selected' : '' %>><%= cl.nom %></option>
+                  <% }) %>
+                </select>
+              </div>
+
+              <!-- Printable output or readable summary -->
+              <div class="text-sm mt-1">
+                <div class="fw-bold text-slate-800"><%= prefill ? prefill.client_nom : 'Aucun client sélectionné' %></div>
+                <div class="text-xs text-muted mt-0.5">Dossier de transit n° : <strong class="text-dark font-monospace"><%= prefill ? prefill.dossier_numero : 'N/A' %></strong></div>
+                <% if (prefill) { %>
+                  <div class="text-xs text-slate-500 mt-1 pb-1">
+                    <span class="badge bg-slate-100 text-slate-600 border font-mono">Bon Réel de frais d'acconage :</span><br>
+                    <strong class="text-success"><%= prefill.montant_acconage.toLocaleString('fr-FR') %> FCFA</strong> dépensés (Écart: <%= prefill.ecart.toLocaleString('fr-FR') %> F).
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- Prestations / lines editing section -->
+        <div class="text-start mb-3 d-flex align-items-center justify-content-between">
+          <h5 class="fw-bold text-slate-800 mb-0" style="font-size: 0.95rem;">
+            <i class="bi bi-list-task text-primary me-1.5"></i>Prestations Logistiques de Dédouanement
+          </h5>
+          <button type="button" class="btn btn-xs btn-primary no-print" id="btnAddRow">
+            <i class="bi bi-plus-lg me-1"></i> Ajouter une imputation
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-start" id="invoiceLinesTable" style="font-size: 0.85rem;">
+            <thead class="table-light">
+              <tr>
+                <th style="min-width: 250px;">Désignation / Nature de la prestation</th>
+                <th style="width: 80px;">Qté</th>
+                <th style="width: 140px;">Prix Unitaire (F)</th>
+                <th style="width: 150px;">Régime Taxe</th>
+                <th style="width: 140px;">Total Ligne (F)</th>
+                <th class="text-center no-print" style="width: 50px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row 1: Pre-filled with acconage if prefill exists -->
+              <tr>
+                <td>
+                  <input type="text" name="line_descriptions[]" class="form-control form-control-sm border-0 font-sans p-0 fw-semibold text-slate-800" value="Prestation d'acconage physique - Dossier <%= prefill ? prefill.dossier_numero : '' %>" required placeholder="Description de la ligne">
+                </td>
+                <td>
+                  <input type="number" name="line_quantities[]" class="form-control form-control-sm border-0 bg-transparent font-monospace p-0 text-center qty-input" value="1" min="1" required>
+                </td>
+                <td>
+                  <input type="number" name="line_prices[]" class="form-control form-control-sm border-0 bg-transparent font-monospace p-0 text-end price-input" value="<%= prefill ? prefill.montant_acconage : 0 %>" min="0" required>
+                </td>
+                <td>
+                  <select name="line_taxes[]" class="form-select form-select-sm border-0 bg-transparent py-0 tax-select" required>
+                    <option value="TVA_19_25" selected>TVA (19.25%)</option>
+                    <option value="EXONERE">Exonéré (Débour direct)</option>
+                  </select>
+                </td>
+                <td class="text-end font-monospace fw-semibold line-total-cell">
+                  <%= prefill ? prefill.montant_acconage.toLocaleString('fr-FR') : '0' %>
+                </td>
+                <td class="text-center no-print">
+                  <button type="button" class="btn btn-link text-danger p-0 border-0 btn-delete-row" title="Supprimer la ligne">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              
+              <!-- Row 2: Standard custom items placeholder for easy logs -->
+              <tr>
+                <td>
+                  <input type="text" name="line_descriptions[]" class="form-control form-control-sm border-0 font-sans p-0" value="Frais de passage portuaire & Débou Douanes" placeholder="Description de la ligne">
+                </td>
+                <td>
+                  <input type="number" name="line_quantities[]" class="form-control form-control-sm border-0 bg-transparent font-monospace p-0 text-center qty-input" value="1" min="1">
+                </td>
+                <td>
+                  <input type="number" name="line_prices[]" class="form-control form-control-sm border-0 bg-transparent font-monospace p-0 text-end price-input" value="0" min="0">
+                </td>
+                <td>
+                  <select name="line_taxes[]" class="form-select form-select-sm border-0 bg-transparent py-0 tax-select">
+                    <option value="TVA_19_25">TVA (19.25%)</option>
+                    <option value="EXONERE" selected>Exonéré (Débour direct)</option>
+                  </select>
+                </td>
+                <td class="text-end font-monospace fw-semibold line-total-cell">0</td>
+                <td class="text-center no-print">
+                  <button type="button" class="btn btn-link text-danger p-0 border-0 btn-delete-row" title="Supprimer la ligne">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Totals summation summary block -->
+        <div class="row mt-4">
+          <div class="col-md-6 text-start d-flex flex-column justify-content-end">
+            <div class="p-3 bg-light rounded text-xs text-muted font-sans border-start border-3 border-secondary mb-3 mb-md-0">
+              <strong class="text-slate-800 d-block mb-1"><i class="bi bi-info-circle-fill me-1"></i>Régime Douanes Camerounaises :</strong>
+              Les débours officiels payés sur quittances (Douanes, SGS, Port de Douala/Kribi) sont exonérés de TVA conformément au régime de débour direct. Seules les prestations d'honoraires de transit et d'acconage sont assujetties à la TVA de 19.25%.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card bg-slate-50 border-0">
+              <div class="card-body p-3.5">
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.9rem;">
+                  <span class="text-slate-600 fw-semibold">Sous-total Hors Taxes (HT) :</span>
+                  <span class="font-monospace fw-bold text-dark" id="dispTotalHT">0 F</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.9rem;">
+                  <span class="text-slate-600">TVA (19.25%) calculée :</span>
+                  <span class="font-monospace fw-semibold text-primary" id="dispTVA">0 F</span>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between align-items-center" style="font-size: 1.1rem;">
+                  <span class="text-slate-800 fw-bold">TOTAL TOUTES TAXES (TTC) :</span>
+                  <span class="font-monospace fw-black text-success" id="dispTotalTTC">0 F</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Printable Signatures Blocks -->
+        <div class="d-none d-print-block mt-5 pt-5 border-top">
+          <div class="row text-center text-xs">
+            <div class="col-4">
+              <p class="fw-semibold text-slate-500 mb-5">Le Chef Facturation</p>
+              <div class="pt-4 border-top border-dashed mx-3">Date & Signature</div>
+            </div>
+            <div class="col-4">
+              <p class="fw-semibold text-slate-500 mb-5">Le Transit / Validations</p>
+              <div class="pt-4 border-top border-dashed mx-3">Date & Signature</div>
+            </div>
+            <div class="col-4">
+              <p class="fw-semibold text-slate-500 mb-5">Bon pour Accord (Client)</p>
+              <div class="pt-4 border-top border-dashed mx-3">Date & Signature</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action Panel Buttons -->
+      <div class="no-print card bg-white border-0 shadow-sm mb-4">
+        <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <button type="button" class="btn btn-outline-dark d-inline-flex align-items-center" onclick="window.print()">
+              <i class="bi bi-printer-fill me-1.5"></i> Imprimer la Facture
+            </button>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="/dossiers/<%= prefill ? prefill.dossier_id : '' %>" class="btn btn-secondary">Annuler & Revenir</a>
+            <button type="submit" class="btn btn-success fw-bold d-inline-flex align-items-center" id="btnSubmitForm">
+              <i class="bi bi-check-circle-fill me-1.5"></i> Valider & Clôturer le Dossier
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Right Side Column: Prefill Helper Cards & Info -->
+  <div class="col-lg-4 no-print text-start">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 border-bottom border-light">
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.9rem;">
+          <i class="bi bi-gear-fill text-slate-700 me-1.5"></i>Instructions de Clôture
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="text-xs text-muted mb-3">En soumettant cette facture, vous allez clore de manière définitive l'assiette budgétaire de transit pour ce dossier :</p>
+        
+        <ul class="list-unstyled small text-slate-700 mb-0 text-start">
+          <li class="mb-2 d-flex align-items-start">
+            <i class="bi bi-check-circle text-success me-2 mt-0.5" style="font-size: 0.8rem;"></i>
+            <span>Le statut du dossier passera à <strong class="text-success text-uppercase">CLOTURE</strong>.</span>
+          </li>
+          <li class="mb-2 d-flex align-items-start">
+            <i class="bi bi-check-circle text-success me-2 mt-0.5" style="font-size: 0.8rem;"></i>
+            <span>L'ensemble des documents justificatifs restera consultable en mode lecture seule.</span>
+          </li>
+          <li class="mb-2 d-flex align-items-start">
+            <i class="bi bi-check-circle text-success me-2 mt-0.5" style="font-size: 0.8rem;"></i>
+            <span>Une écriture comptable sera émise au journal facturation pour le client sélectionné.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <% if (prefill) { %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom border-light">
+          <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.9rem;">
+            <i class="bi bi-anchor text-primary me-1.5"></i>Aperçu de l'Acconage
+          </h5>
+        </div>
+        <div class="card-body text-start">
+          <div class="mb-2">
+            <span class="text-muted text-xxs block">N° DOSSIER :</span>
+            <div class="font-monospace fw-bold text-dark"><%= prefill.dossier_numero %></div>
+          </div>
+          <div class="mb-2">
+            <span class="text-muted text-xxs block">IMPORTATEUR :</span>
+            <div class="fw-bold text-slate-800"><%= prefill.client_nom %></div>
+          </div>
+          <div class="mb-2">
+            <span class="text-muted text-xxs block">VALEUR INITIALE (BON PROVISOIRE) :</span>
+            <div class="fw-semibold text-slate-700 font-monospace">N/A</div>
+          </div>
+          <div class="mb-2">
+            <span class="text-muted text-xxs block text-success">VALEUR RÉELLE DÉPENSÉE :</span>
+            <div class="font-monospace fw-bold text-success"><%= prefill.montant_acconage.toLocaleString('fr-FR') %> FCFA</div>
+          </div>
+          <div class="mb-0">
+            <span class="text-muted text-xxs block">ÉCART FINANCIER REVERSÉ :</span>
+            <div class="font-monospace fw-semibold <%= prefill.ecart < 0 ? 'text-danger' : 'text-slate-600' %>">
+              <%= prefill.ecart.toLocaleString('fr-FR') %> FCFA
+            </div>
+          </div>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<style>
+  @media print {
+    /* Hide layout chrome */
+    #sidebar, .top-navbar, .no-print, button, .btn {
+      display: none !important;
+    }
+    #content {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      background: white !important;
+    }
+    body {
+      background-color: #ffffff !important;
+      color: #000000 !important;
+    }
+    .invoice-container {
+      box-shadow: none !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    input, select, textarea {
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      color: #000000 !important;
+    }
+    /* Disable interactive inputs pointers for print */
+    input[disabled], select[disabled] {
+      opacity: 1 !important;
+      color: #000000 !important;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const tableBody = document.querySelector('#invoiceLinesTable tbody');
+    const btnAddRow = document.getElementById('btnAddRow');
+    const dispTotalHT = document.getElementById('dispTotalHT');
+    const dispTVA = document.getElementById('dispTVA');
+    const dispTotalTTC = document.getElementById('dispTotalTTC');
+
+    function calculateInvoiceTotals() {
+      let totalHT = 0;
+      let totalTVA = 0;
+
+      const rows = tableBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const qtyInput = row.querySelector('.qty-input');
+        const priceInput = row.querySelector('.price-input');
+        const taxSelect = row.querySelector('.tax-select');
+        const totalCell = row.querySelector('.line-total-cell');
+
+        if (qtyInput && priceInput && totalCell) {
+          const qty = parseInt(qtyInput.value) || 0;
+          const price = parseFloat(priceInput.value) || 0;
+          const lineTotal = qty * price;
+
+          totalCell.textContent = lineTotal.toLocaleString('fr-FR');
+          totalHT += lineTotal;
+
+          if (taxSelect && taxSelect.value === 'TVA_19_25') {
+            totalTVA += lineTotal * 0.1925;
+          }
+        }
+      });
+
+      const totalTTC = totalHT + totalTVA;
+
+      dispTotalHT.textContent = Math.round(totalHT).toLocaleString('fr-FR') + ' F';
+      dispTVA.textContent = Math.round(totalTVA).toLocaleString('fr-FR') + ' F';
+      dispTotalTTC.textContent = Math.round(totalTTC).toLocaleString('fr-FR') + ' F';
+    }
+
+    // Attach delegation listeners on keyup and changes
+    tableBody.addEventListener('input', function (e) {
+      if (e.target.classList.contains('qty-input') || e.target.classList.contains('price-input')) {
+        calculateInvoiceTotals();
+      }
+    });
+
+    tableBody.addEventListener('change', function (e) {
+      if (e.target.classList.contains('tax-select')) {
+        calculateInvoiceTotals();
+      }
+    });
+
+    // Handle delete row
+    tableBody.addEventListener('click', function (e) {
+      const btn = e.target.closest('.btn-delete-row');
+      if (btn) {
+        const row = btn.closest('tr');
+        if (row) {
+          if (tableBody.querySelectorAll('tr').length <= 1) {
+            alert("Une facture doit contenir au moins une ligne de prestation.");
+            return;
+          }
+          row.remove();
+          calculateInvoiceTotals();
+        }
+      }
+    });
+
+    // Add new dynamic row
+    if (btnAddRow) {
+      btnAddRow.addEventListener('click', function () {
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+          <td>
+            <input type="text" name="line_descriptions[]" class="form-control form-control-sm border-0 font-sans p-0" placeholder="Nouvelle prestation..." required>
+          </td>
+          <td>
+            <input type="number" name="line_quantities[]" class="form-control form-control-sm border-0 bg-transparent font-monospace p-0 text-center qty-input" value="1" min="1" required>
+          </td>
+          <td>
+            <input type="number" name="line_prices[]" class="form-control form-control-sm border-0 bg-transparent font-monospace p-0 text-end price-input" value="0" min="0" required>
+          </td>
+          <td>
+            <select name="line_taxes[]" class="form-select form-select-sm border-0 bg-transparent py-0 tax-select" required>
+              <option value="TVA_19_25">TVA (19.25%)</option>
+              <option value="EXONERE" selected>Exonéré (Débour direct)</option>
+            </select>
+          </td>
+          <td class="text-end font-monospace fw-semibold line-total-cell">0</td>
+          <td class="text-center no-print">
+            <button type="button" class="btn btn-link text-danger p-0 border-0 btn-delete-row" title="Supprimer la ligne">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(newRow);
+        newRow.querySelector('input[type="text"]').focus();
+        calculateInvoiceTotals();
+      });
+    }
+
+    // Initial calculation
+    calculateInvoiceTotals();
+  });
+</script>
+
+<%- include('../partials/footer') %>

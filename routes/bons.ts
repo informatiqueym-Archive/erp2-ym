@@ -39,6 +39,19 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
+const uploadJustificatifs = multer({
+  storage: storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req: any, file: any, cb: any) => {
+    const ok = /pdf|jpg|jpeg|png/i.test(file.mimetype) || /pdf|jpg|jpeg|png/i.test(path.extname(file.originalname).toLowerCase());
+    if (ok) {
+      cb(null, true);
+    } else {
+      cb(new Error("Seuls les formats PDF, JPG, JPEG et PNG sont acceptés !"));
+    }
+  }
+}).array("fichiers_justificatifs", 10);
+
 // Helper de log d'activité
 async function logActivity(userId: number, action: string, entity: string, entityId?: number | string) {
   try {
@@ -378,7 +391,7 @@ router.patch("/bons/provisoir/:id/rejeter", requireAuth, async (req: any, res: a
 
 // POST /bons/reel - Soumettre un Bon Réel (Justification après dépenses)
 router.post("/bons/reel", requireAuth, (req: any, res: any) => {
-  upload.single("pdf_file")(req, res, async function (err: any) {
+  uploadJustificatifs(req, res, async function (err: any) {
     try {
       const { bon_provisoir_id } = req.body;
       if (err) {
@@ -434,25 +447,6 @@ router.post("/bons/reel", requireAuth, (req: any, res: any) => {
 
       const ecart = montant_provisoir - computedTotalReel;
 
-      // Gérer l'upload de pièce jointe quittance / reçu de dépenses
-      if (req.file) {
-        const destDir = path.join(process.cwd(), "uploads", "dossiers", String(dId));
-        if (!fs.existsSync(destDir)) {
-          fs.mkdirSync(destDir, { recursive: true });
-        }
-        fs.renameSync(req.file.path, path.join(destDir, req.file.filename));
-        
-        await prisma.activityLog.create({
-          data: {
-            user_id: req.session.userId,
-            action: 'fichier.uploaded',
-            entity: 'dossier',
-            entity_id: String(dId),
-            meta: JSON.stringify({ filename: req.file.originalname })
-          }
-        });
-      }
-
       const bonReel = await prisma.bonReel.create({
         data: {
           bon_provisoir_id: bpId,
@@ -465,6 +459,42 @@ router.post("/bons/reel", requireAuth, (req: any, res: any) => {
           soumis_par_id: req.session.userId
         }
       });
+
+      // Gérer l'upload des pièces jointes quittances / reçus de dépenses
+      const filesList = req.files as Express.Multer.File[] | undefined;
+      if (filesList && filesList.length > 0) {
+        const destDir = path.join(process.cwd(), "uploads", "dossiers", String(dId));
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        for (const file of filesList) {
+          const finalPath = path.join(destDir, file.filename);
+          fs.renameSync(file.path, finalPath);
+          
+          await prisma.dossierFile.create({
+            data: {
+              dossier_id: dId,
+              user_id: req.session.userId,
+              filename: file.filename,
+              original: file.originalname,
+              category: "RECU_PORT",
+              stage: "BON_REEL",
+              comment: "Justificatif de dépense terrain",
+              path: finalPath
+            }
+          });
+
+          await prisma.activityLog.create({
+            data: {
+              user_id: req.session.userId,
+              action: 'fichier.uploaded',
+              entity: 'dossier',
+              entity_id: String(dId),
+              meta: JSON.stringify({ filename: file.originalname })
+            }
+          });
+        }
+      }
 
       // Update Dossier Status to FACTURATION
       await prisma.dossier.update({
@@ -486,7 +516,7 @@ router.post("/bons/reel", requireAuth, (req: any, res: any) => {
       await notify("finances", "Justification de Bon soumis (Bon Réel)", `Un bon réel a été soumis pour le bon provisoire ${bonProvisoir.numero}. Écart : ${ecart} F.`);
 
       req.session.success_msg = `Justificatif de dépenses (Bon Réel) enregistré avec succès (Total réel : ${computedTotalReel.toLocaleString('fr-FR')} F, Écart : ${ecart.toLocaleString('fr-FR')} F). Pièces justificatives stockées.`;
-      res.redirect(`/dossiers/${dId}`);
+      res.redirect(`/facturation/new?dossier_id=${dId}&bon_reel_id=${bonReel.id}`);
     } catch (error) {
       console.error("Erreur soumission bon réel :", error);
       res.status(500).render("errors/500", { error });
@@ -842,128 +872,6 @@ router.get("/bons/:id/pdf", requireAuth, async (req: any, res: any) => {
   } catch (error) {
     console.error("Erreur génération PDF bon :", error);
     res.status(500).send("Erreur de génération de l'imprimé PDF.");
-  }
-});
-
-// GET /api/notifications/poll - Obtenir les alertes temps-réel adaptées au rôle de l'utilisateur connecté
-router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) => {
-  try {
-    const user = req.session.user;
-    if (!user) {
-      return res.json({ ok: false, notifications: [] });
-    }
-
-    const notifications: any[] = [];
-
-    if (user.role === "agent_payeur") {
-      // Pour l'agent payeur (La Caisse) : Bons Provisoires validés par la direction mais non encore décaissés
-      const readyBons = await prisma.bonProvisoir.findMany({
-        where: {
-          etat: "EN_ATTENTE",
-          tick_pdg: true,
-          tick_dg: true,
-          tick_dga: true,
-          tick_daf: true,
-          tick_audit: true
-        },
-        include: { dossier: { select: { numero: true } } }
-      });
-
-      readyBons.forEach(bon => {
-        notifications.push({
-          id: `bp-${bon.id}-ready`,
-          title: "💵 Décaissement en attente à la Caisse",
-          content: `Le bon provisoire ${bon.numero} (${bon.montant_demande.toLocaleString("fr-FR")} FCFA) est validé par tous les Directeurs et prêt pour paiement aux guichets.`,
-          url: `/dossiers/${bon.dossier_id}`
-        });
-      });
-    }
-
-    const isManagement = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"].includes(user.role);
-    if (isManagement) {
-      // Pour le management : Bons Provisoires en attente de signatures/visas
-      const pendingBons = await prisma.bonProvisoir.findMany({
-        where: {
-          etat: "EN_ATTENTE",
-          OR: [
-            { tick_pdg: false },
-            { tick_dg: false },
-            { tick_dga: false },
-            { tick_daf: false },
-            { tick_audit: false }
-          ]
-        },
-        include: { dossier: { select: { numero: true } } }
-      });
-
-      pendingBons.forEach(bon => {
-        notifications.push({
-          id: `bp-${bon.id}-visa-pending`,
-          title: "✍️ Visa requis pour Décaissement",
-          content: `Le bon provisoire ${bon.numero} (${bon.montant_demande.toLocaleString("fr-FR")} FCFA) nécessite de nouveaux visas.`,
-          url: `/dossiers/${bon.dossier_id}`
-        });
-      });
-    }
-
-    if (["acconage", "enlevement"].includes(user.role)) {
-      // Pour le demandeur : Bons provisoires approuvés ou rejetés récemment
-      const myBons = await prisma.bonProvisoir.findMany({
-        where: {
-          demandeur_id: user.id,
-          etat: { in: ["APPROUVE", "REJETE"] }
-        },
-        orderBy: { approved_at: "desc" },
-        take: 3
-      });
-
-      myBons.forEach(bon => {
-        if (bon.etat === "APPROUVE") {
-          notifications.push({
-            id: `bp-${bon.id}-approved`,
-            title: "✅ Bon provisoire approuvé & décaissé",
-            content: `Le bon ${bon.numero} que vous avez demandé a été approuvé et décaissé par la caisse !`,
-            url: `/dossiers/${bon.dossier_id}`
-          });
-        } else if (bon.etat === "REJETE") {
-          notifications.push({
-            id: `bp-${bon.id}-rejected`,
-            title: "❌ Bon provisoire rejeté",
-            content: `Le bon ${bon.numero} a été rejeté. Motif : ${bon.motif_rejet || "Non spécifié"}.`,
-            url: `/dossiers/${bon.dossier_id}`
-          });
-        }
-      });
-    }
-
-    // Récupérer les tâches actives assignées à l'utilisateur connecté pour notification
-    const activeTasks = await prisma.tache.findMany({
-      where: {
-        intervenant_id: user.id,
-        etat: { in: ["EN_COURS", "A_FAIRE", "ATTENTE_VALIDATION"] },
-        archive: false
-      },
-      include: {
-        dossier: { select: { numero: true } }
-      },
-      orderBy: { created_at: "desc" },
-      take: 5
-    });
-
-    activeTasks.forEach(task => {
-      const isCorrection = task.titre.startsWith("[Demande de modification]");
-      notifications.push({
-        id: `task-${task.id}-assigned`,
-        title: isCorrection ? "⚠️ Action - Demande de Correction (Rétrogadé)" : "📋 Tâche de transit assignée",
-        content: `Pour le Dossier ${task.dossier?.numero || "N/A"} : ${task.titre}`,
-        url: `/taches/${task.id}`
-      });
-    });
-
-    return res.json({ ok: true, notifications });
-  } catch (error) {
-    console.error("Erreur de polling des notifications :", error);
-    return res.json({ ok: false, notifications: [] });
   }
 });
 
