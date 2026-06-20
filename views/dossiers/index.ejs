@@ -16,11 +16,9 @@
         <p class="text-muted mb-0">Régimes douaniers, escales maritimes et facturations de fret</p>
       </div>
       <div>
-        <% if (typeof user !== 'undefined' && (user.role === 'secretariat' || user.role === 'super_admin')) { %>
-          <a href="/dossiers/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3.5 shadow-sm">
-            <i class="bi bi-folder-plus me-1.5"></i> Ouvrir un Nouveau Dossier
-          </a>
-        <% } %>
+        <a href="/dossiers/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3.5 shadow-sm">
+          <i class="bi bi-folder-plus me-1.5"></i> Ouvrir un Nouveau Dossier
+        </a>
       </div>
     </div>
   </div>

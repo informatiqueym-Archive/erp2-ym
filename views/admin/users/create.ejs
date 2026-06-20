@@ -1,200 +1,167 @@
-<%- include('../../partials/header') %>
+<%- include('../../partials/header', { title: 'Créer un utilisateur' }) %>
 
-<div class="mb-4">
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/dashboard">Accueil</a></li>
-      <li class="breadcrumb-item"><a href="/admin/users">Utilisateurs</a></li>
-      <li class="breadcrumb-item active" aria-current="page">Nouveau collaborateur</li>
-    </ol>
-  </nav>
-  <h1 class="h2 font-display text-slate-800">Enregistrer un Collaborateur</h1>
-  <p class="text-muted">Créez un nouveau compte d'accès ERP. Un mot de passe temporaire sera exigé pour sa première visite.</p>
-</div>
-
-<div class="row">
-  <div class="col-lg-8">
-    <div class="card border-0 shadow-sm rounded-3">
-      <form action="/admin/users/create" method="POST" class="card-body p-4">
-        <h5 class="card-title text-slate-800 fw-bold border-bottom pb-2 mb-4"><i class="bi bi-person-plus me-2"></i>Informations personnelles & d'accès</h5>
-        
-        <div class="row mb-3">
-          <div class="col-md-6 mb-3 mb-md-0">
-            <label class="form-label fw-semibold">Nom de famille <span class="text-danger">*</span></label>
-            <div class="input-group">
-              <span class="input-group-text bg-white text-muted"><i class="bi bi-person"></i></span>
-              <input type="text" name="nom" class="form-control" placeholder="Ex: NYAMBA" required>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Prénom</label>
-            <div class="input-group">
-              <span class="input-group-text bg-white text-muted"><i class="bi bi-person"></i></span>
-              <input type="text" name="prenom" class="form-control" placeholder="Ex: Jean-Luc">
-            </div>
-          </div>
-        </div>
-
-        <div class="row mb-3">
-          <div class="col-md-6 mb-3 mb-md-0">
-            <label class="form-label fw-semibold">Adresse Email <span class="text-danger">*</span></label>
-            <div class="input-group">
-              <span class="input-group-text bg-white text-muted"><i class="bi bi-envelope"></i></span>
-              <input type="email" name="email" class="form-control" placeholder="Ex: jl.nyamba@ym-transit.cm" required>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Société / Entité <span class="text-danger">*</span></label>
-            <div class="input-group">
-              <span class="input-group-text bg-white text-muted"><i class="bi bi-building"></i></span>
-              <input type="text" name="societe" class="form-control" placeholder="Ex: YM-TRANSIT" value="YM-TRANSIT" required>
-            </div>
-          </div>
-        </div>
-
-        <div class="row mb-4">
-          <div class="col-md-6 mb-3 mb-md-0">
-            <label class="form-label fw-semibold">Niveau d'accès / Rôle ERP <span class="text-danger">*</span></label>
-            <div class="input-group mb-2">
-              <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-lock"></i></span>
-              <select id="role-select" name="role" class="form-select" required>
-                <optgroup label="Administration (Top Management)">
-                  <option value="pdg">PDG (pdg)</option>
-                  <option value="dg">DG (dg)</option>
-                  <option value="dga">DGA (dga)</option>
-                  <option value="daf">DAF (daf)</option>
-                  <option value="auditeur1">Auditeur 1 (auditeur1)</option>
-                  <option value="auditeur2">Auditeur 2 (auditeur2)</option>
-                  <option value="super_admin">Super Administrateur ERP (super_admin)</option>
-                </optgroup>
-                <optgroup label="Transit / Opérations">
-                  <option value="secretariat" selected>Secrétariat (secretariat)</option>
-                  <option value="guce">GUCE (guce)</option>
-                  <option value="validation">Validation (validation)</option>
-                  <option value="acconage">Acconage (acconage)</option>
-                  <option value="enlevement">Enlèvement (enlevement)</option>
-                </optgroup>
-                <optgroup label="Finances / Facturation / Fiscalité">
-                  <option value="facturation">Facturation (facturation)</option>
-                  <option value="fiscalite">Fiscalité (fiscalite)</option>
-                  <option value="cloture">Clôture (cloture)</option>
-                  <option value="agent_payeur">Caisse (Payeur) (agent_payeur)</option>
-                </optgroup>
-                <optgroup label="Analyses & Reporting">
-                  <option value="analyste">Analyste (analyste)</option>
-                </optgroup>
-                <optgroup label="Anciens Rôles & Audit">
-                  <option value="operationnel">Opérationnel Standard (operationnel)</option>
-                  <option value="commercial">Commercial Standard (commercial)</option>
-                  <option value="comptable">Comptable Standard (comptable)</option>
-                  <option value="lecture">Lecture seule (lecture)</option>
-                </optgroup>
-              </select>
-            </div>
-            <!-- Live module preview container -->
-            <div id="live-module-preview" class="border rounded p-2 bg-light small text-muted">
-              <strong>Modules autorisés :</strong> <span id="live-module-list">...</span>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Mot de passe temporaire <span class="text-danger">*</span></label>
-            <div class="input-group">
-              <span class="input-group-text bg-white text-muted"><i class="bi bi-key"></i></span>
-              <input type="password" name="password" class="form-control" placeholder="Saisir un mot de passe de base" value="YmTransit@2026" required>
-            </div>
-            <div class="form-text text-muted">L'utilisateur sera obligé de le changer dès la première connexion.</div>
-          </div>
-        </div>
-
-        <script>
-          const roleModulesMap = {
-            super_admin: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "rh"],
-            pdg: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
-            dg: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
-            dga: ["admin", "clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics", "bons"],
-            daf: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
-            auditeur1: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
-            auditeur2: ["clients", "dossiers", "taches", "analytics", "bons"],
-            secretariat: ["dashboard", "dossiers", "clients", "taches"],
-            validation: ["dashboard", "dossiers", "taches"],
-            validation_role: ["dashboard", "dossiers", "taches"],
-            guce: ["dashboard", "dossiers", "taches"],
-            acconage: ["dashboard", "dossiers", "bons", "taches"],
-            enlevement: ["dashboard", "dossiers", "bons", "taches"],
-            facturation: ["dashboard", "documents", "facturation", "dossiers", "clients", "taches"],
-            fiscalite: ["dashboard", "dossiers", "taches"],
-            cloture: ["dashboard", "dossiers", "taches"],
-            agent_payeur: ["dashboard", "bons", "dossiers", "taches", "comptabilite"],
-            analyste: ["dashboard", "analytics", "dossiers", "taches"],
-            comptable: ["clients", "facturation", "stock", "comptabilite", "achats", "analytics"],
-            commercial: ["clients", "dossiers", "taches", "facturation", "analytics"],
-            operationnel: ["clients", "dossiers", "taches"],
-            magasinier: ["stock", "achats"],
-            rh: ["rh"],
-            lecture: ["clients", "dossiers", "taches", "facturation", "stock", "comptabilite", "achats", "analytics"],
-            finances: ["dashboard", "documents", "dossiers", "clients"],
-            comptable_ops: ["dashboard", "documents", "dossiers", "accounting", "reports"]
-          };
-
-          const roleSelect = document.getElementById('role-select');
-          const liveModuleList = document.getElementById('live-module-list');
-
-          function updateLiveModules() {
-            const role = roleSelect.value;
-            const modules = roleModulesMap[role] || [];
-            liveModuleList.textContent = modules.join(', ') || 'aucun';
-          }
-
-          // Pre-select via query param
-          const urlParams = new URLSearchParams(window.location.search);
-          const roleFromQuery = urlParams.get('role');
-          if (roleFromQuery && roleModulesMap[roleFromQuery]) {
-            roleSelect.value = roleFromQuery;
-          }
-
-          roleSelect.addEventListener('change', updateLiveModules);
-          updateLiveModules();
-        </script>
-
-        <div class="d-flex justify-content-end gap-2 border-top pt-4">
-          <a href="/admin/users" class="btn btn-outline-secondary rounded-pill px-4">Annuler</a>
-          <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
-            <i class="bi bi-check-circle me-2"></i>Enregistrer le collaborateur
-          </button>
-        </div>
-      </form>
+<div class="content-wrapper p-4">
+  <div class="d-flex align-items-center mb-4">
+    <a href="/admin/users" class="btn btn-sm btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+    <div>
+      <h1 class="h4 mb-0">Créer un utilisateur</h1>
+      <p class="text-muted mb-0 small">Ajoutez un nouveau membre et assignez-le à son service</p>
     </div>
   </div>
 
-  <div class="col-lg-4">
-    <div class="card border-0 bg-info-subtle text-info-emphasis shadow-sm rounded-3">
-      <div class="card-body p-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-info-circle-fill me-2"></i>Permissions des Rôles</h5>
-        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
-          <li>
-            <strong class="text-dark">Super Admin :</strong>
-            <p class="mb-0 small">Accès complet à la totalité de la plateforme y compris la journalisation et l'administration des utilisateurs de l'entreprise.</p>
-          </li>
-          <li>
-            <strong class="text-dark">Comptable :</strong>
-            <p class="mb-0 small">Accès aux modules Comptabilité, Chats & Fournisseurs, Devis & Facturation clients, Stocks et Analytics.</p>
-          </li>
-          <li>
-            <strong class="text-dark">Commercial :</strong>
-            <p class="mb-0 small">Gère le portefeuille clients, réalise la facturation client, suit les dossiers de transit et accède aux rapports analytiques.</p>
-          </li>
-          <li>
-            <strong class="text-dark">Opérationnel :</strong>
-            <p class="mb-0 small">Concentration sur la logistique : fiches clients, suivi opérationnel des dossiers de transit et pilotage des tâches.</p>
-          </li>
-          <li>
-            <strong class="text-dark">Lecture seule (Auditeur) :</strong>
-            <p class="mb-0 small">Peut explorer l'ensemble de l'ERP à des fins de contrôle comptable ou d'audit sans pouvoir faire de modification (POST/PATCH désactivés).</p>
-          </li>
-        </ul>
+  <% if (typeof error_msg !== 'undefined' && error_msg) { %>
+    <div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i><%= error_msg %></div>
+  <% } %>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <form action="/admin/users/create" method="POST">
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Nom <span class="text-danger">*</span></label>
+                <input type="text" name="nom" class="form-control" required placeholder="Ex: Mbarga">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Prénom</label>
+                <input type="text" name="prenom" class="form-control" placeholder="Ex: Jean-Pierre">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+              <input type="email" name="email" class="form-control" required placeholder="prenom.nom@ym-transit.cm">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Département <span class="text-danger">*</span></label>
+              <select id="dept-select" class="form-select" onchange="updateRoles(this.value)" required>
+                <option value="">-- Choisir le département --</option>
+                <option value="administration">🏢 Administration (PDG, DG, DGA, DAF, Auditeurs)</option>
+                <option value="transit">🚛 Transit (Secrétariat, GUCE, Validation, Gestion des Bours)</option>
+                <option value="finance">💰 Finance (Facturation, Fiscalité, Clôture)</option>
+                <option value="comptabilite">📒 Comptabilité (Caisse)</option>
+                <option value="analyse">📊 Analyse (Analyste, Auditeurs)</option>
+                <option value="archives">🗂 Archives</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Service / Rôle <span class="text-danger">*</span></label>
+              <select name="role" id="role-select" class="form-select" required>
+                <option value="">-- Sélectionnez d'abord le département --</option>
+              </select>
+              <div id="role-desc" class="form-text text-muted mt-1"></div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Mot de passe temporaire <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" required minlength="6" placeholder="Minimum 6 caractères">
+              <div class="form-text">L'utilisateur pourra le changer depuis son profil.</div>
+            </div>
+
+            <div class="mb-4">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="actif" id="actif" value="true" checked>
+                <label class="form-check-label" for="actif">Compte actif (l'utilisateur peut se connecter)</label>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary px-4"><i class="bi bi-person-plus me-2"></i>Créer l'utilisateur</button>
+              <a href="/admin/users" class="btn btn-outline-secondary">Annuler</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card shadow-sm border-0" style="background:#f8fafc">
+        <div class="card-body p-3">
+          <h6 class="fw-semibold mb-3">Accès par département</h6>
+          <div id="module-preview" class="text-muted small">Sélectionnez un service pour voir les accès.</div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+const DEPT_ROLES = {
+  administration: [
+    { value: "pdg",       label: "PDG — Président Directeur Général",   desc: "Accès complet · Visa Bons · Analytics" },
+    { value: "dg",        label: "DG — Directeur Général",              desc: "Accès complet · Visa Bons · Analytics" },
+    { value: "dga",       label: "DGA — Directeur Général Adjoint",     desc: "Accès Bons · Dossiers · Analytics" },
+    { value: "daf",       label: "DAF — Directeur Administratif & Fin", desc: "Accès Bons · Finance · Dossiers" },
+    { value: "auditeur1", label: "Auditeur 1",                          desc: "Audit interne · Comptabilité · Analyse" },
+    { value: "auditeur2", label: "Auditeur 2",                          desc: "Audit interne · Analytics · Dossiers" },
+    { value: "super_admin", label: "Super Administrateur Système",      desc: "Accès total au système" }
+  ],
+  transit: [
+    { value: "secretariat",    label: "Secrétariat — Création des dossiers",  desc: "Clients · Dossiers · Tâches" },
+    { value: "guce",           label: "GUCE — Assurance · DESC · RVC",        desc: "Dossiers · Attachement de fichiers · Manifeste" },
+    { value: "validation_role",label: "Validation — CAMCIS",                  desc: "Dossiers · Validation des fichiers téléchargés" },
+    { value: "acconage",       label: "Acconage — Gestion des Bours",         desc: "Dossiers · Bon Provisoir · Bon Réel" },
+    { value: "enlevement",     label: "Enlèvement & Livraison",               desc: "Dossiers · Bon Provisoir · Bon Réel" }
+  ],
+  finance: [
+    { value: "finances",    label: "Facturation — Factures clients",   desc: "Facturation · Dossiers · Clients" },
+    { value: "fiscalite",   label: "Fiscalité — Déclarations fiscales", desc: "Analytics · Travail indépendant du pipeline" },
+    { value: "cloture",     label: "Clôture — Finalisation dossiers",  desc: "Dossiers · Envoi aux archives" }
+  ],
+  comptabilite: [
+    { value: "caisse",   label: "Caisse — Agent Payeur",               desc: "Bons · Paiements · Décaissements · Facturation" }
+  ],
+  analyse: [
+    { value: "analyste",   label: "Analyste — Rapports & Statistiques", desc: "Dashboard · Analytics · Rapports" },
+    { value: "auditeur1",  label: "Auditeur 1 (accès Analyse aussi)",  desc: "Analytics · Comptabilité · Admin" },
+    { value: "auditeur2",  label: "Auditeur 2 (accès Analyse aussi)",  desc: "Analytics · Dossiers" }
+  ],
+  archives: [
+    { value: "archiviste", label: "Archiviste — Consultation archives", desc: "Dossiers archivés en lecture seule uniquement" }
+  ]
+};
+
+const MODULE_LABELS = {
+  administration: "✅ Bons provisoirs (visa)\n✅ Tous les dossiers\n✅ Analytics & Rapports\n✅ Gestion des utilisateurs (admin)\n✅ Vue globale de l'entreprise",
+  transit: "✅ Dossiers de transit\n✅ Clients\n✅ Tâches\n✅ Bons (Acconage/Enlèvement seulement)",
+  finance: "✅ Facturation clients\n✅ Dossiers\n✅ Analytics (Fiscalité)",
+  comptabilite: "✅ Caisse & Décaissements\n✅ Bons approuvés\n✅ Facturation",
+  analyse: "✅ Dashboard complet\n✅ Analytics & Statistiques\n✅ Rapports financiers",
+  archives: "✅ Consultation archives (lecture seule)\n❌ Aucune modification"
+};
+
+function updateRoles(dept) {
+  const roleSelect = document.getElementById('role-select');
+  const preview = document.getElementById('module-preview');
+  const desc = document.getElementById('role-desc');
+  roleSelect.innerHTML = '<option value="">-- Choisir le service --</option>';
+  desc.textContent = '';
+  if (!dept || !DEPT_ROLES[dept]) { preview.textContent = 'Sélectionnez un service pour voir les accès.'; return; }
+  DEPT_ROLES[dept].forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.value; opt.textContent = r.label; opt.dataset.desc = r.desc;
+    roleSelect.appendChild(opt);
+  });
+  preview.innerHTML = '<strong>Accès du département :</strong><br><pre style="font-size:0.8rem;margin-top:6px;white-space:pre-wrap;background:none;border:none;padding:0">' + (MODULE_LABELS[dept] || '') + '</pre>';
+}
+
+// Pre-select from query param
+const urlParams = new URLSearchParams(window.location.search);
+const preselectedDept = urlParams.get('dept');
+if (preselectedDept) {
+  const deptSel = document.getElementById('dept-select');
+  deptSel.value = preselectedDept;
+  updateRoles(preselectedDept);
+}
+
+document.getElementById('role-select').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  document.getElementById('role-desc').textContent = opt.dataset.desc || '';
+});
+</script>
 
 <%- include('../../partials/footer') %>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YM-TRANSIT ERP — Portail d'accès</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+      min-height: 100vh;
+      color: #334155;
+    }
+    .portal-header {
+      text-align: center;
+      padding: 2.5rem 1rem 1.5rem;
+      color: white;
+    }
+    .logo-badge {
+      width: 68px; height: 68px;
+      background: #2563eb;
+      border-radius: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem; font-weight: 700;
+      color: white; margin: 0 auto 1rem;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+    }
+    .portal-title { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .portal-sub { color: rgba(255,255,255,0.6); font-size: 0.95rem; }
+    .breadcrumb-nav { text-align: center; margin-bottom: 1rem; }
+    .breadcrumb-nav span { color: rgba(255,255,255,0.5); font-size: 0.85rem; cursor: pointer; }
+    .breadcrumb-nav span:hover { color: white; }
+    .breadcrumb-nav .sep { color: rgba(255,255,255,0.3); margin: 0 8px; }
+    .dept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.5rem 2rem;
+    }
+    .dept-card {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.75rem 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 2px solid transparent;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .dept-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+    .dept-card.active { border-color: #2563eb; }
+    .dept-icon {
+      width: 56px; height: 56px;
+      border-radius: 0.75rem;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 0.85rem;
+      font-size: 1.6rem;
+    }
+    .dept-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1rem; color: #1e293b; margin-bottom: 0.25rem; }
+    .dept-desc { font-size: 0.75rem; color: #64748b; line-height: 1.4; }
+    .dept-count { font-size: 0.7rem; color: #94a3b8; margin-top: 0.5rem; }
+    .sub-panel {
+      max-width: 900px; margin: 0 auto 2rem;
+      padding: 0 1.5rem;
+      display: none;
+    }
+    .sub-panel.show { display: block; }
+    .sub-title {
+      color: white; font-size: 0.8rem; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-bottom: 0.75rem; opacity: 0.7;
+    }
+    .sub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; }
+    .sub-card {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: white;
+    }
+    .sub-card:hover { background: rgba(255,255,255,0.2); transform: translateY(-2px); }
+    .sub-card i { font-size: 1.4rem; display: block; margin-bottom: 0.5rem; }
+    .sub-card .sub-name { font-size: 0.85rem; font-weight: 500; }
+    .sub-card .sub-detail { font-size: 0.7rem; opacity: 0.7; margin-top: 0.2rem; }
+    .gestion-group {
+      border: 1px dashed rgba(255,255,255,0.3);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+    }
+    .gestion-label { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .gestion-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .login-panel {
+      max-width: 440px; margin: 0 auto 3rem;
+      padding: 0 1.5rem;
+      display: none;
+    }
+    .login-panel.show { display: block; }
+    .login-card {
+      background: white;
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .login-dept-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
+      border-radius: 2rem;
+      font-size: 0.8rem; font-weight: 500;
+      margin-bottom: 1.25rem;
+    }
+    .form-control { border-radius: 0.5rem; border: 1.5px solid #e2e8f0; }
+    .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .btn-login {
+      background: #2563eb; color: white;
+      border: none; border-radius: 0.5rem;
+      padding: 0.65rem 1.5rem;
+      font-weight: 600; width: 100%;
+      transition: background 0.2s;
+    }
+    .btn-login:hover { background: #1d4ed8; }
+    .back-link { color: rgba(255,255,255,0.6); font-size: 0.82rem; text-align: center; cursor: pointer; margin-top: 0.75rem; }
+    .back-link:hover { color: white; }
+    .error-alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 0.5rem; padding: 0.75rem 1rem; font-size: 0.85rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+<div class="portal-header">
+  <div class="logo-badge">YM</div>
+  <div class="portal-title">YM-TRANSIT ERP</div>
+  <div class="portal-sub">Système de Gestion Intégrée — Transit & Logistique Cameroun</div>
+</div>
+
+<div class="breadcrumb-nav" id="breadcrumb" style="display:none">
+  <span onclick="goHome()">Accueil</span>
+  <span class="sep">›</span>
+  <span id="bc-dept"></span>
+  <span class="sep bc-sub-sep" style="display:none">›</span>
+  <span id="bc-sub" style="display:none"></span>
+</div>
+
+<!-- LEVEL 1: 6 main department cards -->
+<div class="dept-grid" id="level1">
+
+  <div class="dept-card" onclick="selectDept('transit')" style="border-top: 4px solid #0F6E56">
+    <div class="dept-icon" style="background:#E1F5EE;color:#0F6E56"><i class="bi bi-truck"></i></div>
+    <div class="dept-name">Transit</div>
+    <div class="dept-desc">Secrétariat · GUCE · Validation · Acconage · Enlèvement</div>
+    <div class="dept-count">5 services</div>
+  </div>
+
+  <div class="dept-card" onclick="selectDept('finance')" style="border-top: 4px solid #854F0B">
+    <div class="dept-icon" style="background:#FAEEDA;color:#854F0B"><i class="bi bi-cash-coin"></i></div>
+    <div class="dept-name">Finance</div>
+    <div class="dept-desc">Facturation · Fiscalité · Clôture des dossiers</div>
+    <div class="dept-count">3 services</div>
+  </div>
+
+  <div class="dept-card" onclick="selectDept('analyse')" style="border-top: 4px solid #534AB7">
+    <div class="dept-icon" style="background:#EEEDFE;color:#534AB7"><i class="bi bi-graph-up"></i></div>
+    <div class="dept-name">Analyse</div>
+    <div class="dept-desc">Rapports · Statistiques · Tableaux de bord</div>
+    <div class="dept-count">Accès Auditeurs</div>
+  </div>
+
+  <div class="dept-card" onclick="selectDept('comptabilite')" style="border-top: 4px solid #185FA5">
+    <div class="dept-icon" style="background:#E6F1FB;color:#185FA5"><i class="bi bi-journal-check"></i></div>
+    <div class="dept-name">Comptabilité</div>
+    <div class="dept-desc">Caisse · Paiements · Vérification comptable</div>
+    <div class="dept-count">2 postes</div>
+  </div>
+
+  <div class="dept-card" onclick="selectDept('administration')" style="border-top: 4px solid #993C1D">
+    <div class="dept-icon" style="background:#FAECE7;color:#993C1D"><i class="bi bi-building"></i></div>
+    <div class="dept-name">Administration</div>
+    <div class="dept-desc">PDG · DG · DGA · DAF · Auditeurs</div>
+    <div class="dept-count">Direction générale</div>
+  </div>
+
+  <div class="dept-card" onclick="selectDept('archives')" style="border-top: 4px solid #5F5E5A">
+    <div class="dept-icon" style="background:#F1EFE8;color:#5F5E5A"><i class="bi bi-archive"></i></div>
+    <div class="dept-name">Archives</div>
+    <div class="dept-desc">Dossiers clôturés · Consultation seule</div>
+    <div class="dept-count">Lecture seule</div>
+  </div>
+
+</div>
+
+<!-- LEVEL 2: sub-services panel -->
+<div class="sub-panel" id="level2">
+  <div class="sub-title" id="sub-title"></div>
+  <div class="sub-grid" id="sub-grid"></div>
+</div>
+
+<!-- LEVEL 3: login form -->
+<div class="login-panel" id="level3">
+  <div class="login-card">
+    <div id="login-dept-badge" class="login-dept-badge"></div>
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:600;color:#1e293b;margin-bottom:1.25rem">Accéder à votre espace</h2>
+
+    <% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
+      <div class="error-alert"><i class="bi bi-exclamation-circle me-2"></i><%= error_msg %></div>
+    <% } %>
+
+    <form action="/login" method="POST">
+      <input type="hidden" name="dept" id="form-dept" value="">
+      <div class="mb-3">
+        <label class="form-label fw-semibold" style="font-size:0.85rem;color:#475569">Identifiant</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="bi bi-person text-muted"></i></span>
+          <input type="text" class="form-control" name="nom" placeholder="Email ou nom d'utilisateur" required autofocus>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold" style="font-size:0.85rem;color:#475569">Mot de passe</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="bi bi-lock text-muted"></i></span>
+          <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+        </div>
+      </div>
+      <button type="submit" class="btn-login"><i class="bi bi-box-arrow-in-right me-2"></i>Se connecter</button>
+    </form>
+  </div>
+  <div class="back-link mt-3" onclick="goBack()"><i class="bi bi-arrow-left me-1"></i>Retour au choix du service</div>
+</div>
+
+<script>
+const DEPTS = {
+  transit: {
+    label: "Transit", color: "#0F6E56", bg: "#E1F5EE", icon: "bi-truck",
+    subs: [
+      { label: "Secrétariat", icon: "bi-folder-plus", role: "secretariat", desc: "Création des dossiers" },
+      { label: "GUCE", icon: "bi-file-earmark-check", role: "guce", desc: "Assurance · DESC · RVC · Manifeste" },
+      { label: "Validation", icon: "bi-patch-check", role: "validation_role", desc: "Validation CAMCIS" },
+      { label: "Gestion des Bours", icon: "bi-cash-stack", role: null, desc: "Acconage & Enlèvement", isGroup: true,
+        sub: [
+          { label: "Acconage", icon: "bi-boxes", role: "acconage", desc: "Bon Provisoir · Bon Réel" },
+          { label: "Enlèvement", icon: "bi-truck-front", role: "enlevement", desc: "Bon Provisoir · Bon Réel" }
+        ]
+      }
+    ]
+  },
+  finance: {
+    label: "Finance", color: "#854F0B", bg: "#FAEEDA", icon: "bi-cash-coin",
+    subs: [
+      { label: "Facturation", icon: "bi-receipt", role: "finances", desc: "Factures clients" },
+      { label: "Fiscalité", icon: "bi-percent", role: "fiscalite", desc: "Déclarations fiscales" },
+      { label: "Clôture", icon: "bi-lock", role: "cloture", desc: "Clôture des dossiers" }
+    ]
+  },
+  analyse: {
+    label: "Analyse", color: "#534AB7", bg: "#EEEDFE", icon: "bi-graph-up",
+    subs: [
+      { label: "Analyste", icon: "bi-bar-chart-line", role: "analyste", desc: "Rapports & Statistiques" },
+      { label: "Auditeur 1", icon: "bi-search", role: "auditeur1", desc: "Audit interne" },
+      { label: "Auditeur 2", icon: "bi-search", role: "auditeur2", desc: "Audit interne" }
+    ]
+  },
+  comptabilite: {
+    label: "Comptabilité", color: "#185FA5", bg: "#E6F1FB", icon: "bi-journal-check",
+    subs: [
+      { label: "Caisse", icon: "bi-safe", role: "caisse", desc: "Paiements & Décaissements" },
+      { label: "Auditeur Comptable", icon: "bi-search", role: "auditeur1", desc: "Vérification comptable" }
+    ]
+  },
+  administration: {
+    label: "Administration", color: "#993C1D", bg: "#FAECE7", icon: "bi-building",
+    subs: [
+      { label: "PDG", icon: "bi-person-badge", role: "pdg", desc: "Président Directeur Général" },
+      { label: "DG", icon: "bi-person-badge", role: "dg", desc: "Directeur Général" },
+      { label: "DGA", icon: "bi-person-badge", role: "dga", desc: "Directeur Général Adjoint" },
+      { label: "DAF", icon: "bi-person-badge", role: "daf", desc: "Dir. Administratif & Financier" },
+      { label: "Auditeur 1", icon: "bi-person-badge", role: "auditeur1", desc: "Audit interne" },
+      { label: "Auditeur 2", icon: "bi-person-badge", role: "auditeur2", desc: "Audit interne" },
+      { label: "Super Admin", icon: "bi-shield-lock", role: "super_admin", desc: "Administration système" }
+    ]
+  },
+  archives: {
+    label: "Archives", color: "#5F5E5A", bg: "#F1EFE8", icon: "bi-archive",
+    subs: [
+      { label: "Archives", icon: "bi-archive-fill", role: "archiviste", desc: "Dossiers clôturés — lecture seule" }
+    ]
+  }
+};
+
+let currentDept = null;
+let history = [];
+
+function goHome() {
+  currentDept = null;
+  history = [];
+  document.getElementById('level1').style.display = 'grid';
+  document.getElementById('level2').classList.remove('show');
+  document.getElementById('level3').classList.remove('show');
+  document.getElementById('breadcrumb').style.display = 'none';
+  document.querySelectorAll('.dept-card').forEach(c => c.classList.remove('active'));
+}
+
+function goBack() {
+  if (document.getElementById('level3').classList.contains('show')) {
+    document.getElementById('level3').classList.remove('show');
+    document.getElementById('level2').classList.add('show');
+    document.getElementById('bc-sub').style.display = 'none';
+    document.querySelector('.bc-sub-sep').style.display = 'none';
+  } else {
+    goHome();
+  }
+}
+
+function selectDept(key) {
+  currentDept = key;
+  const dept = DEPTS[key];
+  document.querySelectorAll('.dept-card').forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('bc-dept').textContent = dept.label;
+  document.getElementById('breadcrumb').style.display = 'block';
+
+  const grid = document.getElementById('sub-grid');
+  document.getElementById('sub-title').textContent = `Choisissez votre service — ${dept.label}`;
+  grid.innerHTML = '';
+
+  dept.subs.forEach(sub => {
+    if (sub.isGroup) {
+      const group = document.createElement('div');
+      group.className = 'gestion-group';
+      group.innerHTML = `<div class="gestion-label"><i class="bi ${sub.icon} me-1"></i>${sub.label}</div><div class="gestion-sub" id="gestion-inner"></div>`;
+      const inner = group.querySelector('#gestion-inner');
+      sub.sub.forEach(s => {
+        const btn = document.createElement('div');
+        btn.className = 'sub-card';
+        btn.style.background = 'rgba(255,255,255,0.08)';
+        btn.innerHTML = `<i class="bi ${s.icon}"></i><div class="sub-name">${s.label}</div><div class="sub-detail">${s.desc}</div>`;
+        btn.onclick = () => showLogin(s.role, s.label, dept);
+        inner.appendChild(btn);
+      });
+      grid.appendChild(group);
+    } else {
+      const card = document.createElement('div');
+      card.className = 'sub-card';
+      card.innerHTML = `<i class="bi ${sub.icon}"></i><div class="sub-name">${sub.label}</div><div class="sub-detail">${sub.desc}</div>`;
+      card.onclick = () => showLogin(sub.role, sub.label, dept);
+      grid.appendChild(card);
+    }
+  });
+
+  document.getElementById('level1').style.display = 'none';
+  document.getElementById('level2').classList.add('show');
+  document.getElementById('level3').classList.remove('show');
+}
+
+function showLogin(role, label, dept) {
+  document.getElementById('bc-sub').textContent = label;
+  document.getElementById('bc-sub').style.display = 'inline';
+  document.querySelector('.bc-sub-sep').style.display = 'inline';
+
+  const badge = document.getElementById('login-dept-badge');
+  badge.style.background = dept.bg;
+  badge.style.color = dept.color;
+  badge.innerHTML = `<i class="bi ${dept.icon}"></i> ${dept.label} — ${label}`;
+  document.getElementById('form-dept').value = role;
+
+  document.getElementById('level2').classList.remove('show');
+  document.getElementById('level3').classList.add('show');
+  setTimeout(() => document.querySelector('#level3 input[name="nom"]').focus(), 100);
+}
+
+// If there was an error, restore login panel for the correct dept
+<% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
+  document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const dept = params.get('dept');
+    if (dept && DEPTS[dept]) {
+      selectDept(dept);
+    }
+  });
+<% } %>
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

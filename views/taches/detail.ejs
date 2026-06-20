@@ -154,9 +154,6 @@
           </div>
         <% } %>
 
-        <%
-          const canWriteOnTask = (user.role === 'super_admin' || user.id === tache.intervenant_id);
-        %>
         <div class="border-top pt-3 mt-3">
           <span class="text-xs text-uppercase text-muted d-block mb-2">Sous-étapes de dédouanement</span>
           <div id="subtasks-container">
@@ -164,14 +161,12 @@
               <% tache.subtasks.forEach(s => { %>
                 <div class="d-flex align-items-center justify-content-between mb-2 text-xs py-1 px-2 rounded hover-bg-light border border-light-subtle">
                   <label class="d-inline-flex align-items-center mb-0 gap-2 cursor-pointer text-slate-800" style="word-break: break-all;">
-                    <input class="form-check-input subtask-toggle" type="checkbox" data-sub-id="<%= s.id %>" <%= s.fait ? 'checked' : '' %> <%= !canWriteOnTask ? 'disabled' : '' %> style="cursor: pointer;">
+                    <input class="form-check-input subtask-toggle" type="checkbox" data-sub-id="<%= s.id %>" <%= s.fait ? 'checked' : '' %> style="cursor: pointer;">
                     <span class="<%= s.fait ? 'text-decoration-line-through text-muted' : '' %>" id="subtask-text-<%= s.id %>"><%= s.titre %></span>
                   </label>
-                  <% if (canWriteOnTask) { %>
-                    <button class="btn btn-link btn-xs p-0 text-danger border-0 delete-subtask-btn" data-sub-id="<%= s.id %>" title="Supprimer">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  <% } %>
+                  <button class="btn btn-link btn-xs p-0 text-danger border-0 delete-subtask-btn" data-sub-id="<%= s.id %>" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                  </button>
                 </div>
               <% }) %>
             <% } else { %>
@@ -179,16 +174,14 @@
             <% } %>
           </div>
           
-          <% if (canWriteOnTask) { %>
-            <form id="add-subtask-form" class="mt-2.5">
-              <div class="input-group">
-                <input type="text" class="form-control form-control-sm" id="subtask-input" placeholder="Ajouter sous-étape..." required>
-                <button class="btn btn-primary btn-sm" type="submit">
-                  <i class="bi bi-plus-lg"></i>
-                </button>
-              </div>
-            </form>
-          <% } %>
+          <form id="add-subtask-form" class="mt-2.5">
+            <div class="input-group">
+              <input type="text" class="form-control form-control-sm" id="subtask-input" placeholder="Ajouter sous-étape..." required>
+              <button class="btn btn-primary btn-sm" type="submit">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
+          </form>
         </div>
 
       </div>
@@ -286,40 +279,33 @@
           <!-- Populated in JS -->
         </div>
 
-        <% if (canWriteOnTask) { %>
-          <form id="comment-form">
-            <div class="mb-2 position-relative">
-              <textarea class="form-control font-sans" 
-                        id="comment-textarea" 
-                        rows="3" 
-                        placeholder="Écrivez un commentaire... Utilisez @ pour notifier un membre de l'équipe"
-                        style="font-size: 0.9rem; border-radius: 8px;" 
-                        required></textarea>
-              <div class="form-text text-muted text-xs d-flex align-items-center justify-content-between mt-1">
-                <span>Saisissez <code class="bg-light px-1 font-monospace text-primary">@</code> pour les suggestions d'utilisateurs.</span>
-                <span id="char-indicator" class="font-monospace"></span>
-              </div>
+        <form id="comment-form">
+          <div class="mb-2 position-relative">
+            <textarea class="form-control font-sans" 
+                      id="comment-textarea" 
+                      rows="3" 
+                      placeholder="Écrivez un commentaire... Utilisez @ pour notifier un membre de l'équipe"
+                      style="font-size: 0.9rem; border-radius: 8px;" 
+                      required></textarea>
+            <div class="form-text text-muted text-xs d-flex align-items-center justify-content-between mt-1">
+              <span>Saisissez <code class="bg-light px-1 font-monospace text-primary">@</code> pour les suggestions d'utilisateurs.</span>
+              <span id="char-indicator" class="font-monospace"></span>
             </div>
-
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2.5">
-              <div class="form-check form-switch d-flex align-items-center gap-2">
-                <input class="form-check-input ms-0" type="checkbox" id="mark_next_step" style="width: 2rem; height: 1rem; cursor: pointer;">
-                <label class="form-check-label small fw-bold text-slate-700 cursor-pointer" for="mark_next_step">
-                  📌 Marquer comme "Prochaine étape" du dossier
-                </label>
-              </div>
-
-              <button type="submit" class="btn btn-primary btn-sm px-4 rounded-pill d-flex align-items-center gap-1.5 shadow-sm">
-                <span>Envoyer</span> <i class="bi bi-send-fill" style="font-size: 0.8rem;"></i>
-              </button>
-            </div>
-          </form>
-        <% } else { %>
-          <div class="alert alert-light text-center border p-3 rounded-3 mb-0" style="background-color: #f8fafc;">
-            <i class="bi bi-lock-fill text-muted d-block fs-5 mb-1"></i>
-            <span class="text-xs text-slate-500 font-sans d-block">Lecture Seule : Seul l'intervenant en charge de cette étape ou le Super Administrateur peut y contribuer ou soumettre un rapport.</span>
           </div>
-        <% } %>
+
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2.5">
+            <div class="form-check form-switch d-flex align-items-center gap-2">
+              <input class="form-check-input ms-0" type="checkbox" id="mark_next_step" style="width: 2rem; height: 1rem; cursor: pointer;">
+              <label class="form-check-label small fw-bold text-slate-700 cursor-pointer" for="mark_next_step">
+                📌 Marquer comme "Prochaine étape" du dossier
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm px-4 rounded-pill d-flex align-items-center gap-1.5 shadow-sm">
+              <span>Envoyer</span> <i class="bi bi-send-fill" style="font-size: 0.8rem;"></i>
+            </button>
+          </div>
+        </form>
       </div>
 
     </div>

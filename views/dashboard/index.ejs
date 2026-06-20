@@ -11,7 +11,7 @@
       </div>
       <div class="d-flex gap-2">
         <% if (typeof user !== 'undefined') { %>
-          <% if (['super_admin', 'secretariat'].includes(user.role)) { %>
+          <% if (['super_admin', 'commercial', 'operationnel', 'secretariat', 'validation_role', 'acconage', 'enlevement', 'finances', 'comptable_ops'].includes(user.role)) { %>
             <a href="/dossiers/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3 shadow-sm">
               <i class="bi bi-folder-plus me-2"></i> Nouveau Dossier
             </a>

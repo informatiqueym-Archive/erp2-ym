@@ -151,8 +151,7 @@ router.post("/bons/provisoir", requireAuth, async (req: any, res: any) => {
 router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    const allowedRoles = ["direction", "super_admin", "agent_payeur", "caisse", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
-    if (!allowedRoles.includes(user.role)) {
+    if (!["direction", "super_admin", "agent_payeur"].includes(user.role)) {
       req.session.error_msg = "Accès refusé.";
       return res.redirect("/dashboard");
     }
@@ -160,7 +159,7 @@ router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) =>
     const whereClause: any = { etat: "EN_ATTENTE" };
     
     // Si l'utilisateur est l'agent payeur (La Caisse), il ne voit le bon que s'il a reçu TOUS les 5 visas du Top Management
-    if (user.role === "agent_payeur" || user.role === "caisse") {
+    if (user.role === "agent_payeur") {
       whereClause.tick_pdg = true;
       whereClause.tick_dg = true;
       whereClause.tick_dga = true;
@@ -197,8 +196,7 @@ router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) =>
 router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    const allowedRoles = ["direction", "super_admin", "agent_payeur", "caisse", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
-    if (!allowedRoles.includes(user.role)) {
+    if (!["direction", "super_admin", "agent_payeur"].includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -213,7 +211,7 @@ router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res:
     }
 
     // Si l'utilisateur est l'agent payeur (La Caisse), s'assurer que les 5 visas sont au complet
-    if (user.role === "agent_payeur" || user.role === "caisse") {
+    if (user.role === "agent_payeur") {
       const allTicksApproved = bon.tick_pdg && bon.tick_dg && bon.tick_dga && bon.tick_daf && bon.tick_audit;
       if (!allTicksApproved) {
         return res.status(403).json({ ok: false, message: "Décaissement non autorisé : Les 5 signatures de visa du Top Management ne sont pas complètes." });
@@ -271,8 +269,7 @@ router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res:
 router.patch("/bons/provisoir/:id/rejeter", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    const allowedRoles = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
-    if (!allowedRoles.includes(user.role)) {
+    if (!["direction", "super_admin"].includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -410,7 +407,7 @@ router.post("/bons/reel", requireAuth, async (req: any, res: any) => {
 router.patch("/bons/reel/:id/confirmer", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["agent_payeur", "caisse", "super_admin"].includes(user.role)) {
+    if (!["agent_payeur", "super_admin"].includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -481,31 +478,14 @@ router.get("/bons/:id", requireAuth, async (req: any, res: any) => {
 router.post("/bons/provisoir/:id/tick", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    const allowedRoles = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
-    if (!allowedRoles.includes(user.role)) {
+    if (!["direction", "super_admin"].includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès refusé. Réservé à la Direction." });
     }
 
     const bonId = parseInt(req.params.id);
-    const tick = req.body.tick || req.body.tick_key; // Support both format variants
+    const { tick } = req.body; // 'pdg', 'dg', 'dga', 'daf' ou 'audit'
     if (!["pdg", "dg", "dga", "daf", "audit"].includes(tick)) {
-      return res.status(400).json({ ok: false, message: `Type de visa invalide ou absent (${tick}).` });
-    }
-
-    // Role-specific check: Standard user can only toggle their own visa
-    if (user.role !== "super_admin") {
-      const isPDGAllowed = (tick === "pdg" && user.role === "pdg");
-      const isDGAllowed = (tick === "dg" && user.role === "dg");
-      const isDGAAllowed = (tick === "dga" && user.role === "dga");
-      const isDAFAllowed = (tick === "daf" && user.role === "daf");
-      const isAuditAllowed = (tick === "audit" && (user.role === "auditeur1" || user.role === "auditeur2"));
-
-      if (!isPDGAllowed && !isDGAllowed && !isDGAAllowed && !isDAFAllowed && !isAuditAllowed) {
-        return res.status(403).json({
-          ok: false,
-          message: `Vous n'êtes pas autorisé à signer le ${tick.toUpperCase()}. Seul le titulaire désigné de cette fonction ou un Super Administrateur peut le faire.`
-        });
-      }
+      return res.status(400).json({ ok: false, message: "Type de visa invalide." });
     }
 
     const bon = await prisma.bonProvisoir.findUnique({
@@ -791,8 +771,7 @@ router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) =>
       });
     }
 
-    const isManagement = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"].includes(user.role);
-    if (isManagement) {
+    if (["direction", "super_admin"].includes(user.role)) {
       // Pour le management : Bons Provisoires en attente de signatures/visas
       const pendingBons = await prisma.bonProvisoir.findMany({
         where: {
@@ -847,30 +826,6 @@ router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) =>
         }
       });
     }
-
-    // Récupérer les tâches actives assignées à l'utilisateur connecté pour notification
-    const activeTasks = await prisma.tache.findMany({
-      where: {
-        intervenant_id: user.id,
-        etat: { in: ["EN_COURS", "A_FAIRE", "ATTENTE_VALIDATION"] },
-        archive: false
-      },
-      include: {
-        dossier: { select: { numero: true } }
-      },
-      orderBy: { created_at: "desc" },
-      take: 5
-    });
-
-    activeTasks.forEach(task => {
-      const isCorrection = task.titre.startsWith("[Demande de modification]");
-      notifications.push({
-        id: `task-${task.id}-assigned`,
-        title: isCorrection ? "⚠️ Action - Demande de Correction (Rétrogadé)" : "📋 Tâche de transit assignée",
-        content: `Pour le Dossier ${task.dossier?.numero || "N/A"} : ${task.titre}`,
-        url: `/taches/${task.id}`
-      });
-    });
 
     return res.json({ ok: true, notifications });
   } catch (error) {

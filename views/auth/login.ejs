@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portail YM-TRANSIT ERP</title>
+  <title>Connexion | YM-TRANSIT ERP</title>
   
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -12,297 +12,73 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   
   <style>
     body {
       font-family: 'Inter', sans-serif;
-      background: radial-gradient(circle at top right, #1e293b 0%, #0f172a 100%);
-      color: #cbd5e1;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+      color: #334155;
     }
-    h1, h2, h3, h4, .display-logoBy {
+    h1, .display-logo {
       font-family: 'Space Grotesk', sans-serif;
     }
-    .text-muted {
-      color: #cbd5e1 !important; /* brighter elegant gray/white for awesome legibility on dark background */
-    }
-    .text-muted.small, .form-text.text-muted, .text-white-50 {
-      color: #cbd5e1 !important; /* clear subheader contrast */
-    }
-    .department-card {
-      background: rgba(30, 41, 59, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 1.25rem;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-    }
-    .department-card:hover {
-      transform: translateY(-5px);
-      background: rgba(30, 41, 59, 0.95);
-      border-color: #3b82f6;
-      box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
-    }
-    .service-btn {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      color: #94a3b8;
-      border-radius: 0.75rem;
-      transition: all 0.2s ease;
-      text-align: left;
-    }
-    .service-btn:hover {
-      background: #2563eb;
-      color: white;
-      border-color: #3b82f6;
-      transform: translateX(4px);
-    }
     .card-login {
-      background: rgba(30, 41, 59, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 1.5rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-    }
-    .logo-badge {
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      color: white;
+      border: none;
       border-radius: 1rem;
-      width: 64px;
-      height: 64px;
-      font-size: 2rem;
-      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     }
     .btn-login {
-      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      border: none;
+      background-color: #2563eb;
+      border-color: #2563eb;
       transition: all 0.2s ease-in-out;
     }
     .btn-login:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      background-color: #1d4ed8;
+      border-color: #1d4ed8;
     }
-    .breadcrumb-custom {
-      font-size: 0.85rem;
-      color: #94a3b8;
-    }
-    .back-btn {
-      color: #94a3b8;
-      transition: color 0.15s ease;
-    }
-    .back-btn:hover {
-      color: #3b82f6;
+    .logo-badge {
+      background: #2563eb;
+      color: white;
+      border-radius: 0.75rem;
+      width: 56px;
+      height: 56px;
+      font-size: 1.8rem;
     }
   </style>
 </head>
-<body class="py-4">
-  <div class="container my-auto">
-    
-    <!-- Branding Header -->
-    <div class="text-center mb-5 mt-2">
-      <div class="logo-badge mx-auto mb-3 d-flex align-items-center justify-content-center fw-bold">
-        YM
-      </div>
-      <h1 class="h2 fw-bold text-white mb-1 tracking-tight">YM-TRANSIT ERP</h1>
-      <p class="text-muted small">Portail d'Accès Unifié par Département • Transit, Douane & Finances</p>
-    </div>
-
-    <!-- Iframe warning / new tab helper -->
-    <div id="iframeHelper" class="alert alert-warning p-3 mx-auto mb-4 text-center rounded border-0 shadow-sm col-md-8 col-lg-6" style="display: none; background-color: #fef08a; color: #854d0e;">
-      <div class="fw-bold mb-1"><i class="bi bi-window-fullscreen me-1"></i> Mode d'aperçu d'AI Studio</div>
-      <p class="text-xs mb-2 text-start" style="font-size: 0.8rem; line-height: 1.4;">
-        Les navigateurs restreignent la persistance des sessions (cookies) dans les fenêtres imbriquées. Si la connexion échoue, ouvrez l'application en plein écran :
-      </p>
-      <a href="#" id="openInNewTabBtn" target="_blank" class="btn btn-sm btn-dark w-100 rounded fw-semibold">
-        <i class="bi bi-box-arrow-up-right me-1"></i> Ouvrir en plein écran
-      </a>
-    </div>
-
-    <!-- MAIN INTERACTIVE BOARD -->
+<body class="d-flex align-items-center py-5 h-100">
+  <div class="container">
     <div class="row justify-content-center">
-      <div class="col-12 col-xl-10">
+      <div class="col-md-5 col-lg-4">
         
-        <!-- STEP 1: Categories / Main Departments Grid -->
-        <div id="step-departments" class="row g-4 justify-content-center">
-          
-          <!-- 1. Transit -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="selectDepartment('transit')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-primary bg-opacity-10 text-primary p-3 rounded-3 me-3">
-                  <i class="bi bi-ship fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">1. Transit & Opérations</h3>
-                  <span class="text-muted small">Secrétariat, GUCE, ...</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Création des dossiers maritimes, déclaration GUCE, validation douanière CAMCIS et opérations acconier/enlèvement.</p>
-            </div>
+        <!-- YM-TRANSIT Branding Logo Header -->
+        <div class="text-center mb-4 text-white">
+          <div class="logo-badge mx-auto mb-3 d-flex align-items-center justify-content-center fw-bold">
+            YM
           </div>
-
-          <!-- 2. Comptabilité -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="selectDepartment('comptabilite')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-success bg-opacity-10 text-success p-3 rounded-3 me-3">
-                  <i class="bi bi-wallet2 fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">2. Comptabilité</h3>
-                  <span class="text-muted small">Caisse, Auditeur 1</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Vues opérationnelles de la caisse d'entreprise, décaissements pour débours de transit et rapprochement des factures.</p>
-            </div>
-          </div>
-
-          <!-- 3. Fiscalité -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('fiscalite', 'Fiscalité', 'fiscalite@ym-transit.cm', 'fiscalite123')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-warning bg-opacity-10 text-warning p-3 rounded-3 me-3">
-                  <i class="bi bi-percent fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">3. Fiscalité</h3>
-                  <span class="text-muted small">Déclarateur Fiscal</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Traitement indépendant et déclaration légale des taxes douanières, droits de passage et conformité pays.</p>
-            </div>
-          </div>
-
-          <!-- 4. Administration -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="selectDepartment('administration')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-info bg-opacity-10 text-info p-3 rounded-3 me-3">
-                  <i class="bi bi-shield-check fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">4. Administration</h3>
-                  <span class="text-muted small">PDG, DG, DAF ...</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Direction générale de l'entreprise. Pilotage ERP, approbation des bons de caisse (Visas) et gouvernance globale.</p>
-            </div>
-          </div>
-
-          <!-- 5. Facturation -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('facturation', 'Facturation', 'facturation@ym-transit.cm', 'facturation123')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-danger bg-opacity-10 text-danger p-3 rounded-3 me-3">
-                  <i class="bi bi-receipt fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">5. Facturation</h3>
-                  <span class="text-muted small">Service Client facturation</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Génération des notes d'honoraires clients, débours de transit définitifs et édition des quittances logistiques.</p>
-            </div>
-          </div>
-
-          <!-- 6. Clôture -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('cloture', 'Clôture', 'cloture@ym-transit.cm', 'cloture123')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-secondary bg-opacity-20 text-light p-3 rounded-3 me-3">
-                  <i class="bi bi-check2-circle fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">6. Clôture</h3>
-                  <span class="text-muted small">Validation & Archivage</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Dernier filtre de contrôle opérationnel des marchandises sorties du port avant transfert aux archives générales.</p>
-            </div>
-          </div>
-
-          <!-- Additional 7. Archives -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('lecture', 'Archives', 'lecture@ym-transit.cm', 'lecture123')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-light bg-opacity-10 text-light p-3 rounded-3 me-3">
-                  <i class="bi bi-archive fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">7. Archives</h3>
-                  <span class="text-muted small">Consultation & Historiques</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Espace de consultation en lecture seule des dossiers clos pour l'historique et l'audit réglementaire.</p>
-            </div>
-          </div>
-
-          <!-- Additional 8. Analyse & Décision -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('analyste', 'Analyste Décisoire', 'analyste@ym-transit.cm', 'analyste123')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-warning bg-opacity-20 text-warning p-3 rounded-3 me-3">
-                  <i class="bi bi-graph-up-arrow fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">8. Analyses & Reporting</h3>
-                  <span class="text-muted small">Suivi décisionnel</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Indicateurs de performance de transit, statistiques de déchargement portuaire, flux douaniers et déboursages.</p>
-            </div>
-          </div>
-
-          <!-- 9. Super Administration -->
-          <div class="col-md-6 col-lg-4">
-            <div class="card department-card h-100 p-4 text-start" onclick="showLogin('super_admin', 'Super Administrateur', 'admin@ym-transit.cm', 'admin123')">
-              <div class="d-flex align-items-center mb-3">
-                <div class="bg-danger bg-opacity-20 text-danger p-3 rounded-3 me-3">
-                  <i class="bi bi-shield-lock-fill fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="h5 fw-bold text-white mb-0">9. Super Administration</h3>
-                  <span class="text-muted small">Pôle Informatique & Système</span>
-                </div>
-              </div>
-              <p class="text-muted small mb-0">Accès direct au portail Super Administrateur. Audit, gestion des comptes d'utilisateurs et de la DB.</p>
-            </div>
-          </div>
-
+          <h1 class="h3 fw-bold">YM-TRANSIT ERP</h1>
+          <p class="text-white-50 small">Transit, Douane & Facturation Logistique</p>
         </div>
 
-        <!-- STEP 2: Sub-departments expansion modal or panel -->
-        <div id="step-services" class="card card-login col-md-8 col-lg-6 mx-auto p-4 d-none">
+        <!-- Iframe warning / new tab helper (shown only if loaded inside iframe) -->
+        <div id="iframeHelper" class="alert alert-warning p-3 mb-4 text-center rounded border-0 shadow-sm" style="display: none; background-color: #fef08a; color: #854d0e;">
+          <div class="fw-bold mb-1"><i class="bi bi-window-fullscreen me-1"></i> Mode d'aperçu détecté</div>
+          <p class="text-xs mb-2 text-start" style="font-size: 0.8rem; line-height: 1.4;">
+            Les navigateurs modernes (Chrome, Safari, etc.) restreignent souvent la persistance des sessions (cookies tiers) dans les fenêtres imbriquées. Si la connexion échoue en boucle, cliquez ci-dessous pour ouvrir l'application en plein écran dans un nouvel onglet :
+          </p>
+          <a href="#" id="openInNewTabBtn" target="_blank" class="btn btn-sm btn-dark w-100 rounded fw-semibold">
+            <i class="bi bi-box-arrow-up-right me-1"></i> Ouvrir dans un nouvel onglet
+          </a>
+        </div>
+
+        <!-- Login Card -->
+        <div class="card card-login p-4">
           <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-4">
-              <h2 class="h5 fw-bold text-white mb-0" id="services-title">Services optionnels</h2>
-              <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="goBackToStep1()">
-                <i class="bi bi-chevron-left"></i> Retour
-              </button>
-            </div>
+            <h2 class="h5 fw-bold mb-4 text-center text-dark">Accéder au portail</h2>
             
-            <div class="d-flex flex-column gap-2" id="services-container">
-              <!-- Dynamically populated buttons -->
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 3: Single login credentials panel -->
-        <div id="step-login" class="card card-login col-md-8 col-lg-6 mx-auto p-4 d-none text-start">
-          <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom border-secondary">
-              <div>
-                <span class="text-muted text-uppercase small" style="font-size: 0.75rem;">Formulaire de Connexion</span>
-                <h2 class="h5 fw-bold text-white mb-0" id="login-dept-title">Département d'Administration</h2>
-              </div>
-              <button class="btn btn-sm btn-outline-secondary rounded-pill" id="login-back-btn" onclick="goBackFromLogin()">
-                <i class="bi bi-chevron-left"></i> Retour
-              </button>
-            </div>
-
             <% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
-              <div class="alert alert-danger px-3 py-2 border-0 mb-4 bg-danger bg-opacity-20 text-danger rounded" id="loginErrorAlert" role="alert">
+              <div class="alert alert-danger px-3 py-2" id="loginErrorAlert" role="alert">
                 <div class="d-flex align-items-center">
                   <i class="bi bi-exclamation-circle-fill me-2" style="font-size: 1.1rem;"></i>
                   <small><%= error_msg %></small>
@@ -311,184 +87,67 @@
             <% } %>
 
             <form action="/login" method="POST" id="loginForm">
-              <!-- Hidden or prefilled department alias info for convenience -->
-              <input type="hidden" id="selected-service-code" value="">
-
-              <!-- Username Input -->
+              <!-- Nom d'utilisateur (Username) -->
               <div class="mb-3">
-                <label for="nom" class="form-label small fw-semibold text-muted">Nom d'utilisateur ou Adresse Email</label>
+                <label for="nom" class="form-label small fw-semibold text-muted">Nom d'utilisateur</label>
                 <div class="input-group">
-                  <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-person"></i></span>
-                  <input type="text" class="form-control bg-dark border-secondary text-white" id="nom" name="nom" placeholder="Saisir identifiant" required>
+                  <span class="input-group-text bg-light"><i class="bi bi-person text-muted"></i></span>
+                  <input type="text" class="form-control" id="nom" name="nom" placeholder="Ex: Yannick Abega" required autofocus>
                 </div>
-                <div class="form-text text-muted" style="font-size: 0.75rem;">Inclus la prise en charge d'alias simplifié.</div>
               </div>
 
-              <!-- Password Input -->
+              <!-- Mot de passe (Password) -->
               <div class="mb-4">
-                <label for="password" class="form-label small fw-semibold text-muted">Mot de passe d'authentification</label>
+                <label for="password" class="form-label small fw-semibold text-muted">Mot de passe</label>
                 <div class="input-group">
-                  <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-lock"></i></span>
-                  <input type="password" class="form-control bg-dark border-secondary text-white" id="password" name="password" placeholder="Saisir mot de passe" required>
+                  <span class="input-group-text bg-light"><i class="bi bi-lock text-muted"></i></span>
+                  <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
                 </div>
               </div>
 
-              <!-- Action buttons -->
-              <div class="d-flex flex-column gap-2">
-                <button type="submit" class="btn btn-login w-100 py-2.5 text-white fw-semibold rounded-3" id="loginSubmitBtn">
-                  <i class="bi bi-box-arrow-in-right me-2"></i>Entrer dans mon espace
-                </button>
-                
-                <div class="text-center mt-3 bg-dark bg-opacity-50 p-2.5 border border-secondary rounded-3">
-                  <small class="text-white-50 d-block mb-1 font-monospace" style="font-size: 0.75rem;"><i class="bi bi-magic"></i> Raccourci de test rapide :</small>
-                  <button type="button" class="btn btn-xs btn-outline-info text-xs py-1 px-2 fw-semibold" onclick="applyTestAccount()" style="font-size: 0.75rem;">
-                    Remplir avec le compte d'essai
-                  </button>
-                </div>
-              </div>
+              <!-- Connexion Button -->
+              <button type="submit" class="btn btn-login w-100 py-2.5 text-white fw-semibold rounded" id="loginSubmitBtn">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+              </button>
             </form>
+
+            <div class="hr-text text-muted my-3 text-center small text-uppercase" style="display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 0.75rem; background: #fff; padding: 0 10px; z-index: 1;">Ou</span>
+              <span style="position: absolute; left: 0; right: 0; height: 1px; background: #e2e8f0; z-index: 0;"></span>
+            </div>
+
+            <!-- Instant One-Click Administrative Login -->
+            <a href="/demo-login" class="btn btn-outline-success w-100 py-2 fw-semibold rounded shadow-sm d-flex align-items-center justify-content-center" id="demoLoginBtn">
+              <i class="bi bi-lightning-charge-fill text-warning me-2"></i> Connexion Démo Administrateur
+            </a>
+          </div>
+        </div>
+
+        <!-- Testing assistance box (showing seeded users) -->
+        <div class="mt-4 p-3 bg-white bg-opacity-10 border border-white border-opacity-10 rounded text-white text-center">
+          <div class="text-white-50 small fw-bold mb-2"><i class="bi bi-info-circle me-1"></i> Identifiants d'essai (Mot de passe: <code class="text-warning">Nom ou rôle + 123</code> ou voir ci-dessous) :</div>
+          <div class="row text-start" style="font-size: 0.75rem; max-height: 250px; overflow-y: auto;">
+            <div class="col-12 mb-1"><strong>Admin :</strong> <code class="text-warning">admin</code> / <code class="text-warning">admin123</code></div>
+            <div class="col-12 mb-1"><strong>Svc Acconage :</strong> <code class="text-warning">acconage</code> / <code class="text-warning">acconage123</code></div>
+            <div class="col-12 mb-1"><strong>Svc Enlèvement :</strong> <code class="text-warning">enlevement</code> / <code class="text-warning">enlevement123</code></div>
+            <div class="col-12 mb-1"><strong>Top Management / Dir :</strong> <code class="text-warning">direction</code> / <code class="text-warning">direction123</code></div>
+            <div class="col-12 mb-1"><strong>La Caisse / Payeur :</strong> <code class="text-warning">caisse</code> / <code class="text-warning">caisse123</code></div>
+            <div class="col-12 mb-1"><strong>Directeur Financier :</strong> <code class="text-warning">finances</code> / <code class="text-warning">finances123</code></div>
+            <div class="col-12 mb-1"><strong>Comptable Opérations :</strong> <code class="text-warning">compta_ops</code> / <code class="text-warning">comptaops123</code></div>
+            <div class="col-12 mb-1"><strong>Transit Opérateur :</strong> <code class="text-warning">transit</code> / <code class="text-warning">transit123</code></div>
+            <div class="col-12"><strong>Comptabilité Standard :</strong> <code class="text-warning">compta</code> / <code class="text-warning">compta123</code></div>
           </div>
         </div>
 
       </div>
     </div>
-
-    <!-- Super Admin bypass & Assistance -->
-    <div class="text-center mt-5">
-      <p class="text-muted small">Besoin d'aide ? Contactez l'administrateur système YM-TRANSIT au <code class="text-info">+237 600000000</code></p>
-      <div class="d-flex justify-content-center gap-3">
-        <a href="#" class="text-muted text-decoration-none small" onclick="showLogin('super_admin', 'Super Administrateur', 'admin@ym-transit.cm', 'admin123')">
-          <i class="bi bi-shield-lock-fill text-danger me-1"></i> Portail Super Admin
-        </a>
-      </div>
-    </div>
-
   </div>
-
-  <!-- Footer -->
-  <footer class="mt-auto py-3 text-center text-muted" style="font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.05);">
-    &copy; 2026 YM-TRANSIT ERP • Tout droit réservé COOPLOG • Douala - Kribi Autonomous Port.
-  </footer>
 
   <!-- Bootstrap Bundle with Popper -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  
   <script>
-    // Sub-departments lists depending on the selected Top-level category
-    const departmentsConfig = {
-      transit: {
-        title: "1. Transit & Opérations",
-        services: [
-          { code: "secretariat", label: "Sécrétariat Administratif", testUser: "secretariat", testPwd: "secretariat123" },
-          { code: "guce", label: "Guichet Unique (GUCE)", testUser: "guce", testPwd: "guce123" },
-          { code: "validation", label: "CAMCIS & Validation de Dossier", testUser: "validation", testPwd: "validation123" },
-          { code: "acconage", label: "Service Acconage (Bons)", testUser: "acconage", testPwd: "acconage123" },
-          { code: "enlevement", label: "Service Enlèvement (Bons)", testUser: "enlevement", testPwd: "enlevement123" }
-        ],
-        parent: "step-departments"
-      },
-      comptabilite: {
-        title: "2. Comptabilité",
-        services: [
-          { code: "caisse", label: "Caisse Administrative (La Caisse)", testUser: "caisse", testPwd: "caisse123" },
-          { code: "auditeur1", label: "Auditeur 1 - Rapprochement des comptes", testUser: "auditeur1", testPwd: "auditeur1123" }
-        ],
-        parent: "step-departments"
-      },
-      administration: {
-        title: "4. Administration & Top Management",
-        services: [
-          { code: "pdg", label: "Président Directeur Général (PDG)", testUser: "pdg", testPwd: "pdg123" },
-          { code: "dg", label: "Directeur Général (DG)", testUser: "dg", testPwd: "dg123" },
-          { code: "dga", label: "Directeur Général Adjoint (DGA)", testUser: "dga", testPwd: "dga123" },
-          { code: "daf", label: "Directeur Administratif & Financier (DAF)", testUser: "daf", testPwd: "daf123" },
-          { code: "auditeur1", label: "Auditeur Interne 1 (Validation de Bons)", testUser: "auditeur1", testPwd: "auditeur1123" },
-          { code: "auditeur2", label: "Auditeur Interne 2 (Contrôle opérationnel)", testUser: "auditeur2", testPwd: "auditeur2123" }
-        ],
-        parent: "step-departments"
-      }
-    };
-
-    let selectedTestUsername = "";
-    let selectedTestPassword = "";
-    let previousStepId = "step-departments"; // to easily trace backtracking
-
-    function selectDepartment(deptCode) {
-      const config = departmentsConfig[deptCode];
-      if (!config) return;
-
-      // Populate services
-      const titleEl = document.getElementById("services-title");
-      titleEl.innerText = config.title;
-
-      const containerEl = document.getElementById("services-container");
-      containerEl.innerHTML = "";
-
-      config.services.forEach(svc => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn service-btn py-3 px-4 d-flex justify-content-between align-items-center w-100 fw-medium";
-        btn.innerHTML = `
-          <span><i class="bi bi-arrow-right-short me-2"></i> ${svc.label}</span>
-          <span class="badge bg-dark text-muted fw-normal" style="font-size:0.7rem;">Code: ${svc.code}</span>
-        `;
-        btn.onclick = () => showLogin(svc.code, svc.label, svc.testUser, svc.testPwd, "step-services");
-        containerEl.appendChild(btn);
-      });
-
-      // Switch to services panel
-      document.getElementById("step-departments").classList.add("d-none");
-      document.getElementById("step-services").classList.remove("d-none");
-      previousStepId = "step-departments";
-    }
-
-    function showLogin(serviceCode, serviceLabel, testUser, testPwd, sourceStepId = "step-departments") {
-      document.getElementById("login-dept-title").innerText = serviceLabel;
-      
-      const nomInput = document.getElementById("nom");
-      const pwdInput = document.getElementById("password");
-      
-      // Save test credentials to inject later with the wizard btn
-      selectedTestUsername = testUser || "";
-      selectedTestPassword = testPwd || "";
-
-      // Prefill by default for rapid frictionless evaluation
-      nomInput.value = selectedTestUsername;
-      pwdInput.value = selectedTestPassword;
-
-      document.getElementById("selected-service-code").value = serviceCode;
-
-      // Switch views
-      document.getElementById("step-departments").classList.add("d-none");
-      document.getElementById("step-services").classList.add("d-none");
-      document.getElementById("step-login").classList.remove("d-none");
-
-      previousStepId = sourceStepId;
-    }
-
-    function applyTestAccount() {
-      if (selectedTestUsername) {
-        document.getElementById("nom").value = selectedTestUsername;
-        document.getElementById("password").value = selectedTestPassword;
-      }
-    }
-
-    function goBackToStep1() {
-      document.getElementById("step-services").classList.add("d-none");
-      document.getElementById("step-departments").classList.remove("d-none");
-    }
-
-    function goBackFromLogin() {
-      document.getElementById("step-login").classList.add("d-none");
-      if (previousStepId === "step-services") {
-        document.getElementById("step-services").classList.remove("d-none");
-      } else {
-        document.getElementById("step-departments").classList.remove("d-none");
-      }
-    }
-
     document.addEventListener("DOMContentLoaded", function () {
-      // Automatic iframe helper in case they test direct inside AI Studio
+      // Détecter si la page est chargée dans un iframe (ex: cadre d'aperçu d'AI Studio)
       const isInIframe = window.self !== window.top;
       if (isInIframe) {
         const helperDiv = document.getElementById("iframeHelper");
@@ -498,13 +157,6 @@
           openBtn.href = window.location.href;
         }
       }
-
-      // If an error message exists, go straight to the login panel view so they see it
-      <% if (typeof error_msg !== 'undefined' && error_msg && error_msg.length > 0) { %>
-        document.getElementById("step-departments").classList.add("d-none");
-        document.getElementById("step-services").classList.add("d-none");
-        document.getElementById("step-login").classList.remove("d-none");
-      <% } %>
     });
   </script>
 </body>

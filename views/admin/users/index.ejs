@@ -1,216 +1,166 @@
-<%- include('../../partials/header') %>
+<%- include('../../partials/header', { title: 'Utilisateurs & Droits' }) %>
 
-<div class="row mb-4 text-start">
-  <div class="col-12 py-2">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div>
-        <h1 class="h2 font-display text-slate-800 fw-bold mb-1">
-          <i class="bi bi-people-fill text-primary me-2"></i>Organigramme & Rôles Collaborateurs
-        </h1>
-        <p class="text-muted mb-0">Administrez les rôles d'équipe de transit, les permis d'accès et les comptes de caisse YM-TRANSIT ERP.</p>
-      </div>
-      <div>
-        <a href="/admin/users/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-4 shadow-sm">
-          <i class="bi bi-person-plus-fill me-1.5"></i> Créer un collaborateur
-        </a>
-      </div>
+<div class="content-wrapper p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h4 mb-0">Utilisateurs & Droits d'accès</h1>
+      <p class="text-muted mb-0 small">Gérez les comptes et assignez les services</p>
     </div>
+    <a href="/admin/users/create" class="btn btn-primary">
+      <i class="bi bi-person-plus me-2"></i>Nouvel utilisateur
+    </a>
   </div>
-</div>
 
-<%
-  const rolesDefinition = [
-    { key: "secretariat", label: "Secrétariat Administratif", desc: "Suivi des tiers, création initiale de dossiers de transit", icon: "bi-building-fill", badge: "bg-primary text-white" },
-    { key: "validation_role", label: "Chargé de Validation", desc: "Contrôle d'intégrité et validation douanière administrative", icon: "bi-shield-check", badge: "bg-success text-white" },
-    { key: "guce", label: "Agent Douane GUCE", desc: "Liaisons avec le Guichet Unique pour le commerce extérieur", icon: "bi-cash-coin", badge: "bg-info text-dark" },
-    { key: "acconage", label: "Service Acconage", desc: "Enregistrement des navires, gestion logistique et bons d'avance", icon: "bi-ship", badge: "bg-primary-subtle text-primary border" },
-    { key: "enlevement", label: "Service Enlèvement", desc: "Opérations de dédouanement physiques, livraison et bons de caisse", icon: "bi-truck", badge: "bg-warning text-dark" },
-    { key: "direction", label: "Direction de Caisse", desc: "Visa, approbation budgétaire des dépenses et audit analytique", icon: "bi-person-workspace", badge: "bg-danger text-white" },
-    { key: "agent_payeur", label: "Trésorier / Agent Payeur", desc: "Règlement des bons approuvés, gestion de caisse et monétique", icon: "bi-wallet2", badge: "bg-success-subtle text-success border" },
-    { key: "finances", label: "Administration Financière", desc: "Génération de devis, factures clients et conformité fiscale", icon: "bi-bank", badge: "bg-dark text-white" },
-    { key: "comptable_ops", label: "Comptabilité Opérationnelle", desc: "Clôtures logistiques, bilans des charges d'expédition d'avance", icon: "bi-calculator-fill", badge: "bg-secondary text-white" },
-    { key: "super_admin", label: "Super Administrateur", desc: "Gouvernance système totale, sécurité et création de collaborateurs", icon: "bi-cpu-fill", badge: "bg-black text-white" },
-    { key: "comptable", label: "Comptabilité Générale", desc: "Saisie journalière de factures fournisseurs, grand livre", icon: "bi-briefcase", badge: "bg-indigo text-dark" },
-    { key: "commercial", label: "Service Commercial", desc: "Prospection client, négociation douanière, gestion du listing", icon: "bi-cart-fill", badge: "bg-purple text-white" },
-    { key: "operationnel", label: "Exploitant Logistique", desc: "Maintenance générale des dossiers transit standards", icon: "bi-gear-wide-connected", badge: "bg-light text-slate-800 border" },
-    { key: "magasinier", label: "Gestionnaire Entrepôt", desc: "Contrôle des stocks de marchandises et magasins généraux", icon: "bi-box-seam-fill", badge: "bg-teal-700 text-white" },
-    { key: "rh", label: "Ressources Humaines", desc: "Gestion des employés, paies et traitement des congés", icon: "bi-people-fill", badge: "bg-pink text-white" },
-    { key: "lecture", label: "Auditeur / Lecture Seule", desc: "Consultation intégrale de l'ERP sans droit d'écriture", icon: "bi-eye-fill", badge: "bg-secondary-subtle text-secondary" }
+  <% if (typeof error_msg !== 'undefined' && error_msg) { %>
+    <div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i><%= error_msg %></div>
+  <% } %>
+  <% if (typeof success_msg !== 'undefined' && success_msg) { %>
+    <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i><%= success_msg %></div>
+  <% } %>
+
+  <%
+  const DEPT_CONFIG = [
+    { key:'administration', label:'Administration', color:'#993C1D', bg:'#FAECE7', icon:'bi-building',
+      roles:['pdg','dg','dga','daf','auditeur1','auditeur2','super_admin'] },
+    { key:'transit', label:'Transit', color:'#0F6E56', bg:'#E1F5EE', icon:'bi-truck',
+      roles:['secretariat','guce','validation_role','acconage','enlevement'] },
+    { key:'finance', label:'Finance', color:'#854F0B', bg:'#FAEEDA', icon:'bi-cash-coin',
+      roles:['finances','fiscalite','cloture'] },
+    { key:'comptabilite', label:'Comptabilité', color:'#185FA5', bg:'#E6F1FB', icon:'bi-journal-check',
+      roles:['caisse'] },
+    { key:'analyse', label:'Analyse', color:'#534AB7', bg:'#EEEDFE', icon:'bi-graph-up',
+      roles:['analyste'] },
+    { key:'archives', label:'Archives', color:'#5F5E5A', bg:'#F1EFE8', icon:'bi-archive',
+      roles:['archiviste'] }
   ];
-%>
+  const ROLE_LABELS = {
+    super_admin:'Super Admin', pdg:'PDG', dg:'DG', dga:'DGA', daf:'DAF',
+    auditeur1:'Auditeur 1', auditeur2:'Auditeur 2',
+    secretariat:'Secrétariat', guce:'GUCE', validation_role:'Validation CAMCIS',
+    acconage:'Acconage', enlevement:'Enlèvement & Livraison',
+    finances:'Facturation', fiscalite:'Fiscalité', cloture:'Clôture',
+    caisse:'Caisse', analyste:'Analyste', archiviste:'Archives',
+    comptable:'Comptable', direction:'Direction', agent_payeur:'Agent Payeur',
+    commercial:'Commercial', operationnel:'Opérationnel', comptable_ops:'Compta Ops'
+  };
+  %>
 
-<!-- ROLE STATS SUMMARY GRID OVERVIEW -->
-<div class="row g-3 mb-4 text-start">
-  <% rolesDefinition.forEach(role => { %>
-    <% 
-      const roleUsers = users.filter(u => u.role === role.key);
-      const activeCount = roleUsers.filter(u => u.actif).length;
-    %>
-    <div class="col-sm-6 col-md-4 col-lg-3">
-      <div class="card border-0 shadow-sm h-100 rounded-3 transition-all hover:translate-y-[-2px] border-bottom border-3" style="border-color: #cbd5e1 !important;">
-        <div class="card-body p-3 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <span class="rounded-circle bg-light text-slate-600 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
-                <i class="bi <%= role.icon %>"></i>
-              </span>
-              <span class="badge rounded-pill <%= role.badge %> text-xs font-monospace">
-                <%= role.key %>
-              </span>
-            </div>
-            <h6 class="fw-bold mb-1 text-slate-800" style="font-size: 0.9rem;"><%= role.label %></h6>
-            <p class="text-slate-500 mb-2" style="font-size: 0.72rem; line-height: 1.25;"><%= role.desc %></p>
-          </div>
-          <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top border-light">
-            <span class="text-xs text-muted">
-              <strong><%= roleUsers.length %></strong> compte<%= roleUsers.length > 1 ? 's' : '' %> 
-              (<%= activeCount %> actif<%= activeCount > 1 ? 's' : '' %>)
-            </span>
-            <a href="/admin/users/create?role=<%= role.key %>" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5" style="font-size: 0.7rem;" title="Attribuer ce rôle à un collaborateur">
-              <i class="bi bi-plus-lg"></i> Assigner
-            </a>
-          </div>
-        </div>
+  <!-- Stats row -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0 fw-bold text-primary"><%= users.length %></div>
+        <div class="text-muted small">Total utilisateurs</div>
       </div>
     </div>
-  <% }) %>
-</div>
-
-<!-- ACCORDION / ROLES GROUPS EXPAND LIST -->
-<div class="text-start">
-  <div class="card border-0 shadow-sm rounded-3">
-    <div class="card-header bg-white border-bottom py-3">
-      <h5 class="mb-0 text-slate-800 fw-bold"><i class="bi bi-diagram-3-fill me-2 text-primary"></i>Détails des Équipes par Rôle</h5>
+    <div class="col-sm-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0 fw-bold text-success"><%= users.filter(u=>u.actif).length %></div>
+        <div class="text-muted small">Comptes actifs</div>
+      </div>
     </div>
-    <div class="card-body p-0">
-      <div class="accordion accordion-flush" id="rolesAccordion">
-        <% rolesDefinition.forEach((role, rIndex) => { %>
-          <% 
-            const roleUsers = users.filter(u => u.role === role.key);
-          %>
-          <div class="accordion-item border-bottom">
-            <h2 class="accordion-header" id="heading<%= role.key %>">
-              <button class="accordion-button <%= roleUsers.length > 0 ? '' : 'collapsed' %> d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<%= role.key %>" aria-expanded="<%= roleUsers.length > 0 ? 'true' : 'false' %>" aria-controls="collapse<%= role.key %>" style="background-color: #fafbfc;">
-                <div class="d-flex align-items-center flex-wrap gap-2">
-                  <span class="rounded-circle bg-light text-slate-700 d-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px;">
-                    <i class="bi <%= role.icon %>"></i>
-                  </span>
-                  <strong class="text-slate-800 me-2"><%= role.label %></strong>
-                  <span class="badge bg-secondary-subtle text-secondary font-monospace text-xs py-1 px-2 rounded-pill">
-                    <%= role.key %>
-                  </span>
-                </div>
-                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 text-xs me-4 font-monospace">
-                  <%= roleUsers.length %> collaborateur<%= roleUsers.length > 1 ? 's' : '' %>
-                </span>
-              </button>
-            </h2>
-            <div id="collapse<%= role.key %>" class="accordion-collapse collapse <%= roleUsers.length > 0 ? 'show' : '' %>" aria-labelledby="heading<%= role.key %>" data-bs-parent="#rolesAccordion">
-              <div class="accordion-body p-0">
-                <% if (roleUsers.length === 0) { %>
-                  <div class="p-4 text-muted text-center small">
-                    <i class="bi bi-people-fill text-slate-300 me-1.5"></i> Aucun compte actif ou inactif n'est encore assigné au rôle <strong><%= role.label %></strong>.
-                    <div class="mt-2 text-center">
-                      <a href="/admin/users/create?role=<%= role.key %>" class="btn btn-sm btn-link text-primary text-decoration-none p-0 fw-bold">
-                        <i class="bi bi-person-plus-fill me-1"></i>Ajouter le premier collaborateur pour ce poste
-                      </a>
-                    </div>
-                  </div>
-                <% } else { %>
-                  <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
-                      <thead class="table-light">
-                        <tr>
-                          <th class="ps-4 py-2 text-muted fw-bold text-xs uppercase" style="width: 25%;">Nom / Prénom</th>
-                          <th class="py-2 text-muted fw-bold text-xs uppercase" style="width: 25%;">Adresse Email</th>
-                          <th class="py-2 text-muted fw-bold text-xs uppercase" style="width: 15%;">Société</th>
-                          <th class="py-2 text-muted fw-bold text-xs uppercase" style="width: 13%;">Statut</th>
-                          <th class="py-2 text-muted fw-bold text-xs uppercase" style="width: 12%;">Connexion</th>
-                          <th class="pe-4 py-2 text-end text-muted fw-bold text-xs uppercase" style="width: 10%;">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <% roleUsers.forEach(targetUser => { %>
-                          <tr>
-                            <td class="ps-4 py-3 fw-medium">
-                              <div class="d-flex align-items-center">
-                                <div class="rounded-circle text-white bg-slate-400 d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; font-size: 0.85rem; font-weight: 700;">
-                                  <%= (targetUser.prenom ? targetUser.prenom[0] : '') %><%= targetUser.nom[0] %>
-                                </div>
-                                <div>
-                                  <div class="fw-semibold text-slate-800"><%= targetUser.nom %> <%= targetUser.prenom || "" %></div>
-                                  <% if (targetUser.force_pwd_change) { %>
-                                    <span class="badge bg-warning text-dark font-sans" style="font-size: 0.65rem;">Changement PWD forcé</span>
-                                  <% } %>
-                                </div>
-                              </div>
-                            </td>
-                            <td class="py-3 text-slate-600 font-monospace text-xs"><%= targetUser.email %></td>
-                            <td class="py-3 text-slate-500 font-sans"><%= targetUser.societe %></td>
-                            <td class="py-3">
-                              <% if (targetUser.actif) { %>
-                                <span class="badge bg-success-subtle text-success py-1 px-2 rounded-pill" style="font-size: 0.72rem;"><i class="bi bi-check-circle me-1"></i>Actif</span>
-                              <% } else { %>
-                                <span class="badge bg-danger-subtle text-danger py-1 px-2 rounded-pill" style="font-size: 0.72rem;"><i class="bi bi-slash-circle me-1"></i>Désactivé</span>
-                              <% } %>
-                            </td>
-                            <td class="py-3 text-muted small" style="font-size: 0.75rem;">
-                              <%= targetUser.last_login ? new Date(targetUser.last_login).toLocaleDateString('fr-FR') : "Jamais" %>
-                            </td>
-                            <td class="pe-4 py-3 text-end">
-                              <div class="d-flex justify-content-end gap-1">
-                                <a href="/admin/users/edit/<%= targetUser.id %>" class="btn btn-outline-secondary btn-xs py-1 px-2 rounded-pill" style="font-size: 0.75rem;" title="Modifier">
-                                  <i class="bi bi-pencil-square"></i>
-                                </a>
-                                <form action="/admin/users/toggle/<%= targetUser.id %>" method="POST" class="d-inline" onsubmit="return confirm('Voulez-vous modifier le statut de cet utilisateur ?');">
-                                  <button type="submit" class="btn btn-xs py-1 px-2 rounded-pill <%= targetUser.actif ? 'btn-outline-danger' : 'btn-outline-success' %>" style="font-size: 0.75rem;" title="<%= targetUser.actif ? 'Désactiver' : 'Activer' %>">
-                                    <i class="bi <%= targetUser.actif ? 'bi-shield-x' : 'bi-shield-check' %>"></i>
-                                  </button>
-                                </form>
-                                <button class="btn btn-outline-warning btn-xs py-1 px-2 rounded-pill text-dark" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#resetModal<%= targetUser.id %>" title="Changer mot de passe">
-                                  <i class="bi bi-key-fill"></i>
-                                </button>
-                              </div>
-
-                              <!-- Reset Password Modal -->
-                              <div class="modal fade text-start" id="resetModal<%= targetUser.id %>" tabindex="-1" aria-hidden="true" style="text-align: left;">
-                                <div class="modal-dialog modal-dialog-centered">
-                                  <form action="/admin/users/reset-pwd/<%= targetUser.id %>" method="POST" class="modal-content border-0 shadow">
-                                    <div class="modal-header bg-warning py-3">
-                                      <h5 class="modal-title text-dark fw-bold"><i class="bi bi-key-fill me-2"></i>Réinitialiser le mot de passe</h5>
-                                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body p-4">
-                                      <p class="text-slate-600 mb-3 small">Réinitialisation pour <strong><%= targetUser.nom %></strong>. L'utilisateur devra obligatoirement changer ce mot de passe temporaire lors de sa prochaine connexion.</p>
-                                      <div class="mb-3">
-                                        <label class="form-label text-xs fw-bold">Nouveau mot de passe temporaire</label>
-                                        <div class="input-group">
-                                          <span class="input-group-text bg-white text-muted"><i class="bi bi-shield-lock"></i></span>
-                                          <input type="text" name="new_password" class="form-control form-control-sm" placeholder="Entrez un mot de passe solide (ex: YmTransit@<%= targetUser.nom %>2026)" required>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div class="modal-footer p-3 bg-light border-top-0">
-                                      <button type="button" class="btn btn-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Annuler</button>
-                                      <button type="submit" class="btn btn-warning rounded-pill px-4 text-dark fw-bold btn-sm">Appliquer la réinitialisation</button>
-                                    </div>
-                                  </form>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        <% }) %>
-                      </tbody>
-                    </table>
-                  </div>
-                <% } %>
-              </div>
-            </div>
-          </div>
-        <% }) %>
+    <div class="col-sm-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0 fw-bold text-danger"><%= users.filter(u=>!u.actif).length %></div>
+        <div class="text-muted small">Comptes inactifs</div>
+      </div>
+    </div>
+    <div class="col-sm-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0 fw-bold text-info"><%= DEPT_CONFIG.length %></div>
+        <div class="text-muted small">Départements</div>
       </div>
     </div>
   </div>
+
+  <!-- Department groups -->
+  <% DEPT_CONFIG.forEach(dept => {
+    const deptUsers = users.filter(u => dept.roles.includes(u.role));
+  %>
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header d-flex align-items-center justify-content-between py-2" style="background:<%= dept.bg %>">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi <%= dept.icon %>" style="color:<%= dept.color %>;font-size:1.1rem"></i>
+        <span class="fw-semibold" style="color:<%= dept.color %>"><%= dept.label %></span>
+        <span class="badge rounded-pill" style="background:<%= dept.color %>;color:white"><%= deptUsers.length %> personne(s)</span>
+      </div>
+      <a href="/admin/users/create?dept=<%= dept.key %>" class="btn btn-sm" style="background:<%= dept.color %>;color:white;font-size:0.75rem">
+        <i class="bi bi-person-plus me-1"></i>Ajouter
+      </a>
+    </div>
+    <% if (deptUsers.length > 0) { %>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nom</th>
+            <th>Service / Rôle</th>
+            <th>Email</th>
+            <th>Dernière connexion</th>
+            <th>Statut</th>
+            <th class="text-end pe-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% deptUsers.forEach(u => { %>
+          <tr>
+            <td class="ps-3">
+              <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
+                     style="width:32px;height:32px;background:<%= dept.color %>;font-size:0.75rem;flex-shrink:0">
+                  <%= u.nom.charAt(0).toUpperCase() %>
+                </div>
+                <div>
+                  <div class="fw-semibold small"><%= u.nom %></div>
+                  <div class="text-muted" style="font-size:0.72rem"><%= u.prenom || '' %></div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge rounded-pill" style="background:<%= dept.bg %>;color:<%= dept.color %>"><%= ROLE_LABELS[u.role] || u.role %></span></td>
+            <td class="small text-muted"><%= u.email %></td>
+            <td class="small text-muted"><%= u.last_login ? new Date(u.last_login).toLocaleDateString('fr-FR') : 'Jamais' %></td>
+            <td>
+              <% if (u.actif) { %>
+                <span class="badge bg-success-subtle text-success">Actif</span>
+              <% } else { %>
+                <span class="badge bg-danger-subtle text-danger">Inactif</span>
+              <% } %>
+            </td>
+            <td class="text-end pe-3">
+              <div class="d-flex gap-1 justify-content-end">
+                <a href="/admin/users/<%= u.id %>/edit" class="btn btn-sm btn-outline-primary py-0 px-2" title="Modifier">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST" action="/admin/users/<%= u.id %>/toggle" class="d-inline">
+                  <button type="submit" class="btn btn-sm <%= u.actif ? 'btn-outline-warning' : 'btn-outline-success' %> py-0 px-2"
+                    title="<%= u.actif ? 'Désactiver' : 'Activer' %>"
+                    onclick="return confirm('<%= u.actif ? 'Désactiver' : 'Activer' %> ce compte ?')">
+                    <i class="bi <%= u.actif ? 'bi-person-dash' : 'bi-person-check' %>"></i>
+                  </button>
+                </form>
+                <form method="POST" action="/admin/users/<%= u.id %>/reset-password" class="d-inline">
+                  <input type="hidden" name="new_password" value="transit2026!">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                    title="Réinitialiser mdp → transit2026!"
+                    onclick="return confirm('Réinitialiser le mot de passe à transit2026! ?')">
+                    <i class="bi bi-key"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <div class="card-body text-center text-muted py-3 small">
+      <i class="bi bi-person-x me-1"></i>Aucun utilisateur dans ce département.
+      <a href="/admin/users/create?dept=<%= dept.key %>" class="ms-2">Ajouter quelqu'un</a>
+    </div>
+    <% } %>
+  </div>
+  <% }) %>
 </div>
 
 <%- include('../../partials/footer') %>

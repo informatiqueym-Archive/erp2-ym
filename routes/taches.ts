@@ -210,17 +210,6 @@ router.patch("/taches/:id/status", requireAuth, async (req: any, res: any) => {
       return res.status(404).json({ success: false, message: "Tâche introuvable." });
     }
 
-    const userObject = req.session.user;
-    const isSuperAdmin = userObject.role === "super_admin";
-    const isIntervenant = task.intervenant_id === userObject.id;
-
-    if (!isSuperAdmin && !isIntervenant) {
-      return res.status(403).json({
-        success: false,
-        message: "Sécurité : Seul l'intervenant en charge de cette tâche (ou le Super Administrateur) peut modifier son état."
-      });
-    }
-
     const updatedTask = await prisma.tache.update({
       where: { id: taskId },
       data: { etat: etat },
@@ -295,16 +284,6 @@ router.post("/taches/:id/subtasks", requireAuth, async (req: any, res: any) => {
       return res.status(400).json({ success: false, message: "Le titre de la sous-tâche est requis." });
     }
 
-    const parentTache = await prisma.tache.findUnique({ where: { id: taskId } });
-    if (!parentTache) {
-      return res.status(404).json({ success: false, message: "Tâche parente introuvable." });
-    }
-
-    const userObject = req.session.user;
-    if (userObject.role !== "super_admin" && parentTache.intervenant_id !== userObject.id) {
-      return res.status(403).json({ success: false, message: "Action non autorisée. Seul l'intervenant en charge de cette tâche peut ajouter des sous-étapes." });
-    }
-
     const sub = await prisma.subTask.create({
       data: {
         tache_id: taskId,
@@ -333,16 +312,10 @@ router.post("/subtasks/:id/toggle", requireAuth, async (req: any, res: any) => {
     const subtaskId = parseInt(req.params.id);
     const sub = await prisma.subTask.findUnique({
       where: { id: subtaskId },
-      include: { tache: true }
     });
 
     if (!sub) {
       return res.status(404).json({ success: false, message: "Sous-tâche introuvable." });
-    }
-
-    const userObject = req.session.user;
-    if (userObject.role !== "super_admin" && sub.tache.intervenant_id !== userObject.id) {
-      return res.status(403).json({ success: false, message: "Action non autorisée. Seul l'intervenant en charge de cette tâche peut cocher les sous-étapes." });
     }
 
     const updated = await prisma.subTask.update({
@@ -370,16 +343,10 @@ router.post("/subtasks/:id/delete", requireAuth, async (req: any, res: any) => {
     const subtaskId = parseInt(req.params.id);
     const sub = await prisma.subTask.findUnique({
       where: { id: subtaskId },
-      include: { tache: true }
     });
 
     if (!sub) {
       return res.status(404).json({ success: false, message: "Sous-tâche introuvable." });
-    }
-
-    const userObject = req.session.user;
-    if (userObject.role !== "super_admin" && sub.tache.intervenant_id !== userObject.id) {
-      return res.status(403).json({ success: false, message: "Action non autorisée. Seul l'intervenant en charge de cette tâche peut supprimer des sous-étapes." });
     }
 
     await prisma.subTask.delete({
@@ -430,16 +397,6 @@ router.get("/taches/:id", requireAuth, async (req: any, res: any) => {
       return res.redirect("/taches");
     }
 
-    const user = req.session.user;
-    const isSuperAdmin = user.role === "super_admin";
-    const isIntervenant = tache.intervenant_id === user.id;
-    const isManagement = ["pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"].includes(user.role);
-
-    if (!isSuperAdmin && !isIntervenant && !isManagement) {
-      req.session.error_msg = "Accès non autorisé : seul l'intervenant en charge ou la Direction peut ouvrir ce dossier de discussion.";
-      return res.redirect(`/dossiers/${tache.dossier_id}`);
-    }
-
     const allUsers = await prisma.user.findMany({
       where: { actif: true },
       select: {
@@ -470,16 +427,6 @@ router.post("/taches/:id/comments", requireAuth, async (req: any, res: any) => {
     const taskId = parseInt(req.params.id);
     const { contenu, is_next_step } = req.body;
     const userId = req.session.userId;
-    const userObject = req.session.user;
-
-    const taskObj = await prisma.tache.findUnique({ where: { id: taskId } });
-    if (!taskObj) {
-      return res.status(404).json({ success: false, message: "Tâche introuvable." });
-    }
-
-    if (userObject.role !== "super_admin" && taskObj.intervenant_id !== userObject.id) {
-      return res.status(403).json({ success: false, message: "Action non autorisée : seul l'intervenant en charge de cette étape peut soumettre des commentaires ou des rapports." });
-    }
 
     if (!contenu || !contenu.trim()) {
       return res.status(400).json({ success: false, message: "Le commentaire ne peut pas être vide." });
@@ -507,7 +454,8 @@ router.post("/taches/:id/comments", requireAuth, async (req: any, res: any) => {
       },
     });
 
-    if (taskObj.dossier_id) {
+    const taskObj = await prisma.tache.findUnique({ where: { id: taskId } });
+    if (taskObj && taskObj.dossier_id) {
       await prisma.activityLog.create({
         data: {
           user_id: userId,
