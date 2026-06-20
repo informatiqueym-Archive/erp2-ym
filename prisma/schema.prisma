@@ -28,9 +28,6 @@ model User {
   ecritures           EcritureComptable[]
   taches              Tache[]
   comments            TacheComment[]
-  dossier_files       DossierFile[]
-  dossier_comments    DossierComment[]
-  notifications       Notification[]
 }
 
 model Client {
@@ -65,8 +62,6 @@ model Dossier {
   bons_reel       BonReel[]
   client          Client         @relation(fields: [client_id], references: [id], onDelete: Cascade)
   taches          Tache[]
-  files           DossierFile[]
-  comments        DossierComment[]
 }
 
 model Tache {
@@ -319,42 +314,3 @@ model BonReel {
   dossier           Dossier      @relation(fields: [dossier_id], references: [id])
   bon_provisoir     BonProvisoir @relation(fields: [bon_provisoir_id], references: [id])
 }
-
-model DossierFile {
-  id          Int      @id @default(autoincrement())
-  dossier_id  Int
-  user_id     Int
-  filename    String
-  original    String
-  stage       String
-  category    String
-  comment     String?
-  path        String
-  created_at  DateTime @default(now())
-  dossier     Dossier  @relation(fields:[dossier_id], references:[id], onDelete:Cascade)
-  user        User     @relation(fields:[user_id], references:[id], onDelete:Cascade)
-}
-
-model DossierComment {
-  id         Int      @id @default(autoincrement())
-  dossier_id Int
-  user_id    Int
-  contenu    String
-  stage      String
-  created_at DateTime @default(now())
-  dossier    Dossier  @relation(fields:[dossier_id], references:[id], onDelete:Cascade)
-  user       User     @relation(fields:[user_id], references:[id], onDelete:Cascade)
-}
-
-model Notification {
-  id            Int      @id @default(autoincrement())
-  user_id       Int
-  titre         String
-  contenu       String
-  lien          String?
-  lu            Boolean  @default(false)
-  browser_shown Boolean  @default(false)
-  created_at    DateTime @default(now())
-  user          User     @relation(fields:[user_id], references:[id], onDelete:Cascade)
-}
-

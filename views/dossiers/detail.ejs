@@ -1,15 +1,5 @@
 <%- include('../partials/header') %>
 
-<% if (dossier.pipeline_status === "ARCHIVE" || dossier.etat === "CLOTURE") { %>
-  <div class="alert alert-success border-0 shadow-sm d-flex align-items-center gap-3 p-4 mb-4 rounded-3 text-start bg-success-subtle text-success-emphasis border-start border-success border-4" id="dossier-archive-banner">
-    <i class="bi bi-archive-fill fs-3 text-success"></i>
-    <div class="flex-grow-1">
-      <h6 class="fw-bold mb-1">Dossier de Transit ARCHIVÉ</h6>
-      <span class="text-xs">Ce dossier de transit est entièrement <strong>ARCHIVÉ</strong>. Toutes les opérations logistiques, financières, et tous les contrôles d'étape sont verrouillés pour l'historique permanent. Toutes les sections sont accessibles en lecture seule.</span>
-    </div>
-  </div>
-<% } %>
-
 <div class="row mb-4">
   <div class="col-12 py-2 text-start">
     <nav aria-label="breadcrumb">
@@ -213,27 +203,11 @@
                 </div>
               </div>
               
-              <!-- Added local uploads for GUCE quittances -->
-              <div class="col-12 mt-2">
-                <div class="row g-2">
-                  <div class="col-md-4">
-                    <div class="p-2 border rounded bg-white">
-                      <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Pièce Assurance (PDF/Image)</label>
-                      <input type="file" name="fichier_assurance" class="form-control form-control-sm" accept=".pdf,image/*">
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="p-2 border rounded bg-white">
-                      <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Pièce DESC (PDF/Image)</label>
-                      <input type="file" name="fichier_desc" class="form-control form-control-sm" accept=".pdf,image/*">
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="p-2 border rounded bg-white">
-                      <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Pièce RVC (PDF/Image)</label>
-                      <input type="file" name="fichier_rvc" class="form-control form-control-sm" accept=".pdf,image/*">
-                    </div>
-                  </div>
+              <!-- Added local upload input for GUCE agents -->
+              <div class="col-12 mt-2.5">
+                <div class="p-2 border rounded bg-white">
+                  <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Joindre le Manifeste CAMCIS ou Quittance validée (PDF, Optionnel)</label>
+                  <input type="file" name="pdf_file" class="form-control form-control-sm" accept=".pdf">
                 </div>
               </div>
 
@@ -253,27 +227,21 @@
 
       <% } else if (currentStatus === "VALIDATION") { %>
         <% if (["validation", "validation_role", "super_admin", "pdg", "dg", "dga", "auditeur1"].includes(user.role)) { %>
-          <div class="p-3 bg-light rounded border text-start">
+          <div class="p-3 bg-light rounded border">
             <h6 class="fw-bold mb-2">Décision administrative requise (CAMCIS)</h6>
-            <p class="text-xs text-muted mb-3">Vérifiez les pièces jointes importées (Notamment les quittances d'assurances / douane) puis joignez les documents CAMCIS validés ci-dessous.</p>
-            
-            <form action="/dossiers/<%= dossier.id %>/pipeline/approuver" method="POST" enctype="multipart/form-data" class="mb-3">
-              <div class="mb-3 p-2 bg-white border rounded">
-                <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Joindre documents CAMCIS (PDF/Image, multi-sélection)</label>
-                <input type="file" name="fichiers_camcis" class="form-control form-control-sm" accept=".pdf,image/*" multiple>
-              </div>
-              <div class="d-flex gap-2">
+            <p class="text-xs text-muted mb-3">Vérifiez les pièces jointes importées (Notamment les quittances d'assurances / douane) avant de prendre une décision.</p>
+            <div class="d-flex gap-2">
+              <form action="/dossiers/<%= dossier.id %>/pipeline/approuver" method="POST">
                 <button type="submit" class="btn btn-success rounded-pill px-4 btn-sm fw-bold">
                   <i class="bi bi-check-circle-fill me-1"></i>Approuver (Valider en CAMCIS)
                 </button>
-              </div>
-            </form>
-
-            <form action="/dossiers/<%= dossier.id %>/pipeline/rejeter" method="POST">
-              <button type="submit" class="btn btn-danger rounded-pill px-4 btn-sm fw-bold">
-                <i class="bi bi-x-circle-fill me-1"></i>Rejeter (Retour au GUCE)
-              </button>
-            </form>
+              </form>
+              <form action="/dossiers/<%= dossier.id %>/pipeline/rejeter" method="POST">
+                <button type="submit" class="btn btn-danger rounded-pill px-4 btn-sm fw-bold">
+                  <i class="bi bi-x-circle-fill me-1"></i>Rejeter (Retour au GUCE)
+                </button>
+              </form>
+            </div>
           </div>
         <% } else { %>
           <div class="text-warning italic small py-2"><i class="bi bi-clock-history me-1"></i>Dossier en attente de visa réglementaire par l'agent de validation.</div>
@@ -490,11 +458,11 @@
                   </div>
                 </div>
 
-                <!-- Added multiple file upload field for port receipts (scan or photo) -->
+                <!-- Added local upload input for Operational justification quittances -->
                 <div class="mb-3">
                   <div class="p-2 border rounded bg-white">
-                    <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-check-fill text-success me-1"></i>Joindre les reçus / quittances du port (scan ou photo)</label>
-                    <input type="file" name="fichiers_justificatifs" class="form-control form-control-sm" accept=".pdf,image/*" multiple required>
+                    <label class="form-label text-xs fw-bold text-slate-700 mb-1"><i class="bi bi-file-earmark-pdf text-danger me-1"></i>Téléverser vos justificatifs physiques / Quittances douanes finales (PDF, Optionnel)</label>
+                    <input type="file" name="pdf_file" class="form-control form-control-sm" accept=".pdf">
                   </div>
                 </div>
 
@@ -1126,11 +1094,9 @@
         <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
           <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Spécifications Logistiques, Douane & Marchandise
         </h5>
-        <% if (dossier.pipeline_status !== "ARCHIVE" && dossier.etat !== "CLOTURE") { %>
         <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center rounded-pill px-3 py-1" style="font-size: 0.78rem;" data-bs-toggle="modal" data-bs-target="#editCustomFieldsModal">
           <i class="bi bi-pencil-square me-1"></i> Ajuster les Spécifications
         </button>
-        <% } %>
       </div>
       <div class="card-body">
         <div class="row g-3">
@@ -1196,11 +1162,9 @@
         <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
           <i class="bi bi-bookmark-star-fill text-warning me-2"></i>Manifeste des Étapes & Émissions Douanières
         </h5>
-        <% if (dossier.pipeline_status !== "ARCHIVE" && dossier.etat !== "CLOTURE") { %>
         <button class="btn btn-primary btn-sm rounded-pill px-3 d-inline-flex align-items-center text-xs" data-bs-toggle="modal" data-bs-target="#quickTaskModal">
           <i class="bi bi-plus-lg me-1"></i> Ajouter Jalon
         </button>
-        <% } %>
       </div>
       <div class="card-body p-0">
         <ul class="list-group list-group-flush" id="task-checklist-group">
@@ -1220,7 +1184,7 @@
                            id="chk-<%= t.id %>" 
                            data-task-id="<%= t.id %>"
                            style="width: 1.2rem; height: 1.2rem; cursor: pointer;" 
-                           <%= isDone ? 'checked' : '' %> <%= (dossier.pipeline_status === 'ARCHIVE' || dossier.etat === 'CLOTURE') ? 'disabled' : '' %>>
+                           <%= isDone ? 'checked' : '' %>>
                   </div>
                   <div class="ms-1">
                     <label class="fw-bold mb-0 text-slate-800 d-block cursor-pointer task-label <%= isDone ? 'text-decoration-line-through text-slate-500' : '' %>" 
@@ -1259,7 +1223,6 @@
                     <%= isDone ? 'VALIDÉ' : 'EN COURS' %>
                   </span>
                   
-                  <% if (dossier.pipeline_status !== 'ARCHIVE' && dossier.etat !== 'CLOTURE') { %>
                   <button class="btn btn-light btn-sm text-slate-500 p-1 rounded-circle" 
                           data-bs-toggle="modal" 
                           data-bs-target="#editTaskModal<%= t.id %>" 
@@ -1273,7 +1236,6 @@
                       <i class="bi bi-trash-fill" style="font-size: 0.8rem;"></i>
                     </button>
                   </form>
-                  <% } %>
                 </div>
               </li>
 
@@ -1333,11 +1295,9 @@
         <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
           <i class="bi bi-receipt-cutoff text-primary me-2"></i>Facturation & Devis Associés (<%= linkedInvoices ? linkedInvoices.length : 0 %>)
         </h5>
-        <% if (dossier.pipeline_status !== "ARCHIVE" && dossier.etat !== "CLOTURE") { %>
         <a href="/facturation?action=new&client_id=<%= dossier.client_id %>" class="btn btn-outline-primary btn-sm rounded-pill px-3 text-xs">
           <i class="bi bi-file-earmark-plus"></i> Facturer le Client
         </a>
-        <% } %>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -1400,599 +1360,148 @@
 
   <!-- Right Column: Document Attachments and Logs Activity -->
   <div class="col-lg-4">
-
-    <!-- Global Discussion Card -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white py-3 border-bottom border-light">
-        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
-          <i class="bi bi-chat-right-text-fill text-primary me-2"></i>Discussion du Dossier
-        </h5>
-      </div>
-      <div class="card-body p-0">
-        <!-- Comments List Container -->
-        <div id="dossier-comments-container" class="px-3 pt-3" style="max-height: 400px; overflow-y: auto; background-color: #f8fafc;">
-          <% if (dossier.comments && dossier.comments.length > 0) { %>
-            <% dossier.comments.forEach(comment => { %>
-              <% 
-                const initials = (comment.user.nom || "U").substring(0, 2).toUpperCase();
-                let avatarBg = "#4b5563";
-                if (comment.user.role === "super_admin") avatarBg = "#e11d48";
-                else if (["pdg", "dg", "dga"].includes(comment.user.role)) avatarBg = "#7c3aed";
-                else if (["validation", "validation_role"].includes(comment.user.role)) avatarBg = "#059669";
-                else if (comment.user.role === "guce") avatarBg = "#d97706";
-              %>
-              <div class="d-flex mb-3 align-items-start text-start dossier-comment-item">
-                <!-- Avatar Initials -->
-                <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold d-inline-block text-center flex-shrink-0" 
-                     style="width: 32px; height: 32px; line-height: 32px; background-color: <%= avatarBg %>; font-size: 0.75rem;" 
-                     title="<%= comment.user.nom %> (<%= comment.user.role %>)">
-                  <%= initials %>
-                </div>
-                <!-- Comment Content Block -->
-                <div class="ms-2 bg-white p-2.5 rounded shadow-sm border flex-grow-1" style="min-width: 0; margin-left: 10px !important;">
-                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
-                    <span class="fw-bold text-slate-800" style="font-size: 0.82rem;"><%= comment.user.nom %></span>
-                    <span class="badge bg-slate-100 text-slate-600 border text-xxs font-sans" style="font-size: 0.7rem;">
-                      Écrit lors de l'étape : <%= comment.stage %>
-                    </span>
-                  </div>
-                  <p class="mb-1 text-slate-700 text-sm break-words" style="font-size: 0.85rem; line-height: 1.4; word-wrap: break-word;"><%= comment.contenu %></p>
-                  <div class="text-xxs text-slate-400 font-monospace text-end" style="font-size: 0.7rem;">
-                    <%= new Date(comment.created_at).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) %>
-                  </div>
-                </div>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div id="no-comments-indicator" class="text-center text-muted py-5">
-              <i class="bi bi-chat-dots text-slate-300 display-6 d-block mb-2"></i>
-              Aucun commentaire sur ce dossier. Lancez la discussion !
-            </div>
-          <% } %>
-        </div>
-
-        <!-- Comment Form / Input Fields -->
-        <% if (dossier.etat !== "ARCHIVE" && dossier.pipeline_status !== "ARCHIVE") { %>
-          <div class="p-3 border-top bg-white">
-            <form id="dossier-comment-form">
-              <div class="input-group">
-                <input type="text" id="dossier-comment-input" class="form-control form-control-sm bg-light" placeholder="Créer une note ou poser une question..." required autocomplete="off">
-                <button class="btn btn-primary btn-sm px-3" type="submit">
-                  <i class="bi bi-send-fill"></i>
-                </button>
-              </div>
-            </form>
-          </div>
-        <% } else { %>
-          <div class="p-2.5 bg-slate-100 border-top text-center text-xs text-muted font-sans">
-            <i class="bi bi-lock-fill me-1"></i> Dossier archivé • Discussion fermée
-          </div>
-        <% } %>
-      </div>
-    </div>
-
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        const commentForm = document.getElementById('dossier-comment-form');
-        const commentInput = document.getElementById('dossier-comment-input');
-        const commentsContainer = document.getElementById('dossier-comments-container');
-        const noCommentsIndicator = document.getElementById('no-comments-indicator');
-
-        // Scroll to end of discussion thread
-        if (commentsContainer) {
-          commentsContainer.scrollTop = commentsContainer.scrollHeight;
-        }
-
-        if (commentForm) {
-          commentForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const content = commentInput.value.trim();
-            if (!content) return;
-
-            commentInput.disabled = true;
-            const submitBtn = commentForm.querySelector('button[type="submit"]');
-            if (submitBtn) submitBtn.disabled = true;
-
-            fetch('/dossiers/<%= dossier.id %>/comment', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ contenu: content })
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.ok) {
-                commentInput.value = '';
-                if (noCommentsIndicator) {
-                  noCommentsIndicator.remove();
-                }
-
-                const comment = data.comment;
-                const initials = (comment.user.nom || "U").substring(0, 2).toUpperCase();
-                let avatarBg = "#4b5563";
-                if (comment.user.role === "super_admin") avatarBg = "#e11d48";
-                else if (["pdg", "dg", "dga"].includes(comment.user.role)) avatarBg = "#7c3aed";
-                else if (["validation", "validation_role"].includes(comment.user.role)) avatarBg = "#059669";
-                else if (comment.user.role === "guce") avatarBg = "#d97706";
-
-                const dateStr = new Date(comment.created_at).toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
-
-                const commentEl = document.createElement('div');
-                commentEl.className = 'd-flex mb-3 align-items-start text-start dossier-comment-item';
-                commentEl.innerHTML = `
-                  <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold d-inline-block text-center flex-shrink-0" 
-                       style="width: 32px; height: 32px; line-height: 32px; background-color: ${avatarBg}; font-size: 0.75rem;" 
-                       title="${comment.user.nom} (${comment.user.role})">
-                    ${initials}
-                  </div>
-                  <div class="ms-2 bg-white p-2.5 rounded shadow-sm border flex-grow-1" style="min-width: 0; margin-left: 10px !important;">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-1 mb-1">
-                      <span class="fw-bold text-slate-800" style="font-size: 0.82rem;">${comment.user.nom}</span>
-                      <span class="badge bg-slate-100 text-slate-600 border text-xxs font-sans" style="font-size: 0.7rem;">
-                        Écrit lors de l'étape : ${comment.stage}
-                      </span>
-                    </div>
-                    <p class="mb-1 text-slate-700 text-sm break-words" style="font-size: 0.85rem; line-height: 1.4; word-wrap: break-word;">${comment.contenu}</p>
-                    <div class="text-xxs text-slate-400 font-monospace text-end" style="font-size: 0.7rem;">
-                      ${dateStr}
-                    </div>
-                  </div>
-                `;
-
-                commentsContainer.appendChild(commentEl);
-                commentsContainer.scrollTop = commentsContainer.scrollHeight;
-              } else {
-                alert("Erreur: " + (data.error || "Impossible d'ajouter le commentaire."));
-              }
-            })
-            .catch(err => {
-              console.error(err);
-              alert("Une erreur de communication est survenue.");
-            })
-            .finally(() => {
-              commentInput.disabled = false;
-              if (submitBtn) submitBtn.disabled = false;
-              commentInput.focus();
-            });
-          });
-        }
-      });
-    </script>
     
-    <!-- 5. DOCUMENTS DU DOSSIER section (All uploaded files visible to everyone) -->
+    <!-- 5. DOCUMENT ATTACHMENTS section (File upload PDFs zone) -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white py-3 border-bottom border-light">
         <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
-          <i class="bi bi-folder-fill text-warning me-2"></i>Documents du Dossier
+          <i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Dossier d'Archives PDF
         </h5>
       </div>
       <div class="card-body">
-        <p class="text-xs text-muted mb-3 text-start">Retrouvez ci-dessous l'ensemble des documents justificatifs administratifs et de transit triés par catégorie.</p>
-
-        <% if (dossier.etat !== "ARCHIVE" && dossier.pipeline_status !== "ARCHIVE") { %>
-          <!-- Collapse/Button trigger for generic upload -->
-          <div class="mb-4 text-start">
-            <button class="btn btn-outline-primary d-inline-flex align-items-center fw-bold text-xs rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUploadForm" aria-expanded="false" aria-controls="collapseUploadForm">
-              <i class="bi bi-plus-circle-fill me-1.5"></i> Joindre un document au dossier
+        
+        <!-- Upload Form PDF -->
+        <form action="/dossiers/<%= dossier.id %>/upload" method="POST" enctype="multipart/form-data" class="mb-3">
+          <label class="form-label small fw-semibold text-slate-600 mb-1">Téléverser document officiel (BL, LTA, SGS) :</label>
+          <div class="input-group input-group-sm mb-1.5">
+            <input type="file" class="form-control" name="pdf_file" accept=".pdf" required>
+            <button class="btn btn-dark d-inline-flex align-items-center" type="submit">
+              <i class="bi bi-cloud-upload-fill me-1"></i> Charger
             </button>
-            
-            <div class="collapse mt-3" id="collapseUploadForm">
-              <div class="p-3 border rounded-3 bg-white text-start shadow-sm generic-upload-card">
-                <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary" style="font-size: 0.85rem;">
-                  <i class="bi bi-file-earmark-arrow-up-fill me-1"></i> Nouveau document justificatif
-                </h6>
-                
-                <form action="/dossiers/<%= dossier.id %>/upload" method="POST" enctype="multipart/form-data" class="row g-3">
-                  <!-- File selection -->
-                  <div class="col-12">
-                    <label class="form-label text-xs fw-semibold text-slate-700 mb-1">Document (PDF, JPG, PNG - Max 20Mo) *</label>
-                    <input type="file" name="pdf_file" class="form-control form-control-sm" accept=".pdf,image/*" required>
-                  </div>
-                  
-                  <!-- Category selection -->
-                  <div class="col-md-6">
-                    <label class="form-label text-xs fw-semibold text-slate-700 mb-1">Catégorie de pièce *</label>
-                    <select name="category" class="form-select form-select-sm" required>
-                      <option value="ASSURANCE">ASSURANCE</option>
-                      <option value="DESC">DESC</option>
-                      <option value="RVC">RVC</option>
-                      <option value="CAMCIS">CAMCIS</option>
-                      <option value="RECU_PORT">REÇUS PORT</option>
-                      <option value="FACTURE">FACTURE</option>
-                      <option value="AUTRE" selected>AUTRE</option>
-                    </select>
-                  </div>
-                  
-                  <!-- Comment field -->
-                  <div class="col-md-6">
-                    <label class="form-label text-xs fw-semibold text-slate-700 mb-1">Commentaire / Précision (Optionnel)</label>
-                    <input type="text" name="comment" class="form-control form-control-sm" placeholder="Ex: Quittance, Facture acquittée, etc...">
-                  </div>
-                  
-                  <!-- Submit button -->
-                  <div class="col-12 text-end border-top pt-2.5">
-                    <button class="btn btn-secondary btn-xs me-1.5" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUploadForm">Annuler</button>
-                    <button class="btn btn-success btn-xs fw-bold" type="submit">
-                      <i class="bi bi-cloud-upload me-1"></i> Envoyer le document
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
           </div>
-        <% } %>
+          <div class="form-text text-slate-500" style="font-size: 0.71rem;">
+            Format : <strong>PDF uniquement</strong> (Max 10 Mo).
+          </div>
+        </form>
 
-        <%
-          const categoriesList = [
-            { key: "ASSURANCE", label: "ASSURANCE", icon: "bi-shield-check", color: "text-primary" },
-            { key: "DESC", label: "DESC", icon: "bi-file-earmark-medical", color: "text-info" },
-            { key: "RVC", label: "RVC", icon: "bi-receipt", color: "text-success" },
-            { key: "CAMCIS", label: "CAMCIS", icon: "bi-bank", color: "text-purple" },
-            { key: "RECU_PORT", label: "REÇUS PORT", icon: "bi-anchor", color: "text-warning" },
-            { key: "FACTURE", label: "FACTURE", icon: "bi-file-earmark-ruled", color: "text-danger" },
-            { key: "AUTRE", label: "AUTRE", icon: "bi-file-earmark-zip", color: "text-secondary" }
-          ];
-        %>
-
-        <div class="categories-container text-start">
-          <% categoriesList.forEach(cat => { %>
-            <% 
-              const catFiles = (dossier.files || []).filter(f => f.category === cat.key);
-            %>
-            <div class="mb-3.5">
-              <div class="d-flex align-items-center mb-1.5 pb-1 border-bottom">
-                <i class="bi <%= cat.icon %> <%= cat.color %> me-2" style="font-size: 1rem;"></i>
-                <span class="fw-bold text-slate-800 text-xs tracking-wider" style="font-size: 0.78rem;"><%= cat.label %></span>
-                <span class="badge rounded bg-slate-100 border text-slate-600 ms-1.5 px-2 text-xxs" style="font-size: 0.65rem;"><%= catFiles.length %></span>
-              </div>
-              
-              <% if (catFiles.length > 0) { %>
-                <div class="list-group list-group-flush border rounded overflow-hidden shadow-xs mb-2">
-                  <% catFiles.forEach(file => { %>
-                    <div class="list-group-item list-group-item-action py-2 px-2.5 d-flex align-items-center justify-content-between text-start" style="font-size: 0.82rem;">
-                      <div class="text-truncate min-w-0 flex-grow-1 me-2 pb-0.5">
-                        <a href="/dossiers/<%= dossier.id %>/download/<%= file.filename %>" class="fw-semibold text-slate-800 d-inline-flex align-items-center text-decoration-none hover:text-success text-truncate max-w-100 font-sans" title="<%= file.original %>">
-                          <%
-                            const isImage = /\.(jpg|jpeg|png)$/i.test(file.original);
-                            const icon = isImage ? 'bi-file-earmark-image text-info' : 'bi-file-earmark-pdf text-danger';
-                          %>
-                          <i class="bi <%= icon %> me-1.5 flex-shrink-0"></i>
-                          <span class="text-truncate"><%= file.original %></span>
-                        </a>
-                        <% if (file.comment) { %>
-                          <span class="d-block text-xs text-slate-600 italic bg-light p-1 rounded border-start border-3 border-primary/35 mt-1 text-truncate max-w-100" style="font-size: 0.73rem;"><%= file.comment %></span>
-                        <% } %>
-                        <div class="text-slate-500 font-monospace text-xxs mt-1" style="font-size: 0.7rem;">
-                          <span class="badge bg-slate-200 text-slate-700 px-1" style="font-size: 0.62rem;">Étape : <%= file.stage %></span> •
-                          Déposé par <%= file.user ? file.user.nom : 'Système' %> (<%= file.user ? file.user.role : 'Robot' %>) le <%= new Date(file.created_at).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) %>
-                        </div>
-                      </div>
-                      <div class="flex-shrink-0 ms-1">
-                        <a href="/dossiers/<%= dossier.id %>/download/<%= file.filename %>" class="btn btn-xs btn-outline-success rounded-circle p-1 d-inline-flex align-items-center justify-content-center" style="width:24px; height:24px" title="Télécharger">
-                          <i class="bi bi-download" style="font-size: 0.75rem;"></i>
-                        </a>
-                      </div>
-                    </div>
-                  <% }) %>
-                </div>
-              <% } else { %>
-                <div class="text-xs text-muted italic text-center py-2 bg-light/50 rounded border border-dashed text-slate-400 mb-2 font-sans" style="font-size: 0.75rem;">
-                  Aucun justificatif enregistré.
-                </div>
-              <% } %>
-            </div>
-          <% }) %>
-        </div>
-
-        <% if (attachments && attachments.length > 0) { %>
-        <div class="border-top pt-3 text-start">
-          <button class="btn btn-link py-0 px-0 fw-bold border-0 text-slate-600 text-xs text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAttachmentsOld" aria-expanded="false" aria-controls="collapseAttachmentsOld">
-            <i class="bi bi-chevron-down me-1.5"></i> Pièces de bord historiques (Physique) :
-          </button>
-          
-          <div class="collapse show mt-2" id="collapseAttachmentsOld">
-            <div class="list-group list-group-flush border rounded overflow-hidden shadow-xs" style="max-height: 200px; overflow-y: auto;">
+        <!-- Attachments List -->
+        <div class="border-top pt-3">
+          <h6 class="fw-bold text-slate-700 mb-2.5" style="font-size: 0.85rem;"><i class="bi bi-files text-secondary me-1.5"></i>Pièces de bord disponibles :</h6>
+          <% if (attachments && attachments.length > 0) { %>
+            <div class="list-group list-group-flush border rounded overflow-hidden" style="max-height: 250px; overflow-y: auto;">
               <% attachments.forEach(file => { %>
-                <div class="list-group-item list-group-item-action py-2 px-2.5 d-flex align-items-center justify-content-between text-start" style="font-size: 0.82rem;">
-                  <div class="text-truncate min-w-0 flex-grow-1 me-2 pb-0.5">
+                <div class="list-group-item list-group-item-action py-2.5 px-3 d-flex align-items-center justify-content-between">
+                  <div class="text-truncate me-2" style="font-size: 0.82rem;">
+                    <!-- Netoyer le suffix timestamp lors du rendu visuel -->
                     <% 
                       const baseName = file.name.substring(file.name.indexOf('-') + 1);
                       const cleanLabel = baseName.substring(baseName.indexOf('-') + 1);
                     %>
-                    <a href="/dossiers/<%= dossier.id %>/download/<%= file.name %>" class="fw-semibold text-slate-700 hover:text-success text-decoration-none text-truncate d-block" title="<%= cleanLabel %>">
-                      <i class="bi bi-file-earmark-zip text-slate-400 me-1.5"></i><%= cleanLabel %>
-                    </a>
-                    <div class="text-xxs text-slate-400 font-monospace mt-0.5" style="font-size: 0.7rem;">
+                    <span class="fw-semibold text-slate-800 d-block text-truncate" title="<%= cleanLabel %>">
+                      <i class="bi bi-file-pdf text-danger me-1"></i><%= cleanLabel %>
+                    </span>
+                    <span class="text-slate-500 font-monospace text-xs mt-0.5 d-block">
                       <%= file.size %> • <%= file.uploadedAt %>
-                    </div>
+                    </span>
                   </div>
                   <div>
-                    <a href="/dossiers/<%= dossier.id %>/download/<%= file.name %>" class="btn btn-xs btn-outline-secondary rounded-circle p-1" style="width:24px; height:24px" title="Télécharger">
-                      <i class="bi bi-download" style="font-size: 0.75rem;"></i>
+                    <a href="/dossiers/<%= dossier.id %>/download/<%= file.name %>" class="btn btn-sm btn-outline-primary rounded-circle p-1.5" title="Télécharger le PDF">
+                      <i class="bi bi-download" style="font-size: 0.8rem;"></i>
                     </a>
                   </div>
                 </div>
               <% }) %>
             </div>
-          </div>
+          <% } else { %>
+            <div class="text-center text-muted py-4 border rounded bg-light">
+              <i class="bi bi-folder-symlink display-6 text-slate-300 d-block mb-2"></i>
+              Aucun fichier PDF importé.
+            </div>
+          <% } %>
         </div>
-        <% } %>
 
       </div>
     </div>
 
-    <!-- Section D — Bons de débours (Avances et Régularisations) -->
-    <div class="card border-0 shadow-sm mb-4 mt-4">
+    <!-- 6. ACTIVITY TIMELINE section -->
+    <div class="card border-0 shadow-sm">
       <div class="card-header bg-white py-3 border-bottom border-light">
-        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
-          <i class="bi bi-cash-stack text-success me-2"></i>Section D — Bons de débours (Avances et Régularisations)
-        </h5>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
-            <thead class="table-light">
-              <tr>
-                <th class="ps-4">N° Bon Provisoire</th>
-                <th>Demandeur (Service)</th>
-                <th>Objet</th>
-                <th>Montant Demandé</th>
-                <th>Statut</th>
-                <th>Approbation (Quand)</th>
-                <th>N° Bon Réel (Régularisation)</th>
-                <th>Montant Réel</th>
-                <th>Écart</th>
-                <th class="pe-4">Statut Réel / Confirmateur</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% if (dossier.bons_provisoir && dossier.bons_provisoir.length > 0) { %>
-                <% dossier.bons_provisoir.forEach(bp => { %>
-                  <tr>
-                    <td class="ps-4 font-monospace fw-bold text-primary">
-                      <%= bp.numero %>
-                      <a href="/bons/<%= bp.id %>/pdf" target="_blank" class="ms-1 text-danger" title="Voir PDF"><i class="bi bi-file-earmark-pdf-fill"></i></a>
-                    </td>
-                    <td>
-                      <%= bp.demandeur ? bp.demandeur.prenom + ' ' + bp.demandeur.nom : 'Inconnu' %> 
-                      <small class="text-muted d-block" style="font-size: 0.72rem;">(<%= bp.service %>)</small>
-                    </td>
-                    <td class="text-wrap" style="max-width: 200px;"><%= bp.objet %></td>
-                    <td class="font-monospace fw-bold"><%= bp.montant_demande.toLocaleString('fr-FR') %> F</td>
-                    <td>
-                      <% if (bp.etat === 'APPROUVE') { %>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Approuvé</span>
-                      <% } else if (bp.etat === 'REJETE') { %>
-                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Rejeté</span>
-                      <% } else { %>
-                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill">En attente</span>
-                      <% } %>
-                    </td>
-                    <td>
-                      <% if (bp.approver) { %>
-                        <small class="fw-semibold"><%= bp.approver.nom %></small>
-                        <div class="text-xxs text-muted" style="font-size: 0.65rem;">le <%= bp.approved_at ? new Date(bp.approved_at).toLocaleDateString('fr-FR') : '' %></div>
-                      <% } else { %>
-                        <span class="text-danger text-xs">Non approuvé/rejeté</span>
-                      <% } %>
-                    </td>
-                    <td>
-                      <% if (bp.bon_reel) { %>
-                        <span class="font-monospace text-slate-700 fw-semibold">BR-<%= bp.bon_reel.id %></span>
-                      <% } else { %>
-                        <span class="text-muted text-xs">Non requis/non régularisé</span>
-                      <% } %>
-                    </td>
-                    <td class="font-monospace">
-                      <% if (bp.bon_reel) { %>
-                        <%= bp.bon_reel.montant_reel.toLocaleString('fr-FR') %> F
-                      <% } else { %>
-                        <span class="text-muted">—</span>
-                      <% } %>
-                    </td>
-                    <td class="font-monospace">
-                      <% if (bp.bon_reel) { %>
-                        <% const gap = bp.bon_reel.ecart; %>
-                        <% if (gap > 0) { %>
-                          <span class="text-success fw-bold">+<%= gap.toLocaleString('fr-FR') %> F</span>
-                        <% } else if (gap < 0) { %>
-                          <span class="text-danger fw-bold"><%= gap.toLocaleString('fr-FR') %> F</span>
-                        <% } else { %>
-                          <span class="text-secondary fw-semibold">0 F</span>
-                        <% } %>
-                      <% } else { %>
-                        <span class="text-muted">—</span>
-                      <% } %>
-                    </td>
-                    <td class="pe-4">
-                      <% if (bp.bon_reel) { %>
-                        <% if (bp.bon_reel.confirme_par) { %>
-                          <span class="badge bg-success-subtle text-success border border-success-subtle">Confirmé</span>
-                          <div class="text-xxs text-muted" style="font-size: 0.65rem;">Par <%= bp.bon_reel.confirme_par.nom %> le <%= new Date(bp.bon_reel.confirme_at).toLocaleDateString('fr-FR') %></div>
-                        <% } else { %>
-                          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">À confirmer</span>
-                          <div class="text-xxs text-muted" style="font-size: 0.65rem;">Soumis par <%= bp.bon_reel.soumis_par.nom %></div>
-                        <% } %>
-                      <% } else { %>
-                        <span class="text-muted">—</span>
-                      <% } %>
-                    </td>
-                  </tr>
-                <% }) %>
-              <% } else { %>
-                <tr>
-                  <td colspan="10" class="text-center text-muted py-4">
-                    <i class="bi bi-wallet2 display-6 text-slate-300 d-block mb-2"></i>
-                    Aucun Bon de débour enregistré pour ce dossier.
-                  </td>
-                </tr>
-              <% } %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section A — "Chronologie" (activity timeline) -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white py-3 border-bottom border-light">
-        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
-          <i class="bi bi-clock-history text-secondary me-2"></i>Section A — Chronologie d'Activité de Transit
+        <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 0.95rem;">
+          <i class="bi bi-clock-history text-secondary me-2"></i>Journal des Activités de Transit
         </h5>
       </div>
       <div class="card-body">
         <% if (logs && logs.length > 0) { %>
-          <div class="timeline-container px-2" style="max-height: 550px; overflow-y: auto;">
+          <div class="timeline-container px-2" style="max-height: 380px; overflow-y: auto;">
             <% logs.forEach((log, index) => { %>
-              <% 
-                // Dynamically select beautiful custom class tags and iconography representing transit activities
-                let icon = "bi-dot";
-                let badgeClass = "bg-light text-slate-800 border";
-                let actionLabel = log.action;
-                
-                switch (log.action) {
-                  case "CREATION_DOSSIER":
-                  case "OUVERTURE_DOSSIER":
-                    icon = "bi-folder-plus text-primary";
-                    badgeClass = "bg-primary-subtle text-primary border-primary-subtle fw-bold";
-                    actionLabel = "Ouverture de Dossier";
-                    break;
-                  case "DOSSIER_SOUMIS_GUCE":
-                    icon = "bi-send-fill text-info";
-                    badgeClass = "bg-info-subtle text-info border-info-subtle fw-bold";
-                    actionLabel = "Soumission GUCE";
-                    break;
-                  case "DOSSIER_VALIDE_GUCE":
-                    icon = "bi-patch-check-fill text-success";
-                    badgeClass = "bg-success-subtle text-success border-success-subtle fw-bold";
-                    actionLabel = "Validation Douanes GUCE";
-                    break;
-                  case "DOSSIER_SOUMIS_VALIDATION":
-                    icon = "bi-shield-fill-exclamation text-warning";
-                    badgeClass = "bg-warning-subtle text-warning-emphasis border-warning-subtle fw-bold";
-                    actionLabel = "Soumission pour Validation";
-                    break;
-                  case "DOSSIER_VALIDATION_APPROUVEE":
-                    icon = "bi-shield-fill-check text-success";
-                    badgeClass = "bg-success-subtle text-success border-success-subtle fw-bold";
-                    actionLabel = "Dossier Approuvé pour Transit";
-                    break;
-                  case "DOSSIER_VALIDATION_REJETEE":
-                    icon = "bi-shield-fill-x text-danger";
-                    badgeClass = "bg-danger-subtle text-danger border-danger-subtle fw-bold";
-                    actionLabel = "Validation Rejetée";
-                    break;
-                  case "BON_PROVISOIR_CREE":
-                    icon = "bi-file-earmark-plus-fill text-warning";
-                    badgeClass = "bg-warning-subtle text-warning border-warning-subtle fw-bold";
-                    actionLabel = "Demande Bon Provisoire";
-                    break;
-                  case "BON_PROVISOIR_APPROUVE":
-                    icon = "bi-check-circle-fill text-success";
-                    badgeClass = "bg-success-subtle text-success border-success-subtle fw-bold";
-                    actionLabel = "Bon Provisoire Approuvé";
-                    break;
-                  case "BON_PROVISOIR_REJETE":
-                    icon = "bi-x-circle-fill text-danger";
-                    badgeClass = "bg-danger-subtle text-danger border-danger-subtle fw-bold";
-                    actionLabel = "Bon Provisoire Rejeté";
-                    break;
-                  case "BON_REEL_SOUMIS":
-                    icon = "bi-cash-coin text-purple";
-                    badgeClass = "bg-purple-subtle text-purple border-purple-subtle fw-bold";
-                    actionLabel = "Régularisation Soumise (Bon Réel)";
-                    break;
-                  case "FONDS_DECAISSES":
-                    icon = "bi-cash text-success";
-                    badgeClass = "bg-success-subtle text-success border-success-subtle fw-bold";
-                    actionLabel = "Fonds Réels Décaisés";
-                    break;
-                  case "fichier.uploaded":
-                    icon = "bi-paperclip text-info";
-                    badgeClass = "bg-info-subtle text-info border-info-subtle fw-bold";
-                    actionLabel = "Pièce Justificative Ajoutée";
-                    break;
-                  case "comment.added":
-                    icon = "bi-chat-dots-fill text-purple";
-                    badgeClass = "bg-secondary-subtle text-secondary-emphasis border-secondary-subtle fw-bold";
-                    actionLabel = "Commentaire Discussion";
-                    break;
-                  case "tache.status":
-                    icon = "bi-bookmark-check-fill text-success";
-                    badgeClass = "bg-success-subtle text-success border-success-subtle fw-bold";
-                    actionLabel = "Jalon Logistique Validé";
-                    break;
-                  case "DOSSIER_CLOTURE_ARCHIVE":
-                    icon = "bi-archive-fill text-danger";
-                    badgeClass = "bg-danger text-white border-danger fw-bold";
-                    actionLabel = "Dossier Clôturé & Archivé";
-                    break;
-                }
-              %>
-              <div class="d-flex mb-3.5 text-start position-relative">
+              <div class="d-flex mb-3 text-start position-relative">
                 <!-- Timeline Dot Line divider -->
                 <% if (index < logs.length - 1) { %>
-                  <div class="position-absolute" style="left: 13.5px; top: 28px; bottom: -20px; width: 2px; background-color: #e2e8f0;"></div>
+                  <div class="position-absolute" style="left: 6.5px; top: 15px; bottom: -20px; width: 1px; background-color: #e2e8f0;"></div>
                 <% } %>
-                <div class="rounded-circle d-flex align-items-center justify-content-center border" style="width: 28px; height: 28px; background-color: #f8fafc; z-index: 10;">
-                  <i class="bi <%= icon %>" style="font-size: 0.9rem;"></i>
+                <div class="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center border" style="width: 14px; height: 14px; margin-top: 4px; z-index: 10;">
+                  <div class="bg-primary rounded-circle" style="width: 5px; height: 5px;"></div>
                 </div>
                 <div class="ms-3 flex-grow-1">
-                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <span class="badge <%= badgeClass %>" style="font-size: 0.72rem;"><%= actionLabel %></span>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-light text-slate-800 border" style="font-size: 0.7rem; font-weight: bold;"><%= log.action %></span>
                     <span class="text-slate-500 font-monospace text-xs">
-                      <%= new Date(log.created_at).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) %>
+                      <%= new Date(log.created_at).toLocaleDateString('fr-FR', {hour: '2-digit', minute: '2-digit'}) %>
                     </span>
                   </div>
-                  
-                  <!-- Formatter for user role and specifics details -->
-                  <p class="mb-0 text-slate-700 small mt-1.5" style="font-size: 0.85rem;">
+                  <p class="mb-0 text-slate-700 small mt-1" style="font-size: 0.78rem;">
                     Exécuté par <strong class="text-slate-900"><%= log.user ? log.user.nom : 'Système' %></strong>
-                    <span class="badge bg-light text-slate-600 border px-1.5 py-0.5 font-sans ms-1" style="font-size: 0.65rem; font-weight: normal;"><%= log.user ? log.user.role.toUpperCase() : 'ROBOT' %></span>
                   </p>
-                  
-                  <% if (log.meta) { %>
-                    <% 
-                      let metaObj = {};
-                      try {
-                        metaObj = JSON.parse(log.meta);
-                      } catch (err) {}
-                    %>
-                    <div class="bg-light p-2 rounded mt-2 text-xxs text-slate-600 border border-light-subtle" style="font-size: 0.75rem; word-break: break-all;">
-                      <% if (metaObj.filename) { %>
-                        <i class="bi bi-file-earmark-arrow-down me-1"></i> Fichier : <strong><%= metaObj.filename %></strong>
-                      <% } else if (metaObj.task_titre) { %>
-                        <i class="bi bi-bookmark-fill me-1"></i> Étape : <strong><%= metaObj.task_titre %></strong> — <%= metaObj.preview || '' %>
-                      <% } else if (metaObj.titre) { %>
-                        <i class="bi bi-activity me-1"></i> Action : <%= metaObj.titre %> 
-                        <% if (metaObj.from && metaObj.to) { %>
-                          (<%= metaObj.from %> → <%= metaObj.to %>)
-                        <% } %>
-                      <% } else { %>
-                        <%= log.meta %>
-                      <% } %>
-                    </div>
-                  <% } else if (log.entity_id) { %>
-                    <span class="text-slate-400 text-xxs block mt-0.5" style="font-size: 0.68rem;">ID Référence: <%= log.entity %> (<%= log.entity_id %>)</span>
-                  <% } %>
+                  <span class="text-slate-500 text-xs" style="font-size: 0.7rem;">Cible: <%= log.entity %> (ID: <%= log.entity_id %>)</span>
                 </div>
               </div>
             <% }) %>
           </div>
         <% } else { %>
-          <div class="text-center text-muted py-5">
-            <i class="bi bi-clock-history text-slate-300 display-4 d-block mb-3"></i>
-            Aucun historique d'activité d'exploitation ou financier n'a encore été enregistré sur ce dossier.
-          </div>
+          <p class="text-center text-muted small py-4 mb-0">
+            <i class="bi bi-clock text-slate-300 display-6 d-block mb-2"></i>
+            Aucun historique consigné.
+          </p>
         <% } %>
       </div>
     </div>
+
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white py-3 border-bottom border-light">
+    <h5 class="mb-0 fw-bold font-sans text-dark" style="font-size: 1rem;">
+      <i class="bi bi-clock-history text-secondary me-2"></i>Historique d'activité
+    </h5>
+  </div>
+  <div class="card-body">
+  <% timeline.forEach(entry => {
+    const meta = (() => { try{return JSON.parse(entry.meta||'{}')}catch{return {}} })();
+    const cfg = {
+      'tache.status':  {icon:'bi-check-circle-fill', color:'#28a745', label: `a changé la tâche ${meta.titre||''} : ${meta.from} → ${meta.to}`},
+      'document.created': {icon:'bi-file-earmark-text-fill', color:'#0d6efd', label:`a créé la facture ${meta.numero||''} — ${Number(meta.montant||0).toLocaleString('fr-FR')} FCFA`},
+      'fichier.uploaded': {icon:'bi-paperclip', color:'#6c757d', label:`a ajouté le fichier ${meta.filename||''}`},
+      'comment.added':    {icon:'bi-chat-fill', color:'#6f42c1', label:`a commenté sur ${meta.task_titre||''} : ${meta.preview||''}...`}
+    }[entry.action] || {icon:'bi-dot', color:'#aaa', label: entry.action};
+  %>
+  <div class="d-flex align-items-center mb-3">
+    <div class="rounded-circle d-flex align-items-center justify-content-center text-white" style="width:28px; height:28px; background-color:<%=cfg.color%>">
+      <i class="bi <%=cfg.icon%>" style="font-size:14px"></i>
+    </div>
+    <div class="ms-3">
+      <p class="mb-0 text-dark" style="font-size:0.9rem">
+        <strong><%=entry.user.nom%></strong> <%- cfg.label %>
+      </p>
+      <span class="text-muted" style="font-size:0.8rem"><%=timeAgo(entry.created_at)%></span>
+    </div>
+  </div>
+  <% }) %>
+  <% if(timeline.length===0) { %>
+    <p class="text-center text-muted py-3">Aucune activité enregistrée</p>
+  <% } %>
+  </div>
+</div>
 
 <!-- Modal Quick Task -->
 <div class="modal fade" id="quickTaskModal" tabindex="-1" aria-hidden="true">

@@ -30,17 +30,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  fileFilter: (req: any, file: any, cb: any) => {
-    // PDF, JPG, JPEG, PNG
-    const filetypes = /pdf|jpg|jpeg|png/i;
+  fileFilter: (req, file, cb) => {
+    // Uniquement les fichiers PDF
+    const filetypes = /pdf$/;
     const mimetype = filetypes.test(file.mimetype);
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     if (mimetype && extname) {
       return cb(null, true);
     }
-    cb(new Error("Seuls les formats PDF, JPG, JPEG et PNG sont acceptés !"));
+    cb(new Error("Seuls les fichiers PDF sont acceptés !"));
   },
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
 // Helper de log
@@ -228,8 +228,8 @@ const handleDossierCreation = async (req: any, res: any) => {
       newDossier.id
     );
 
-    req.session.success_msg = `✅ Dossier ${newDossier.numero} créé avec succès ! Il est maintenant en attente de traitement GUCE.`;
-    res.redirect("/dashboard");
+    req.session.success_msg = `Dossier ${newDossier.numero} ouvert avec succès pour le suivi maritime !`;
+    res.redirect(`/dossiers/${newDossier.id}`);
   } catch (error: any) {
     console.error("Erreur de création du dossier :", error);
     req.session.error_msg = "Une erreur est survenue lors de la création du dossier: " + (error.message || error);
@@ -348,10 +348,6 @@ router.get("/dossiers/:id", requireAuth, async (req: any, res: any) => {
           include: {
             intervenant: true,
             subtasks: true,
-            comments: {
-              include: { user: true },
-              orderBy: { created_at: "asc" }
-            }
           },
           orderBy: {
             created_at: "asc",
@@ -372,23 +368,7 @@ router.get("/dossiers/:id", requireAuth, async (req: any, res: any) => {
             created_at: "desc"
           }
         },
-        bons_reel: true,
-        files: {
-          include: {
-            user: { select: { nom: true, role: true } }
-          },
-          orderBy: {
-            created_at: "asc"
-          }
-        },
-        comments: {
-          include: {
-            user: true
-          },
-          orderBy: {
-            created_at: "asc"
-          }
-        }
+        bons_reel: true
       },
     });
 
@@ -486,112 +466,39 @@ router.get("/dossiers/:id", requireAuth, async (req: any, res: any) => {
   }
 });
 
-// POST /dossiers/:id/comment - Ajouter un commentaire à la discussion globale du dossier
-router.post("/dossiers/:id/comment", requireAuth, async (req: any, res: any) => {
-  try {
-    const dossierId = parseInt(req.params.id);
-    const { contenu } = req.body;
-    if (!contenu || !contenu.trim()) {
-      return res.status(400).json({ ok: false, error: "Le contenu du commentaire ne peut pas être vide." });
-    }
-
-    const dossier = await prisma.dossier.findUnique({
-      where: { id: dossierId }
-    });
-
-    if (!dossier) {
-      return res.status(404).json({ ok: false, error: "Dossier introuvable." });
-    }
-
-    const comment = await prisma.dossierComment.create({
-      data: {
-        dossier_id: dossierId,
-        user_id: req.session.userId,
-        contenu: contenu.trim(),
-        stage: dossier.pipeline_status || "CREE",
-      },
-      include: {
-        user: true
-      }
-    });
-
-    return res.json({ ok: true, comment });
-  } catch (error: any) {
-    console.error("Erreur lors de l'ajout du commentaire au dossier :", error);
-    return res.status(500).json({ ok: false, error: "Une erreur interne est survenue." });
-  }
-});
-
-// POST /dossiers/:id/upload - Upload de pièce jointe
+// POST /dossiers/:id/upload - Upload de pièce jointe PDF
 router.post("/dossiers/:id/upload", requireAuth, (req: any, res: any) => {
   upload.single("pdf_file")(req, res, async function (err: any) {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      req.session.error_msg = "ID de dossier invalide.";
-      return res.redirect("/dossiers");
-    }
-
+    const id = req.params.id;
     if (err) {
       req.session.error_msg = `Échec de l'import : ${err.message}`;
       return res.redirect(`/dossiers/${id}`);
     }
 
     if (!req.file) {
-      req.session.error_msg = "Veuillez sélectionner un fichier valide à importer (PDF, JPG, PNG).";
+      req.session.error_msg = "Veuillez sélectionner un document PDF valide à importer.";
       return res.redirect(`/dossiers/${id}`);
     }
 
-    try {
-      const dossier = await prisma.dossier.findUnique({
-        where: { id: id }
-      });
-
-      if (!dossier) {
-        req.session.error_msg = "Dossier introuvable.";
-        return res.redirect("/dossiers");
+    await prisma.activityLog.create({
+      data: {
+        user_id: req.session.userId,
+        action: 'fichier.uploaded',
+        entity: 'dossier',
+        entity_id: String(id),
+        meta: JSON.stringify({ filename: req.file.originalname })
       }
+    });
 
-      const category = req.body.category || "AUTRE";
-      const comment = req.body.comment || null;
+    await logActivity(
+      req.session.userId,
+      `IMPORT_PIECE_JOINTE_${req.file.filename.split("-").slice(2).join("-")}`,
+      "Dossier",
+      parseInt(id)
+    );
 
-      // Create DossierFile record in database
-      await prisma.dossierFile.create({
-        data: {
-          dossier_id: id,
-          user_id: req.session.userId,
-          filename: req.file.filename,
-          original: req.file.originalname,
-          stage: dossier.pipeline_status || "CREE",
-          category: category,
-          comment: comment,
-          path: req.file.path
-        }
-      });
-
-      await prisma.activityLog.create({
-        data: {
-          user_id: req.session.userId,
-          action: 'fichier.uploaded',
-          entity: 'dossier',
-          entity_id: String(id),
-          meta: JSON.stringify({ filename: req.file.originalname })
-        }
-      });
-
-      await logActivity(
-        req.session.userId,
-        `IMPORT_PIECE_JOINTE_${req.file.filename.split("-").slice(2).join("-")}`,
-        "Dossier",
-        id
-      );
-
-      req.session.success_msg = `✅ Fichier joint avec succès : ${req.file.originalname}`;
-      res.redirect(`/dossiers/${id}`);
-    } catch (uploadErr: any) {
-      console.error("Erreur save dossier file :", uploadErr);
-      req.session.error_msg = "Une erreur est survenue lors de l'enregistrement du fichier.";
-      res.redirect(`/dossiers/${id}`);
-    }
+    req.session.success_msg = `Pièce jointe importée avec succès : ${req.file.originalname}`;
+    res.redirect(`/dossiers/${id}`);
   });
 });
 
@@ -851,33 +758,8 @@ router.post("/dossiers/:id/pipeline/soumettre-guce", requireAuth, async (req: an
   }
 });
 
-const uploadGUCE = multer({
-  storage: storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (req: any, file: any, cb: any) => {
-    const ok = /pdf|jpg|jpeg|png/i.test(file.mimetype);
-    if (ok) {
-      cb(null, true);
-    } else {
-      cb(new Error("Format non supporté"));
-    }
-  }
-}).fields([
-  { name: "fichier_assurance", maxCount: 1 },
-  { name: "fichier_desc", maxCount: 1 },
-  { name: "fichier_rvc", maxCount: 1 }
-]);
-
 // POST /dossiers/:id/pipeline/valider-guce - Valider GUCE et soumettre pour Validation CAMCIS (GUCE, Super Admin)
-router.post("/dossiers/:id/pipeline/valider-guce", requireAuth, (req: any, res: any, next: any) => {
-  uploadGUCE(req, res, (err: any) => {
-    if (err) {
-      req.session.error_msg = "Erreur upload: " + err.message;
-      return res.redirect(`/dossiers/${req.params.id}`);
-    }
-    next();
-  });
-}, async (req: any, res: any) => {
+router.post("/dossiers/:id/pipeline/valider-guce", requireAuth, async (req: any, res: any) => {
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
@@ -894,63 +776,12 @@ router.post("/dossiers/:id/pipeline/valider-guce", requireAuth, (req: any, res: 
       data: { pipeline_status: "VALIDATION" }
     });
 
-    // Sauvegarde en DB des fichiers joints
-    const filesObj = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
-    const fileAssurance = filesObj?.["fichier_assurance"]?.[0];
-    const fileDesc = filesObj?.["fichier_desc"]?.[0];
-    const fileRvc = filesObj?.["fichier_rvc"]?.[0];
-
-    if (fileAssurance) {
-      await prisma.dossierFile.create({
-        data: {
-          dossier_id: id,
-          user_id: req.session.userId,
-          filename: fileAssurance.filename,
-          original: fileAssurance.originalname,
-          stage: "GUCE",
-          category: "ASSURANCE",
-          comment: `Quittance Assurance — ${assurance_montant || 0} FCFA`,
-          path: fileAssurance.path
-        }
-      });
-    }
-
-    if (fileDesc) {
-      await prisma.dossierFile.create({
-        data: {
-          dossier_id: id,
-          user_id: req.session.userId,
-          filename: fileDesc.filename,
-          original: fileDesc.originalname,
-          stage: "GUCE",
-          category: "DESC",
-          comment: `Quittance DESC — ${desc_montant || 0} FCFA`,
-          path: fileDesc.path
-        }
-      });
-    }
-
-    if (fileRvc) {
-      await prisma.dossierFile.create({
-        data: {
-          dossier_id: id,
-          user_id: req.session.userId,
-          filename: fileRvc.filename,
-          original: fileRvc.originalname,
-          stage: "GUCE",
-          category: "RVC",
-          comment: `Quittance RVC — ${rvc_montant || 0} FCFA`,
-          path: fileRvc.path
-        }
-      });
-    }
-
     await logActivity(req.session.userId, "DOSSIER_VALIDE_GUCE", "Dossier", `${id} - Détails: ${notesLog}`);
     
     // Création d'une tâche de validation pour le pôle conformité / validation
     await createAutoTask(id, `📁 Contrôle de Conformité - Dossier ${dossier.numero}`, `Le dossier ${dossier.numero} est prêt pour votre visa de validation réglementaire CAMCIS.`, "validation");
 
-    req.session.success_msg = "✅ Formalités GUCE enregistrées avec succès.";
+    req.session.success_msg = `Formalités GUCE validées (${notesLog}). Soumis à la validation conformité CAMCIS.`;
     res.redirect(`/dossiers/${id}`);
   } catch (error) {
     console.error("Erreur validation GUCE pipeline status :", error);
@@ -978,29 +809,8 @@ router.post("/dossiers/:id/pipeline/valider", requireAuth, async (req: any, res:
   }
 });
 
-const uploadCAMCIS = multer({
-  storage: storage,
-  limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (req: any, file: any, cb: any) => {
-    const ok = /pdf|jpg|jpeg|png/i.test(file.mimetype);
-    if (ok) {
-      cb(null, true);
-    } else {
-      cb(new Error("Format non supporté"));
-    }
-  }
-}).array("fichiers_camcis", 10);
-
 // POST /dossiers/:id/pipeline/approuver - Approuver Validation (Validation, Super Admin)
-router.post("/dossiers/:id/pipeline/approuver", requireAuth, (req: any, res: any, next: any) => {
-  uploadCAMCIS(req, res, (err: any) => {
-    if (err) {
-      req.session.error_msg = "Erreur upload: " + err.message;
-      return res.redirect(`/dossiers/${req.params.id}`);
-    }
-    next();
-  });
-}, async (req: any, res: any) => {
+router.post("/dossiers/:id/pipeline/approuver", requireAuth, async (req: any, res: any) => {
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
@@ -1014,31 +824,12 @@ router.post("/dossiers/:id/pipeline/approuver", requireAuth, (req: any, res: any
       data: { pipeline_status: "EN_TRAITEMENT" }
     });
 
-    // Save each uploaded file to database
-    const filesList = req.files as Express.Multer.File[] | undefined;
-    if (filesList && filesList.length > 0) {
-      for (const file of filesList) {
-        await prisma.dossierFile.create({
-          data: {
-            dossier_id: id,
-            user_id: req.session.userId,
-            filename: file.filename,
-            original: file.originalname,
-            stage: "VALIDATION",
-            category: "CAMCIS",
-            comment: "Document CAMCIS validé",
-            path: file.path
-          }
-        });
-      }
-    }
-
     await logActivity(req.session.userId, "DOSSIER_VALIDATION_APPROUVEE", "Dossier", id);
     
     // Création d'une tâche d'acconage/Transit
     await createAutoTask(id, `🚢 Transit & Douane - Dossier ${dossier.numero}`, `Le dossier a été validé ! Veuillez initier les formalités d'acconage/enlèvement physique et émettre les Bons Provisoires correspondants.`, "acconage");
 
-    req.session.success_msg = "✅ Validation CAMCIS approuvée. Documents joints.";
+    req.session.success_msg = "Validation approuvée. Le dossier est maintenant en traitement d'acconage & d'enlèvement.";
     res.redirect(`/dossiers/${id}`);
   } catch (error) {
     console.error("Erreur approuver pipeline status :", error);
