@@ -131,6 +131,12 @@ router.get("/dossiers/archives", requireAuth, handleGetArchives);
 // GET /dossiers/create - Formulaire de création de dossiers
 router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
   try {
+    const user = req.session.user;
+    if (user.role !== "secretariat" && user.role !== "super_admin") {
+      req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
+      return res.redirect("/dossiers");
+    }
+
     const clients = await prisma.client.findMany({ orderBy: { nom: "asc" } });
     res.render("dossiers/create", {
       clients,
@@ -145,6 +151,12 @@ router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
 // POST /dossiers/create - Enregistrement d'un dossier (et route compatible /dossiers/new)
 const handleDossierCreation = async (req: any, res: any) => {
   try {
+    const user = req.session.user;
+    if (user.role !== "secretariat" && user.role !== "super_admin") {
+      req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
+      return res.redirect("/dossiers");
+    }
+
     const { client_id, numero, port, nature, etat, bl, contenu, droits_douane, validation, valeur_douane, representant } = req.body;
 
     if (!client_id || !numero || !port || !nature || !bl) {
@@ -164,8 +176,10 @@ const handleDossierCreation = async (req: any, res: any) => {
       return res.redirect("/dossiers/create");
     }
 
-    const parsedDroits = droits_douane ? parseFloat(droits_douane) : null;
-    const parsedValeur = valeur_douane ? parseFloat(valeur_douane) : null;
+    const rawDroits = parseFloat(droits_douane);
+    const rawValeur = parseFloat(valeur_douane);
+    const parsedDroits = (droits_douane && !isNaN(rawDroits)) ? rawDroits : null;
+    const parsedValeur = (valeur_douane && !isNaN(rawValeur)) ? rawValeur : null;
     const validationBool = (validation === 'true' || validation === true || validation === 'on');
 
     let newDossier;
@@ -247,6 +261,11 @@ router.post("/dossiers/:id/update-custom", requireAuth, async (req: any, res: an
       (contenu !== undefined && (contenu ? contenu.trim() : "") !== (dossier.contenu || ""));
 
     if (wantsToChangeGroup1) {
+      const userObj = req.session.user;
+      if (userObj.role !== "secretariat" && userObj.role !== "super_admin") {
+        req.session.error_msg = "Accès refusé : Seul le secrétariat administratif (ou le Super Administrateur) peut modifier les informations d'origine de ce dossier.";
+        return res.redirect(`/dossiers/${id}`);
+      }
       if (dossier.pipeline_status !== "CREE") {
         req.session.error_msg = "Modification refusée : Les champs initiaux (BL, Client, Contenu) sont verrouillés. Veuillez soumettre une Demande de Correction (Retour arrière) pour les modifier.";
         return res.redirect(`/dossiers/${id}`);
@@ -273,7 +292,12 @@ router.post("/dossiers/:id/update-custom", requireAuth, async (req: any, res: an
       (isValChecked !== dossier.validation);
 
     if (wantsToChangeGroup2) {
-      if (!["VALIDATION", "GUCE"].includes(dossier.pipeline_status)) {
+      const userObj = req.session.user;
+      if (userObj.role !== "validation" && userObj.role !== "validation_role" && userObj.role !== "super_admin") {
+        req.session.error_msg = "Accès refusé : Seul le pôle de Validation / Contrôle de Conformité (ou le Super Administrateur) peut modifier les détails douaniers.";
+        return res.redirect(`/dossiers/${id}`);
+      }
+      if (dossier.pipeline_status !== "VALIDATION") {
         req.session.error_msg = "Modification refusée : Les informations douanières sont validées et verrouillées. Veuillez soumettre une Demande de Correction (Retour arrière) pour les modifier.";
         return res.redirect(`/dossiers/${id}`);
       }
@@ -534,6 +558,12 @@ router.post("/dossiers/update-status/:id", requireAuth, async (req: any, res: an
 router.post("/dossiers/delete/:id", requireAuth, async (req: any, res: any) => {
   try {
     const folderId = parseInt(req.params.id);
+    const user = req.session.user;
+
+    if (user.role !== "super_admin") {
+      req.session.error_msg = "Accès refusé : Seul le Super Administrateur peut supprimer définitivement un dossier.";
+      return res.redirect(`/dossiers/${folderId}`);
+    }
 
     const ds = await prisma.dossier.findUnique({ where: { id: folderId } });
     if (!ds) {
@@ -700,25 +730,76 @@ async function createAutoTask(dossierId: number, title: string, description: str
   }
 }
 
-// POST /dossiers/:id/pipeline/valider - Soumettre pour Validation (Secrétariat, Super Admin)
-router.post("/dossiers/:id/pipeline/valider", requireAuth, async (req: any, res: any) => {
+  // POST /dossiers/:id/pipeline/soumettre-guce - Soumettre au GUCE (Secrétariat, Super Admin)
+router.post("/dossiers/:id/pipeline/soumettre-guce", requireAuth, async (req: any, res: any) => {
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["secretariat", "super_admin"].includes(user.role)) {
-      req.session.error_msg = "Seul le secrétariat ou l'administrateur peut soumettre pour validation.";
+    if (!["secretariat", "super_admin", "pdg", "dg", "dga"].includes(user.role)) {
+      req.session.error_msg = "Seul le secrétariat, l'administration ou un administrateur peut soumettre au GUCE.";
       return res.redirect(`/dossiers/${id}`);
     }
+
+    const dossier = await prisma.dossier.update({
+      where: { id },
+      data: { pipeline_status: "GUCE" }
+    });
+
+    await logActivity(req.session.userId, "DOSSIER_SOUMIS_GUCE", "Dossier", id);
+    
+    // Création d'une tâche pour le GUCE
+    await createAutoTask(id, `🇬🇺 Formalités GUCE - Dossier ${dossier.numero}`, `Paiement des frais Assurance, DESC, RVC et attachement des quittances pour manifestation.`, "guce");
+
+    req.session.success_msg = "Dossier soumis au GUCE avec succès.";
+    res.redirect(`/dossiers/${id}`);
+  } catch (error) {
+    console.error("Erreur soumission GUCE pipeline status :", error);
+    res.status(500).send("Erreur serveur.");
+  }
+});
+
+// POST /dossiers/:id/pipeline/valider-guce - Valider GUCE et soumettre pour Validation CAMCIS (GUCE, Super Admin)
+router.post("/dossiers/:id/pipeline/valider-guce", requireAuth, async (req: any, res: any) => {
+  try {
+    const id = parseInt(req.params.id);
+    const user = req.session.user;
+    if (!["guce", "super_admin", "pdg", "dg", "dga", "auditeur1"].includes(user.role)) {
+      req.session.error_msg = "Seul le pôle GUCE, l'administration ou un administrateur peut valider cette étape.";
+      return res.redirect(`/dossiers/${id}`);
+    }
+
+    const { assurance_montant, desc_montant, rvc_montant, manifeste_checked } = req.body;
+    const notesLog = `Assurance: ${assurance_montant || 0} FCFA | DESC: ${desc_montant || 0} FCFA | RVC: ${rvc_montant || 0} FCFA | Manifesté: ${manifeste_checked === 'on' || manifeste_checked === true ? "OUI" : "NON"}`;
 
     const dossier = await prisma.dossier.update({
       where: { id },
       data: { pipeline_status: "VALIDATION" }
     });
 
-    await logActivity(req.session.userId, "DOSSIER_SOUMIS_VALIDATION", "Dossier", id);
+    await logActivity(req.session.userId, "DOSSIER_VALIDE_GUCE", "Dossier", `${id} - Détails: ${notesLog}`);
     
     // Création d'une tâche de validation pour le pôle conformité / validation
-    await createAutoTask(id, `📁 Contrôle de Conformité - Dossier ${dossier.numero}`, `Le dossier ${dossier.numero} est prêt pour votre visa de validation réglementaire.`, "validation_role");
+    await createAutoTask(id, `📁 Contrôle de Conformité - Dossier ${dossier.numero}`, `Le dossier ${dossier.numero} est prêt pour votre visa de validation réglementaire CAMCIS.`, "validation");
+
+    req.session.success_msg = `Formalités GUCE validées (${notesLog}). Soumis à la validation conformité CAMCIS.`;
+    res.redirect(`/dossiers/${id}`);
+  } catch (error) {
+    console.error("Erreur validation GUCE pipeline status :", error);
+    res.status(500).send("Erreur serveur.");
+  }
+});
+
+// POST /dossiers/:id/pipeline/valider - Soumettre pour Validation (Ancien flux direct, conservé pour compatibilité)
+router.post("/dossiers/:id/pipeline/valider", requireAuth, async (req: any, res: any) => {
+  try {
+    const id = parseInt(req.params.id);
+    const dossier = await prisma.dossier.update({
+      where: { id },
+      data: { pipeline_status: "VALIDATION" }
+    });
+
+    await logActivity(req.session.userId, "DOSSIER_SOUMIS_VALIDATION", "Dossier", id);
+    await createAutoTask(id, `📁 Contrôle de Conformité - Dossier ${dossier.numero}`, `Le dossier ${dossier.numero} est prêt pour votre visa de validation réglementaire.`, "validation");
 
     req.session.success_msg = "Dossier soumis pour validation avec succès.";
     res.redirect(`/dossiers/${id}`);
@@ -728,13 +809,13 @@ router.post("/dossiers/:id/pipeline/valider", requireAuth, async (req: any, res:
   }
 });
 
-// POST /dossiers/:id/pipeline/approuver - Approuver Validation (Validation_role, Super Admin)
+// POST /dossiers/:id/pipeline/approuver - Approuver Validation (Validation, Super Admin)
 router.post("/dossiers/:id/pipeline/approuver", requireAuth, async (req: any, res: any) => {
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["validation_role", "super_admin"].includes(user.role)) {
-      req.session.error_msg = "Accès refusé : rôle non autorisé.";
+    if (!["validation", "validation_role", "super_admin", "pdg", "dg", "dga", "auditeur1"].includes(user.role)) {
+      req.session.error_msg = "Accès refusé : rôle non autorisé pour valider.";
       return res.redirect(`/dossiers/${id}`);
     }
 
@@ -748,7 +829,7 @@ router.post("/dossiers/:id/pipeline/approuver", requireAuth, async (req: any, re
     // Création d'une tâche d'acconage/Transit
     await createAutoTask(id, `🚢 Transit & Douane - Dossier ${dossier.numero}`, `Le dossier a été validé ! Veuillez initier les formalités d'acconage/enlèvement physique et émettre les Bons Provisoires correspondants.`, "acconage");
 
-    req.session.success_msg = "Validation approuvée. Le dossier est maintenant en traitement.";
+    req.session.success_msg = "Validation approuvée. Le dossier est maintenant en traitement d'acconage & d'enlèvement.";
     res.redirect(`/dossiers/${id}`);
   } catch (error) {
     console.error("Erreur approuver pipeline status :", error);
@@ -756,23 +837,23 @@ router.post("/dossiers/:id/pipeline/approuver", requireAuth, async (req: any, re
   }
 });
 
-// POST /dossiers/:id/pipeline/rejeter - Rejeter Validation (Validation_role, Super Admin)
+// POST /dossiers/:id/pipeline/rejeter - Rejeter Validation (Validation, Super Admin)
 router.post("/dossiers/:id/pipeline/rejeter", requireAuth, async (req: any, res: any) => {
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["validation_role", "super_admin"].includes(user.role)) {
+    if (!["validation", "validation_role", "super_admin", "pdg", "dg", "dga", "auditeur1"].includes(user.role)) {
       req.session.error_msg = "Accès refusé : rôle non autorisé.";
       return res.redirect(`/dossiers/${id}`);
     }
 
     await prisma.dossier.update({
       where: { id },
-      data: { pipeline_status: "CREE" }
+      data: { pipeline_status: "GUCE" } // Retours arrière vont maintenant au GUCE
     });
 
     await logActivity(req.session.userId, "DOSSIER_VALIDATION_REJETEE", "Dossier", id);
-    req.session.success_msg = "Validation rejetée. Le dossier retourne au statut créé.";
+    req.session.success_msg = "Validation rejetée. Le dossier retourne à l'étape GUCE pour corrections.";
     res.redirect(`/dossiers/${id}`);
   } catch (error) {
     console.error("Erreur rejeter pipeline status :", error);
@@ -785,7 +866,7 @@ router.post("/dossiers/:id/pipeline/facturer", requireAuth, async (req: any, res
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["comptable", "commercial", "super_admin", "comptable_ops", "finances"].includes(user.role)) {
+    if (!["comptable", "commercial", "super_admin", "comptable_ops", "finances", "pdg", "dg", "dga", "daf", "auditeur1"].includes(user.role)) {
       req.session.error_msg = "Accès non autorisé.";
       return res.redirect(`/dossiers/${id}`);
     }
@@ -813,7 +894,7 @@ router.post("/dossiers/:id/pipeline/cloturer", requireAuth, async (req: any, res
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["comptable_ops", "super_admin", "direction", "comptable"].includes(user.role)) {
+    if (!["comptable_ops", "super_admin", "direction", "comptable", "pdg", "dg", "dga", "daf", "auditeur1"].includes(user.role)) {
       req.session.error_msg = "Seule la comptabilité, la direction ou un administrateur peut clôturer définitivement et archiver.";
       return res.redirect(`/dossiers/${id}`);
     }
@@ -892,11 +973,32 @@ router.post("/dossiers/:id/pipeline/retour-arriere", requireAuth, async (req: an
       `${id} - Motif: ${motif.trim()}`
     );
 
+    // Mappage pour affecter automatiquement la tâche à l'acteur de l'étape précédente
+    const statusToRoleMap: Record<string, string> = {
+      "CREE": "secretariat",
+      "GUCE": "guce",
+      "VALIDATION": "validation",
+      "EN_TRAITEMENT": "acconage",
+      "BON_PROVISOIR": "acconage",
+      "BON_REEL": "acconage",
+      "FACTURATION": "facturation",
+      "CLOTURE": "comptable_ops"
+    };
+    
+    const prevRole = statusToRoleMap[prevStatus];
+    let prevUser = null;
+    if (prevRole) {
+      prevUser = await prisma.user.findFirst({
+        where: { role: prevRole, actif: true }
+      });
+    }
+
     // Créer une tâche automatique de correction
     await prisma.tache.create({
       data: {
         dossier_id: id,
         titre: `[Demande de modification] Retour à ${prevStatus} : ${motif.trim()}`,
+        intervenant_id: prevUser ? prevUser.id : null,
         etat: "A_FAIRE"
       }
     });
@@ -907,30 +1009,6 @@ router.post("/dossiers/:id/pipeline/retour-arriere", requireAuth, async (req: an
     console.error("Erreur de retour arrière pipeline :", error);
     req.session.error_msg = "Erreur serveur lors de la demande de modification.";
     res.redirect(`/dossiers/${req.params.id}`);
-  }
-});
-
-// POST /dossiers/:id/pipeline/guce-valider — GUCE completes → goes to VALIDATION
-router.post("/:id/pipeline/guce-valider", requireAuth, async (req: any, res: any) => {
-  try {
-    const user = req.session.user;
-    if (!["guce", "super_admin"].includes(user.role)) {
-      req.session.error_msg = "Accès refusé.";
-      return res.redirect("/dossiers");
-    }
-    const id = parseInt(req.params.id);
-    const dossier = await prisma.dossier.findUnique({ where: { id } });
-    if (!dossier || dossier.pipeline_status !== "GUCE") {
-      req.session.error_msg = "Ce dossier n'est pas au stade GUCE.";
-      return res.redirect(`/dossiers/${id}`);
-    }
-    await prisma.dossier.update({ where: { id }, data: { pipeline_status: "VALIDATION" } });
-    await logActivity(req.session.userId, "GUCE_VALIDE", "Dossier", id);
-    req.session.success_msg = "Dossier transmis à la Validation avec succès.";
-    res.redirect(`/dossiers/${id}`);
-  } catch (error) {
-    console.error("Erreur GUCE validation:", error);
-    res.status(500).render("errors/500", { error });
   }
 });
 

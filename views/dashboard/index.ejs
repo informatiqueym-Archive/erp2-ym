@@ -11,7 +11,7 @@
       </div>
       <div class="d-flex gap-2">
         <% if (typeof user !== 'undefined') { %>
-          <% if (['super_admin', 'commercial', 'operationnel', 'secretariat', 'validation_role', 'acconage', 'enlevement', 'finances', 'comptable_ops'].includes(user.role)) { %>
+          <% if (['super_admin', 'secretariat'].includes(user.role)) { %>
             <a href="/dossiers/create" class="btn btn-primary d-inline-flex align-items-center rounded-pill px-3 shadow-sm">
               <i class="bi bi-folder-plus me-2"></i> Nouveau Dossier
             </a>
@@ -67,8 +67,8 @@
       </div>
     <% } %>
 
-    <!-- Dossiers actifs de transit: Admin, Commercial, Operationnel, Lecture -->
-    <% if (['super_admin', 'commercial', 'operationnel', 'lecture'].includes(user.role)) { %>
+    <!-- Dossiers actifs de transit: Admin, Commercial, Operationnel, Lecture, Secrétariat -->
+    <% if (['super_admin', 'commercial', 'operationnel', 'lecture', 'secretariat'].includes(user.role)) { %>
       <div class="col-sm-6 col-md-3">
         <div class="card h-100 border-0 border-start border-4 border-primary shadow-sm">
           <div class="card-body">
@@ -340,6 +340,136 @@
                   <% } else { %>
                     <tr>
                       <td colspan="7" class="text-center text-muted py-4">Aucune facture enregistrée dans le système pour l'instant.</td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Registre Permanent : Active tracker for all actors to crosscheck dossiers of YM-TRANSIT -->
+  <% if (typeof activeDossiersList !== 'undefined' && activeDossiersList) { %>
+    <div class="row text-start mb-4">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm border-start border-4 border-info">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center py-3 border-0">
+            <div>
+              <h5 class="mb-0 fw-bold text-slate-800"><i class="bi bi-journal-album text-info me-2"></i>Registre de Suivi des Dossiers (Suivi Permanent)</h5>
+              <p class="text-xs text-muted mb-0">Registre permanent de toutes les expéditions. Permet le contrôle en lecture seule (Crosscheck) et le suivi en temps réel des étapes.</p>
+            </div>
+            <% if (user.role === 'secretariat' || user.role === 'super_admin') { %>
+              <a href="/dossiers/create" class="btn btn-sm btn-primary rounded-pill px-3">
+                <i class="bi bi-folder-plus me-1"></i> Ouvrir Nouveau Dossier
+              </a>
+            <% } %>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 font-sans" style="font-size: 0.88rem;">
+                <thead class="table-light text-slate-700">
+                  <tr>
+                    <th class="ps-4">Référence / BL</th>
+                    <th>Importateur / Client</th>
+                    <th>Échelle maritime / Nature</th>
+                    <th>Étape Courante</th>
+                    <th>Contrôle Actions</th>
+                    <th class="text-end pe-4">Statut d'Alerte / Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (typeof activeDossiersList !== 'undefined' && activeDossiersList && activeDossiersList.length > 0) { %>
+                    <% activeDossiersList.forEach(ds => { %>
+                      <% 
+                        // Find if there is an active modification backtrack task on this dossier
+                        const hasCorrectionRequest = ds.taches && ds.taches.some(t => t.titre.includes("[Demande de modification]") && t.etat !== "FAIT" && t.etat !== "TERMINE");
+                      %>
+                      <tr>
+                        <td class="ps-4">
+                          <div class="fw-bold text-slate-900"><%= ds.numero %></div>
+                          <span class="badge bg-light text-slate-600 border font-monospace text-xs mt-0.5">BL: <%= ds.bl %></span>
+                        </td>
+                        <td>
+                          <div class="fw-bold text-dark"><%= ds.client ? ds.client.nom : 'Inconnu' %></div>
+                        </td>
+                        <td>
+                          <div class="small fw-semibold"><%= ds.port %></div>
+                          <div class="text-muted text-xs"><%= ds.nature %></div>
+                        </td>
+                        <td>
+                          <% if (ds.pipeline_status === 'CREE') { %>
+                            <span class="badge bg-secondary-subtle text-secondary py-1.5 px-3 border border-secondary-subtle">Secrétariat (Ouverture)</span>
+                          <% } else if (ds.pipeline_status === 'GUCE') { %>
+                            <span class="badge bg-warning-subtle text-warning py-1.5 px-3 border border-warning-subtle">Saisie GUCE / Douane</span>
+                          <% } else if (ds.pipeline_status === 'VALIDATION') { %>
+                            <span class="badge bg-info-subtle text-info py-1.5 px-3 border border-info-subtle">Visa Validation CAMCIS</span>
+                          <% } else if (ds.pipeline_status === 'EN_TRAITEMENT') { %>
+                            <span class="badge bg-primary-subtle text-primary py-1.5 px-3 border border-primary-subtle">Traitement Logistique</span>
+                          <% } else if (ds.pipeline_status === 'BON_PROVISOIR') { %>
+                            <span class="badge bg-warning text-dark py-1.5 px-3 border border-warning">Signature Bon Provisoire</span>
+                          <% } else if (ds.pipeline_status === 'BON_REEL') { %>
+                            <span class="badge bg-success-subtle text-success py-1.5 px-3 border border-success-subtle font-bold">Régularisation Bon Réel</span>
+                          <% } else if (ds.pipeline_status === 'FACTURATION') { %>
+                            <span class="badge bg-primary text-white py-1.5 px-3 border">Prêt pour Facturation</span>
+                          <% } else { %>
+                            <span class="badge bg-light text-dark py-1.5 px-3 border"><%= ds.pipeline_status %></span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <% 
+                            let canActThisStep = false;
+                            if (['super_admin'].includes(user.role)) {
+                              canActThisStep = true;
+                            } else if (ds.pipeline_status === 'CREE' && user.role === 'secretariat') {
+                              canActThisStep = true;
+                            } else if (ds.pipeline_status === 'GUCE' && user.role === 'guce') {
+                              canActThisStep = true;
+                            } else if (ds.pipeline_status === 'VALIDATION' && ['validation', 'validation_role'].includes(user.role)) {
+                              canActThisStep = true;
+                            } else if (['EN_TRAITEMENT', 'BON_REEL'].includes(ds.pipeline_status) && ['acconage', 'enlevement'].includes(user.role)) {
+                              canActThisStep = true;
+                            } else if (ds.pipeline_status === 'BON_PROVISOIR' && ['direction', 'pdg', 'dg', 'dga', 'daf', 'audit', 'agent_payeur'].includes(user.role)) {
+                              canActThisStep = true;
+                            } else if (ds.pipeline_status === 'FACTURATION' && ['facturation', 'comptable', 'commercial'].includes(user.role)) {
+                              canActThisStep = true;
+                            }
+                          %>
+                          <% if (hasCorrectionRequest) { %>
+                            <span class="text-xs text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>Correction active</span>
+                          <% } else if (canActThisStep) { %>
+                            <span class="text-xs text-success fw-bold"><i class="bi bi-pencil-square me-1"></i>Action en attente</span>
+                          <% } else { %>
+                            <span class="text-xs text-secondary italic"><i class="bi bi-eye-fill me-1"></i>Crosscheck (Lecture seule)</span>
+                          <% } %>
+                        </td>
+                        <td class="text-end pe-4">
+                          <div class="d-flex align-items-center justify-content-end gap-2">
+                            <% if (hasCorrectionRequest) { %>
+                              <span class="badge bg-danger text-white py-1 px-2 d-inline-flex align-items-center animate-pulse">
+                                <i class="bi bi-exclamation-triangle-fill me-1 text-xs"></i> Correction requise
+                              </span>
+                              <a href="/dossiers/<%= ds.id %>" class="btn btn-warning btn-xs py-1 px-2.5 rounded-pill fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-pencil-square me-1"></i>Corriger & Renvoyer
+                              </a>
+                            <% } else if (canActThisStep) { %>
+                              <a href="/dossiers/<%= ds.id %>" class="btn btn-success btn-xs py-1 px-2.5 rounded-pill fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-play-circle me-1"></i>Traiter Étape
+                              </a>
+                            <% } else { %>
+                              <a href="/dossiers/<%= ds.id %>" class="btn btn-outline-info btn-xs py-1 px-2.5 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+                                <i class="bi bi-search me-1"></i>Crosscheck
+                              </a>
+                            <% } %>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } else { %>
+                    <tr>
+                      <td colspan="6" class="text-center text-muted py-4">Aucun dossier de transit actif actuellement dans le registre.</td>
                     </tr>
                   <% } %>
                 </tbody>

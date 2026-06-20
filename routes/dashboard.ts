@@ -115,6 +115,13 @@ router.get("/dashboard", requireAuth, async (req: any, res: any) => {
       prisma.dossier.findMany({
         where: {
           etat: { notIn: ["CLOTURE", "Clôturé"] }
+        },
+        include: {
+          client: true,
+          taches: true,
+        },
+        orderBy: {
+          created_at: "desc",
         }
       })
     ]);
@@ -193,6 +200,7 @@ router.get("/dashboard", requireAuth, async (req: any, res: any) => {
         lowStock: lowStockItems
       },
       lastInvoices: last5Invoices,
+      activeDossiersList,
       title: "Tableau de Bord Général"
     });
   } catch (error) {

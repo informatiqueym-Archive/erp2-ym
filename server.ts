@@ -119,6 +119,7 @@ app.use((req: any, res: any, next: any) => {
 // Body Parser
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use("/assets", express.static(path.join(process.cwd(), "assets")));
 
 // Configuration du moteur EJS
 app.set("view engine", "ejs");
@@ -253,7 +254,7 @@ app.get("/", (req: any, res: any) => {
   if (req.session && req.session.userId) {
     res.redirect("/dashboard");
   } else {
-    res.redirect("/welcome");
+    res.render("welcome", { session: req.session });
   }
 });
 
@@ -1006,6 +1007,80 @@ app.get("/logs", requireAuth, requireSuperAdmin, async (req: any, res: any) => {
 async function seedAccounts() {
   try {
     const seedData = [
+      // 1. Administration (Top Management)
+      {
+        nom: "Abega",
+        prenom: "PDG",
+        email: "pdg@ym-transit.cm",
+        password: "pdg123",
+        role: "pdg",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Fouda",
+        prenom: "DG",
+        email: "dg@ym-transit.cm",
+        password: "dg123",
+        role: "dg",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Ngo",
+        prenom: "DGA",
+        email: "dga@ym-transit.cm",
+        password: "dga123",
+        role: "dga",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Tchakounte",
+        prenom: "DAF",
+        email: "daf@ym-transit.cm",
+        password: "daf123",
+        role: "daf",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Mvondo",
+        prenom: "Auditeur 1",
+        email: "auditeur1@ym-transit.cm",
+        password: "auditeur1123",
+        role: "auditeur1",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Kamdem",
+        prenom: "Auditeur 2",
+        email: "auditeur2@ym-transit.cm",
+        password: "auditeur2123",
+        role: "auditeur2",
+        societe: "YM-TRANSIT"
+      },
+      // 2. Transit / Opérations
+      {
+        nom: "Ndzana",
+        prenom: "Secrétariat",
+        email: "secretariat@ym-transit.cm",
+        password: "secretariat123",
+        role: "secretariat",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Eboa",
+        prenom: "GUCE",
+        email: "guce@ym-transit.cm",
+        password: "guce123",
+        role: "guce",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Talla",
+        prenom: "Validation",
+        email: "validation@ym-transit.cm",
+        password: "validation123",
+        role: "validation",
+        societe: "YM-TRANSIT"
+      },
       {
         nom: "Service Acconage",
         prenom: "Opérations",
@@ -1022,12 +1097,29 @@ async function seedAccounts() {
         role: "enlevement",
         societe: "YM-TRANSIT"
       },
+      // 3. Finance & Facturation
       {
-        nom: "Directeur",
-        prenom: "Top Management",
-        email: "direction@ym-transit.cm",
-        password: "direction123",
-        role: "direction",
+        nom: "Biya",
+        prenom: "Facturation",
+        email: "facturation@ym-transit.cm",
+        password: "facturation123",
+        role: "facturation",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Atangana",
+        prenom: "Fiscalité",
+        email: "fiscalite@ym-transit.cm",
+        password: "fiscalite123",
+        role: "fiscalite",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Bell",
+        prenom: "Clôture",
+        email: "cloture@ym-transit.cm",
+        password: "cloture123",
+        role: "cloture",
         societe: "YM-TRANSIT"
       },
       {
@@ -1038,22 +1130,7 @@ async function seedAccounts() {
         role: "agent_payeur",
         societe: "YM-TRANSIT"
       },
-      {
-        nom: "Directeur Financier",
-        prenom: "Finances",
-        email: "finances@ym-transit.cm",
-        password: "finances123",
-        role: "finances",
-        societe: "YM-TRANSIT"
-      },
-      {
-        nom: "Comptable Operations",
-        prenom: "Comptabilité",
-        email: "compta_ops@ym-transit.cm",
-        password: "comptaops123",
-        role: "comptable_ops",
-        societe: "YM-TRANSIT"
-      },
+      // 4. Autre
       {
         nom: "Yannick Abega",
         prenom: "Super Admin",
@@ -1100,6 +1177,30 @@ async function seedAccounts() {
         email: "lecture@ym-transit.cm",
         password: "lecture123",
         role: "lecture",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Analyste Décisoire",
+        prenom: "Analyste",
+        email: "analyste@ym-transit.cm",
+        password: "analyste123",
+        role: "analyste",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Directeur Financier",
+        prenom: "Finances",
+        email: "finances@ym-transit.cm",
+        password: "finances123",
+        role: "finances",
+        societe: "YM-TRANSIT"
+      },
+      {
+        nom: "Comptable Operations",
+        prenom: "Comptabilité",
+        email: "compta_ops@ym-transit.cm",
+        password: "comptaops123",
+        role: "comptable_ops",
         societe: "YM-TRANSIT"
       }
     ];

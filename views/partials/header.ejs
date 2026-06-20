@@ -199,8 +199,7 @@
 
       <% if (typeof user !== 'undefined') { %>
         
-        <% const canSeeClients = ['super_admin','comptable','commercial','operationnel','lecture','secretariat','finances','pdg','dg','dga','daf','auditeur1','auditeur2','fiscalite'].includes(user.role); %>
-        <% if (canSeeClients) { %>
+        <% if (['super_admin', 'comptable', 'commercial', 'operationnel', 'lecture', 'secretariat', 'finances'].includes(user.role)) { %>
           <li class="<%= currentPath.startsWith('/clients') ? 'active' : '' %>">
             <a href="/clients">
               <i class="bi bi-people"></i>
@@ -209,7 +208,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','commercial','operationnel','lecture','secretariat','validation_role','guce','acconage','enlevement','finances','comptable_ops','direction','agent_payeur','pdg','dg','dga','daf','auditeur1','auditeur2','cloture','caisse','analyste','archiviste'].includes(user.role)) { %>
+        <% if (['super_admin', 'commercial', 'operationnel', 'lecture', 'secretariat', 'validation_role', 'guce', 'acconage', 'enlevement', 'finances', 'comptable_ops', 'direction', 'agent_payeur'].includes(user.role)) { %>
           <li class="<%= currentPath === '/dossiers' || (currentPath.startsWith('/dossiers') && !currentPath.includes('/archives')) ? 'active' : '' %>">
             <a href="/dossiers">
               <i class="bi bi-folder-fill"></i>
@@ -218,7 +217,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','comptable','direction','comptable_ops','commercial','operationnel','lecture','secretariat','validation_role','guce','acconage','enlevement','finances','agent_payeur','pdg','dg','dga','daf','auditeur1','auditeur2','cloture','caisse','analyste','archiviste'].includes(user.role)) { %>
+        <% if (['super_admin', 'comptable', 'direction', 'comptable_ops', 'commercial', 'operationnel', 'lecture', 'secretariat', 'validation_role', 'guce', 'acconage', 'enlevement', 'finances', 'agent_payeur'].includes(user.role)) { %>
           <li class="<%= currentPath.startsWith('/archives') || currentPath.startsWith('/dossiers/archives') ? 'active' : '' %>">
             <a href="/archives">
               <i class="bi bi-archive-fill"></i>
@@ -227,7 +226,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','comptable','commercial','lecture','finances','comptable_ops','pdg','dg','dga','daf','auditeur1','auditeur2','caisse'].includes(user.role)) { %>
+        <% if (['super_admin', 'comptable', 'commercial', 'lecture', 'finances', 'comptable_ops'].includes(user.role)) { %>
           <li class="<%= currentPath.startsWith('/documents') ? 'active' : '' %>">
             <a href="/documents">
               <i class="bi bi-receipt"></i>
@@ -236,7 +235,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','commercial','operationnel','lecture','secretariat','guce','validation_role','acconage','enlevement'].includes(user.role)) { %>
+        <% if (['super_admin', 'commercial', 'operationnel', 'lecture'].includes(user.role)) { %>
           <li class="<%= currentPath.startsWith('/taches') ? 'active' : '' %>">
             <a href="/taches">
               <i class="bi bi-kanban"></i>
@@ -245,7 +244,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','comptable','commercial','lecture','direction','pdg','dg','dga','daf','auditeur1','auditeur2','analyste','fiscalite'].includes(user.role)) { %>
+        <% if (['super_admin', 'comptable', 'commercial', 'lecture', 'direction'].includes(user.role)) { %>
           <li class="<%= currentPath.startsWith('/analytics') ? 'active' : '' %>">
             <a href="/analytics">
               <i class="bi bi-bar-chart-line-fill"></i>
@@ -254,7 +253,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','comptable','lecture','comptable_ops','caisse','auditeur1','daf'].includes(user.role)) { %>
+        <% if (['super_admin', 'comptable', 'lecture', 'comptable_ops'].includes(user.role)) { %>
           <li class="<%= currentPath === '/accounting/journal' ? 'active' : '' %>">
             <a href="/accounting/journal">
               <i class="bi bi-book"></i>
@@ -281,7 +280,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','magasinier','comptable','lecture','daf'].includes(user.role)) { %>
+        <% if (['super_admin', 'magasinier', 'comptable', 'lecture'].includes(user.role)) { %>
           <li class="<%= currentPath.startsWith('/stock') ? 'active' : '' %>">
             <a href="/stock">
               <i class="bi bi-box-seam"></i>
@@ -312,7 +311,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','acconage','enlevement','direction','agent_payeur','pdg','dg','dga','daf','auditeur1','caisse'].includes(user.role)) { %>
+        <% if (['super_admin', 'acconage', 'enlevement', 'direction', 'agent_payeur'].includes(user.role)) { %>
           <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Trésorerie & Caisse</li>
           <li class="<%= currentPath.startsWith('/bons') ? 'active' : '' %>">
             <a href="/bons/provisoir/pending">
@@ -325,7 +324,7 @@
           </li>
         <% } %>
 
-        <% if (['super_admin','pdg','dg'].includes(user.role)) { %>
+        <% if (user.role === 'super_admin') { %>
           <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Administration</li>
           <li class="<%= currentPath.startsWith('/admin/users') ? 'active' : '' %>">
             <a href="/admin/users">
@@ -371,18 +370,7 @@
               </div>
               <div class="text-start me-1">
                 <div class="fw-bold" style="font-size: 0.85rem;"><%= user.nom %></div>
-                <div class="text-muted" style="font-size: 0.75rem;"><%
-  const ROLE_LABELS = {
-    super_admin:'Super Admin', pdg:'PDG', dg:'DG', dga:'DGA', daf:'DAF',
-    auditeur1:'Auditeur 1', auditeur2:'Auditeur 2',
-    secretariat:'Secrétariat', guce:'GUCE', validation_role:'Validation',
-    acconage:'Acconage', enlevement:'Enlèvement',
-    finances:'Facturation', fiscalite:'Fiscalité', cloture:'Clôture',
-    caisse:'Caisse', analyste:'Analyste', archiviste:'Archives',
-    comptable:'Comptable', direction:'Direction', agent_payeur:'Agent Payeur',
-    commercial:'Commercial', operationnel:'Opérationnel', comptable_ops:'Compta Ops'
-  };
-%><%= ROLE_LABELS[user.role] || user.role %></div>
+                <div class="text-muted" style="font-size: 0.75rem;"><%= user.role %></div>
               </div>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" aria-labelledby="profileDropdown">

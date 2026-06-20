@@ -1,10 +1,43 @@
 import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { requireAuth } from "./rbac";
 import { notify } from "../lib/notify";
 import PDFDocument from "pdfkit";
 import prisma from "../lib/prismaClient";
 
 const router = Router();
+
+// Storage temporaire pour les Bons (qui sera déplacé vers uploads/dossiers/:id)
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(process.cwd(), "uploads", "temp");
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const cleanedName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    cb(null, `${uniqueSuffix}-${cleanedName}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const filetypes = /pdf$/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("Seuls les fichiers PDF sont acceptés !"));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
 
 // Helper de log d'activité
 async function logActivity(userId: number, action: string, entity: string, entityId?: number | string) {
@@ -52,106 +85,134 @@ async function createAutoTask(dossierId: number, title: string, description: str
 }
 
 // POST /bons/provisoir - Créer un Bon Provisoir
-router.post("/bons/provisoir", requireAuth, async (req: any, res: any) => {
-  try {
-    const user = req.session.user;
-    if (!["acconage", "enlevement", "super_admin"].includes(user.role)) {
-      req.session.error_msg = "Accès refusé : rôle non autorisé.";
-      return res.redirect("/dashboard");
-    }
+router.post("/bons/provisoir", requireAuth, (req: any, res: any) => {
+  upload.single("pdf_file")(req, res, async function (err: any) {
+    try {
+      const id = req.body.dossier_id;
+      if (err) {
+        req.session.error_msg = `Échec de l'import de pièces justificatives : ${err.message}`;
+        return res.redirect(id ? `/dossiers/${id}` : "/dashboard");
+      }
 
-    const { dossier_id, objet, montant_demande, items_json } = req.body;
-    if (!dossier_id || !objet) {
-      req.session.error_msg = "Veuillez remplir tous les champs obligatoires.";
-      return res.redirect(dossier_id ? `/dossiers/${dossier_id}` : "/dossiers");
-    }
+      const user = req.session.user;
+      if (!["acconage", "enlevement", "super_admin"].includes(user.role)) {
+        req.session.error_msg = "Accès refusé : rôle non autorisé.";
+        return res.redirect("/dashboard");
+      }
 
-    const dId = parseInt(dossier_id);
-    const dossier = await prisma.dossier.findUnique({ where: { id: dId } });
+      const { dossier_id, objet, montant_demande, items_json } = req.body;
+      if (!dossier_id || !objet) {
+        req.session.error_msg = "Veuillez remplir tous les champs obligatoires.";
+        return res.redirect(dossier_id ? `/dossiers/${dossier_id}` : "/dossiers");
+      }
 
-    if (!dossier) {
-      req.session.error_msg = "Dossier introuvable.";
-      return res.redirect("/dossiers");
-    }
+      const dId = parseInt(dossier_id);
+      const dossier = await prisma.dossier.findUnique({ where: { id: dId } });
 
-    if (dossier.pipeline_status !== "EN_TRAITEMENT") {
-      req.session.error_msg = "Le dossier doit être au statut 'En traitement' pour créer un bon provisoire.";
-      return res.redirect(`/dossiers/${dId}`);
-    }
+      if (!dossier) {
+        req.session.error_msg = "Dossier introuvable.";
+        return res.redirect("/dossiers");
+      }
 
-    // Auto-generate numero
-    const currentYear = new Date().getFullYear();
-    const count = await prisma.bonProvisoir.count();
-    let numero = `BP-${currentYear}-${String(count + 1).padStart(4, "0")}`;
-    
-    // Check for unique number
-    let exists = await prisma.bonProvisoir.findUnique({ where: { numero } });
-    let inc = 1;
-    while (exists) {
-      numero = `BP-${currentYear}-${String(count + 1 + inc).padStart(4, "0")}`;
-      exists = await prisma.bonProvisoir.findUnique({ where: { numero } });
-      inc++;
-    }
+      if (dossier.pipeline_status !== "EN_TRAITEMENT") {
+        req.session.error_msg = "Le dossier doit être au statut 'En traitement' pour créer un bon provisoire.";
+        return res.redirect(`/dossiers/${dId}`);
+      }
 
-    // Calcul automatique à partir de la liste des charges
-    let finalItemsJson = "[]";
-    let computedTotal = 0;
+      // Auto-generate numero
+      const currentYear = new Date().getFullYear();
+      const count = await prisma.bonProvisoir.count();
+      let numero = `BP-${currentYear}-${String(count + 1).padStart(4, "0")}`;
+      
+      // Check for unique number
+      let exists = await prisma.bonProvisoir.findUnique({ where: { numero } });
+      let inc = 1;
+      while (exists) {
+        numero = `BP-${currentYear}-${String(count + 1 + inc).padStart(4, "0")}`;
+        exists = await prisma.bonProvisoir.findUnique({ where: { numero } });
+        inc++;
+      }
 
-    if (items_json && items_json.trim() !== "" && items_json !== "[]") {
-      try {
-        finalItemsJson = items_json;
-        const parsed = JSON.parse(items_json);
-        if (Array.isArray(parsed)) {
-          computedTotal = parsed.reduce((sum: number, it: any) => sum + parseFloat(it.montant || 0), 0);
+      // Calcul automatique à partir de la liste des charges
+      let finalItemsJson = "[]";
+      let computedTotal = 0;
+
+      if (items_json && items_json.trim() !== "" && items_json !== "[]") {
+        try {
+          finalItemsJson = items_json;
+          const parsed = JSON.parse(items_json);
+          if (Array.isArray(parsed)) {
+            computedTotal = parsed.reduce((sum: number, it: any) => sum + parseFloat(it.montant || 0), 0);
+          }
+        } catch (e) {
+          console.error("Erreur de parsing items_json :", e);
+          computedTotal = parseFloat(montant_demande) || 0;
+          finalItemsJson = JSON.stringify([{ designation: objet, montant: computedTotal }]);
         }
-      } catch (e) {
-        console.error("Erreur de parsing items_json :", e);
+      } else {
         computedTotal = parseFloat(montant_demande) || 0;
         finalItemsJson = JSON.stringify([{ designation: objet, montant: computedTotal }]);
       }
-    } else {
-      computedTotal = parseFloat(montant_demande) || 0;
-      finalItemsJson = JSON.stringify([{ designation: objet, montant: computedTotal }]);
-    }
 
-    const bon = await prisma.bonProvisoir.create({
-      data: {
-        numero,
-        dossier_id: dId,
-        service: user.role,
-        demandeur_id: req.session.userId,
-        objet,
-        montant_demande: computedTotal,
-        items_json: finalItemsJson,
-        etat: "EN_ATTENTE"
+      // Gérer l'upload de pièce jointe proforma / devis
+      if (req.file) {
+        const destDir = path.join(process.cwd(), "uploads", "dossiers", String(dId));
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        fs.renameSync(req.file.path, path.join(destDir, req.file.filename));
+        
+        await prisma.activityLog.create({
+          data: {
+            user_id: req.session.userId,
+            action: 'fichier.uploaded',
+            entity: 'dossier',
+            entity_id: String(dId),
+            meta: JSON.stringify({ filename: req.file.originalname })
+          }
+        });
       }
-    });
 
-    // Update dossier pipeline status to BON_PROVISOIR
-    await prisma.dossier.update({
-      where: { id: dId },
-      data: { pipeline_status: "BON_PROVISOIR" }
-    });
+      const bon = await prisma.bonProvisoir.create({
+        data: {
+          numero,
+          dossier_id: dId,
+          service: user.role,
+          demandeur_id: req.session.userId,
+          objet,
+          montant_demande: computedTotal,
+          items_json: finalItemsJson,
+          etat: "EN_ATTENTE"
+        }
+      });
 
-    await logActivity(req.session.userId, "BON_PROVISOIR_CREE", "BonProvisoir", bon.id);
-    await notify("direction", "Nouveau Bon Provisoir créé", `Le bon provisoire ${numero} a été créé par ${user.nom} pour le dossier ${dossier.numero}.`);
+      // Update dossier pipeline status to BON_PROVISOIR
+      await prisma.dossier.update({
+        where: { id: dId },
+        data: { pipeline_status: "BON_PROVISOIR" }
+      });
 
-    // Gérer la tâche pour que la Direction puisse approuver/viser le bon
-    await createAutoTask(dId, `✍️ Visa requis - Bon Provisoire ${numero}`, `Le bon provisoire ${numero} (${computedTotal.toLocaleString('fr-FR')} F) pour '${objet}' requiert vos visas de conformité directionnelle avant décaissement.`, "direction");
+      await logActivity(req.session.userId, "BON_PROVISOIR_CREE", "BonProvisoir", bon.id);
+      await notify("direction", "Nouveau Bon Provisoir créé", `Le bon provisoire ${numero} a été créé par ${user.nom} pour le dossier ${dossier.numero}.`);
 
-    req.session.success_msg = `Bon Provisoire ${numero} émis avec succès (Total : ${computedTotal.toLocaleString('fr-FR')} F).`;
-    res.redirect(`/dossiers/${dId}`);
-  } catch (error) {
-    console.error("Erreur création bon provisoire :", error);
-    res.status(500).render("errors/500", { error });
-  }
+      // Gérer la tâche pour que la Direction puisse approuver/viser le bon
+      await createAutoTask(dId, `✍️ Visa requis - Bon Provisoire ${numero}`, `Le bon provisoire ${numero} (${computedTotal.toLocaleString('fr-FR')} F) pour '${objet}' requiert vos visas de conformité directionnelle avant décaissement.`, "direction");
+
+      req.session.success_msg = `Bon Provisoire ${numero} émis avec succès (Total : ${computedTotal.toLocaleString('fr-FR')} F). Pièces justificatives liées au dossier.`;
+      res.redirect(`/dossiers/${dId}`);
+    } catch (error) {
+      console.error("Erreur création bon provisoire :", error);
+      res.status(500).render("errors/500", { error });
+    }
+  });
 });
 
 // GET /bons/provisoir/pending - Liste des Bons Provisoires en attente
 router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin", "agent_payeur"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "agent_payeur", "caisse", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       req.session.error_msg = "Accès refusé.";
       return res.redirect("/dashboard");
     }
@@ -159,7 +220,7 @@ router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) =>
     const whereClause: any = { etat: "EN_ATTENTE" };
     
     // Si l'utilisateur est l'agent payeur (La Caisse), il ne voit le bon que s'il a reçu TOUS les 5 visas du Top Management
-    if (user.role === "agent_payeur") {
+    if (user.role === "agent_payeur" || user.role === "caisse") {
       whereClause.tick_pdg = true;
       whereClause.tick_dg = true;
       whereClause.tick_dga = true;
@@ -196,7 +257,8 @@ router.get("/bons/provisoir/pending", requireAuth, async (req: any, res: any) =>
 router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin", "agent_payeur"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "agent_payeur", "caisse", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -211,7 +273,7 @@ router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res:
     }
 
     // Si l'utilisateur est l'agent payeur (La Caisse), s'assurer que les 5 visas sont au complet
-    if (user.role === "agent_payeur") {
+    if (user.role === "agent_payeur" || user.role === "caisse") {
       const allTicksApproved = bon.tick_pdg && bon.tick_dg && bon.tick_dga && bon.tick_daf && bon.tick_audit;
       if (!allTicksApproved) {
         return res.status(403).json({ ok: false, message: "Décaissement non autorisé : Les 5 signatures de visa du Top Management ne sont pas complètes." });
@@ -269,7 +331,8 @@ router.patch("/bons/provisoir/:id/approuver", requireAuth, async (req: any, res:
 router.patch("/bons/provisoir/:id/rejeter", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -314,100 +377,128 @@ router.patch("/bons/provisoir/:id/rejeter", requireAuth, async (req: any, res: a
 });
 
 // POST /bons/reel - Soumettre un Bon Réel (Justification après dépenses)
-router.post("/bons/reel", requireAuth, async (req: any, res: any) => {
-  try {
-    const user = req.session.user;
-    if (!["acconage", "enlevement", "super_admin"].includes(user.role)) {
-      req.session.error_msg = "Accès refusé : rôle non autorisé.";
-      return res.redirect("/dashboard");
-    }
+router.post("/bons/reel", requireAuth, (req: any, res: any) => {
+  upload.single("pdf_file")(req, res, async function (err: any) {
+    try {
+      const { bon_provisoir_id } = req.body;
+      if (err) {
+        req.session.error_msg = `Échec de l'import de pièces justificatives : ${err.message}`;
+        return res.redirect("/dossiers");
+      }
 
-    const { bon_provisoir_id, montant_reel, observations, items_json } = req.body;
-    if (!bon_provisoir_id) {
-      req.session.error_msg = "Veuillez préciser le bon de référence.";
-      return res.redirect("/dossiers");
-    }
+      const user = req.session.user;
+      if (!["acconage", "enlevement", "super_admin"].includes(user.role)) {
+        req.session.error_msg = "Accès refusé : rôle non autorisé.";
+        return res.redirect("/dashboard");
+      }
 
-    const bpId = parseInt(bon_provisoir_id);
-    const bonProvisoir = await prisma.bonProvisoir.findUnique({
-      where: { id: bpId }
-    });
+      const { montants_reels, observations, items_json } = req.body;
+      if (!bon_provisoir_id) {
+        req.session.error_msg = "Veuillez préciser le bon de référence.";
+        return res.redirect("/dossiers");
+      }
 
-    if (!bonProvisoir || bonProvisoir.etat !== "APPROUVE") {
-      req.session.error_msg = "Le bon provisoire correspondant doit être approuvé.";
-      return res.redirect("/dossiers");
-    }
+      const bpId = parseInt(bon_provisoir_id);
+      const bonProvisoir = await prisma.bonProvisoir.findUnique({
+        where: { id: bpId }
+      });
 
-    const montant_provisoir = bonProvisoir.montant_demande;
+      if (!bonProvisoir || bonProvisoir.etat !== "APPROUVE") {
+        req.session.error_msg = "Le bon provisoire correspondant doit être approuvé.";
+        return res.redirect("/dossiers");
+      }
 
-    // Calcul automatique à partir de la liste des dépenses effectives
-    let finalItemsJson = "[]";
-    let computedTotalReel = 0;
+      const dId = bonProvisoir.dossier_id;
+      const montant_provisoir = bonProvisoir.montant_demande;
 
-    if (items_json && items_json.trim() !== "" && items_json !== "[]") {
-      try {
-        finalItemsJson = items_json;
-        const parsed = JSON.parse(items_json);
-        if (Array.isArray(parsed)) {
-          computedTotalReel = parsed.reduce((sum: number, it: any) => sum + parseFloat(it.montant || 0), 0);
+      // Calcul automatique à partir de la liste des dépenses effectives
+      let finalItemsJson = "[]";
+      let computedTotalReel = 0;
+
+      if (items_json && items_json.trim() !== "" && items_json !== "[]") {
+        try {
+          finalItemsJson = items_json;
+          const parsed = JSON.parse(items_json);
+          if (Array.isArray(parsed)) {
+            computedTotalReel = parsed.reduce((sum: number, it: any) => sum + parseFloat(it.montant || 0), 0);
+          }
+        } catch (e) {
+          console.error("Erreur de parsing items_json :", e);
+          computedTotalReel = parseFloat(req.body.montant_reel) || 0;
+          finalItemsJson = JSON.stringify([{ designation: "Dépenses réelles", montant: computedTotalReel }]);
         }
-      } catch (e) {
-        console.error("Erreur de parsing items_json :", e);
-        computedTotalReel = parseFloat(montant_reel) || 0;
+      } else {
+        computedTotalReel = parseFloat(req.body.montant_reel) || 0;
         finalItemsJson = JSON.stringify([{ designation: "Dépenses réelles", montant: computedTotalReel }]);
       }
-    } else {
-      computedTotalReel = parseFloat(montant_reel) || 0;
-      finalItemsJson = JSON.stringify([{ designation: "Dépenses réelles", montant: computedTotalReel }]);
-    }
 
-    const ecart = montant_provisoir - computedTotalReel;
+      const ecart = montant_provisoir - computedTotalReel;
 
-    const bonReel = await prisma.bonReel.create({
-      data: {
-        bon_provisoir_id: bpId,
-        dossier_id: bonProvisoir.dossier_id,
-        montant_provisoir,
-        montant_reel: computedTotalReel,
-        ecart,
-        items_json: finalItemsJson,
-        observations: observations || null,
-        soumis_par_id: req.session.userId
+      // Gérer l'upload de pièce jointe quittance / reçu de dépenses
+      if (req.file) {
+        const destDir = path.join(process.cwd(), "uploads", "dossiers", String(dId));
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        fs.renameSync(req.file.path, path.join(destDir, req.file.filename));
+        
+        await prisma.activityLog.create({
+          data: {
+            user_id: req.session.userId,
+            action: 'fichier.uploaded',
+            entity: 'dossier',
+            entity_id: String(dId),
+            meta: JSON.stringify({ filename: req.file.originalname })
+          }
+        });
       }
-    });
 
-    // Update Dossier Status to FACTURATION
-    await prisma.dossier.update({
-      where: { id: bonProvisoir.dossier_id },
-      data: { pipeline_status: "FACTURATION" }
-    });
-
-    try {
-      // Mark operational justification task as completed
-      await prisma.tache.updateMany({
-        where: { dossier_id: bonProvisoir.dossier_id, titre: `🧾 Régularisation - Bon Provisoire ${bonProvisoir.numero}`, archive: false },
-        data: { etat: "FAIT" }
+      const bonReel = await prisma.bonReel.create({
+        data: {
+          bon_provisoir_id: bpId,
+          dossier_id: dId,
+          montant_provisoir,
+          montant_reel: computedTotalReel,
+          ecart,
+          items_json: finalItemsJson,
+          observations: observations || null,
+          soumis_par_id: req.session.userId
+        }
       });
-    } catch (tError) {
-      console.error("Erreur marquage tâche régularisation complétée :", tError);
+
+      // Update Dossier Status to FACTURATION
+      await prisma.dossier.update({
+        where: { id: dId },
+        data: { pipeline_status: "FACTURATION" }
+      });
+
+      try {
+        // Mark operational justification task as completed
+        await prisma.tache.updateMany({
+          where: { dossier_id: dId, titre: `🧾 Régularisation - Bon Provisoire ${bonProvisoir.numero}`, archive: false },
+          data: { etat: "FAIT" }
+        });
+      } catch (tError) {
+        console.error("Erreur marquage tâche régularisation complétée :", tError);
+      }
+
+      await logActivity(req.session.userId, "BON_REEL_SOUMIS", "BonReel", bonReel.id);
+      await notify("finances", "Justification de Bon soumis (Bon Réel)", `Un bon réel a été soumis pour le bon provisoire ${bonProvisoir.numero}. Écart : ${ecart} F.`);
+
+      req.session.success_msg = `Justificatif de dépenses (Bon Réel) enregistré avec succès (Total réel : ${computedTotalReel.toLocaleString('fr-FR')} F, Écart : ${ecart.toLocaleString('fr-FR')} F). Pièces justificatives stockées.`;
+      res.redirect(`/dossiers/${dId}`);
+    } catch (error) {
+      console.error("Erreur soumission bon réel :", error);
+      res.status(500).render("errors/500", { error });
     }
-
-    await logActivity(req.session.userId, "BON_REEL_SOUMIS", "BonReel", bonReel.id);
-    await notify("finances", "Justification de Bon soumis (Bon Réel)", `Un bon réel a été soumis pour le bon provisoire ${bonProvisoir.numero}. Écart : ${ecart} F.`);
-
-    req.session.success_msg = `Justificatif de dépenses (Bon Réel) enregistré avec succès (Total réel : ${computedTotalReel.toLocaleString('fr-FR')} F, Écart : ${ecart.toLocaleString('fr-FR')} F).`;
-    res.redirect(`/dossiers/${bonProvisoir.dossier_id}`);
-  } catch (error) {
-    console.error("Erreur soumission bon réel :", error);
-    res.status(500).render("errors/500", { error });
-  }
+  });
 });
 
 // PATCH /bons/reel/:id/confirmer - Confirmer décaissement fonds (Par agent_payeur)
 router.patch("/bons/reel/:id/confirmer", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["agent_payeur", "super_admin"].includes(user.role)) {
+    if (!["agent_payeur", "caisse", "super_admin"].includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès non autorisé." });
     }
 
@@ -478,14 +569,31 @@ router.get("/bons/:id", requireAuth, async (req: any, res: any) => {
 router.post("/bons/provisoir/:id/tick", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (!["direction", "super_admin"].includes(user.role)) {
+    const allowedRoles = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ ok: false, message: "Accès refusé. Réservé à la Direction." });
     }
 
     const bonId = parseInt(req.params.id);
-    const { tick } = req.body; // 'pdg', 'dg', 'dga', 'daf' ou 'audit'
+    const tick = req.body.tick || req.body.tick_key; // Support both format variants
     if (!["pdg", "dg", "dga", "daf", "audit"].includes(tick)) {
-      return res.status(400).json({ ok: false, message: "Type de visa invalide." });
+      return res.status(400).json({ ok: false, message: `Type de visa invalide ou absent (${tick}).` });
+    }
+
+    // Role-specific check: Standard user can only toggle their own visa
+    if (user.role !== "super_admin") {
+      const isPDGAllowed = (tick === "pdg" && user.role === "pdg");
+      const isDGAllowed = (tick === "dg" && user.role === "dg");
+      const isDGAAllowed = (tick === "dga" && user.role === "dga");
+      const isDAFAllowed = (tick === "daf" && user.role === "daf");
+      const isAuditAllowed = (tick === "audit" && (user.role === "auditeur1" || user.role === "auditeur2"));
+
+      if (!isPDGAllowed && !isDGAllowed && !isDGAAllowed && !isDAFAllowed && !isAuditAllowed) {
+        return res.status(403).json({
+          ok: false,
+          message: `Vous n'êtes pas autorisé à signer le ${tick.toUpperCase()}. Seul le titulaire désigné de cette fonction ou un Super Administrateur peut le faire.`
+        });
+      }
     }
 
     const bon = await prisma.bonProvisoir.findUnique({
@@ -771,7 +879,8 @@ router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) =>
       });
     }
 
-    if (["direction", "super_admin"].includes(user.role)) {
+    const isManagement = ["direction", "super_admin", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"].includes(user.role);
+    if (isManagement) {
       // Pour le management : Bons Provisoires en attente de signatures/visas
       const pendingBons = await prisma.bonProvisoir.findMany({
         where: {
@@ -826,6 +935,30 @@ router.get("/api/notifications/poll", requireAuth, async (req: any, res: any) =>
         }
       });
     }
+
+    // Récupérer les tâches actives assignées à l'utilisateur connecté pour notification
+    const activeTasks = await prisma.tache.findMany({
+      where: {
+        intervenant_id: user.id,
+        etat: { in: ["EN_COURS", "A_FAIRE", "ATTENTE_VALIDATION"] },
+        archive: false
+      },
+      include: {
+        dossier: { select: { numero: true } }
+      },
+      orderBy: { created_at: "desc" },
+      take: 5
+    });
+
+    activeTasks.forEach(task => {
+      const isCorrection = task.titre.startsWith("[Demande de modification]");
+      notifications.push({
+        id: `task-${task.id}-assigned`,
+        title: isCorrection ? "⚠️ Action - Demande de Correction (Rétrogadé)" : "📋 Tâche de transit assignée",
+        content: `Pour le Dossier ${task.dossier?.numero || "N/A"} : ${task.titre}`,
+        url: `/taches/${task.id}`
+      });
+    });
 
     return res.json({ ok: true, notifications });
   } catch (error) {
