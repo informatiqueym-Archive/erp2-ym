@@ -132,7 +132,8 @@ router.get("/dossiers/archives", requireAuth, handleGetArchives);
 router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (user.role !== "secretariat" && user.role !== "super_admin") {
+    const userRole = (user?.role || "").trim().toLowerCase();
+    if (userRole !== "secretariat" && userRole !== "secretaire" && userRole !== "super_admin") {
       req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
       return res.redirect("/dossiers");
     }
@@ -152,7 +153,8 @@ router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
 const handleDossierCreation = async (req: any, res: any) => {
   try {
     const user = req.session.user;
-    if (user.role !== "secretariat" && user.role !== "super_admin") {
+    const userRole = (user?.role || "").trim().toLowerCase();
+    if (userRole !== "secretariat" && userRole !== "secretaire" && userRole !== "super_admin") {
       req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
       return res.redirect("/dossiers");
     }
@@ -262,7 +264,8 @@ router.post("/dossiers/:id/update-custom", requireAuth, async (req: any, res: an
 
     if (wantsToChangeGroup1) {
       const userObj = req.session.user;
-      if (userObj.role !== "secretariat" && userObj.role !== "super_admin") {
+      const userObjRole = (userObj?.role || "").trim().toLowerCase();
+      if (userObjRole !== "secretariat" && userObjRole !== "secretaire" && userObjRole !== "super_admin") {
         req.session.error_msg = "Accès refusé : Seul le secrétariat administratif (ou le Super Administrateur) peut modifier les informations d'origine de ce dossier.";
         return res.redirect(`/dossiers/${id}`);
       }
@@ -828,7 +831,8 @@ router.post("/dossiers/:id/pipeline/soumettre-guce", requireAuth, async (req: an
   try {
     const id = parseInt(req.params.id);
     const user = req.session.user;
-    if (!["secretariat", "super_admin", "pdg", "dg", "dga"].includes(user.role)) {
+    const userRole = (user?.role || "").trim().toLowerCase();
+    if (!["secretariat", "secretaire", "super_admin", "pdg", "dg", "dga"].includes(userRole)) {
       req.session.error_msg = "Seul le secrétariat, l'administration ou un administrateur peut soumettre au GUCE.";
       return res.redirect(`/dossiers/${id}`);
     }

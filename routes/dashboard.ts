@@ -26,6 +26,7 @@ router.get("/dashboard", requireAuth, async (req: any, res: any) => {
     let extraData: any = {};
 
     switch (userRole) {
+      case "secretaire":
       case "secretariat": {
         const logs = await prisma.activityLog.findMany({
           where: {

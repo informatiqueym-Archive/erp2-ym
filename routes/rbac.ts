@@ -10,6 +10,7 @@ export const ROLES_PERMISSIONS: { [key: string]: string[] } = {
   auditeur1: ["clients", "dossiers", "taches", "facturation", "comptabilite", "analytics", "bons"],
   auditeur2: ["clients", "dossiers", "taches", "analytics", "bons"],
   secretariat: ["dashboard", "dossiers", "clients", "taches"],
+  secretaire: ["dashboard", "dossiers", "clients", "taches"],
   validation: ["dashboard", "dossiers", "taches"],
   validation_role: ["dashboard", "dossiers", "taches"],
   guce: ["dashboard", "dossiers", "taches"],
@@ -90,13 +91,15 @@ export const requireModule = (moduleName: string) => {
       return res.redirect("/login");
     }
 
+    const userRole = (user.role || "").trim().toLowerCase();
+
     // 1. Super admin can always perform any action
-    if (user.role === "super_admin") {
+    if (userRole === "super_admin") {
       return next();
     }
 
     // 1.5. Secretariat can always write to clients, dossiers, and taches modules
-    if (user.role === "secretariat" && ["clients", "dossiers", "taches", "dashboard"].includes(moduleName)) {
+    if ((userRole === "secretariat" || userRole === "secretaire") && ["clients", "dossiers", "taches", "dashboard"].includes(moduleName)) {
       return next();
     }
 
@@ -106,12 +109,12 @@ export const requireModule = (moduleName: string) => {
     }
 
     // 3. For modifying requests (POST, PATCH, PUT, DELETE), enforce strict write permissions
-    const permittedModules = ROLES_PERMISSIONS[user.role] || [];
+    const permittedModules = ROLES_PERMISSIONS[user.role] || ROLES_PERMISSIONS[userRole] || [];
     
     // Administration roles cannot perform general operational write tasks (like creating dossiers or creating bills),
     // except if the specific route has explicit internal role checks (which we handle inside the route itself, e.g., approving a bon or signing).
     const adminRoles = ["pdg", "dg", "dga", "daf", "auditeur1", "auditeur2"];
-    if (adminRoles.includes(user.role)) {
+    if (adminRoles.includes(userRole)) {
       // Block creation/modification of dossiers/clients/facturation/comptabilite operational data.
       // They are only allowed to modify "bons" or "taches".
       const allowedWriteModules = ["bons", "taches"];

@@ -39,7 +39,7 @@
           <div class="mb-3 text-start">
             <div class="d-flex justify-content-between align-items-center mb-1">
               <label class="form-label small fw-semibold text-slate-700 mb-0">Client / Importateur / Exportateur <span class="text-danger">*</span></label>
-              <% if (user && ['super_admin', 'secretariat', 'commercial', 'operationnel', 'comptable'].includes(user.role)) { %>
+              <% if (user && ['super_admin', 'secretariat', 'secretaire', 'commercial', 'operationnel', 'comptable'].includes(user.role)) { %>
                 <button type="button" class="btn btn-link p-0 text-decoration-none small fw-semibold" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#quickClientModal">
                   <i class="bi bi-person-plus-fill me-1"></i>+ Créer un client
                 </button>

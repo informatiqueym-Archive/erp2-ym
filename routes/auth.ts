@@ -133,6 +133,7 @@ router.post("/login", async (req: any, res: any) => {
         (normalizedNom === "auditeur1" && u.role === "auditeur1") ||
         (normalizedNom === "auditeur2" && u.role === "auditeur2") ||
         (normalizedNom === "secretariat" && u.role === "secretariat") ||
+        (normalizedNom === "secretaire" && u.role === "secretaire") ||
         (normalizedNom === "guce" && u.role === "guce") ||
         (normalizedNom === "validation" && u.role === "validation") ||
         (normalizedNom === "acconage" && u.role === "acconage") ||
@@ -184,7 +185,7 @@ router.post("/login", async (req: any, res: any) => {
     let redirectUrl = "/dashboard";
     const uRole = updatedUser.role;
 
-    if (uRole === "secretariat" || uRole === "guce" || uRole === "validation" || uRole === "validation_role" || uRole === "fiscalite" || uRole === "cloture") {
+    if (uRole === "secretariat" || uRole === "secretaire" || uRole === "guce" || uRole === "validation" || uRole === "validation_role" || uRole === "fiscalite" || uRole === "cloture") {
       redirectUrl = "/dossiers";
     } else if (uRole === "acconage" || uRole === "enlevement" || uRole === "agent_payeur" || uRole === "caisse") {
       redirectUrl = "/bons/provisoir/pending";
