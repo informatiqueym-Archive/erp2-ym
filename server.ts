@@ -401,7 +401,7 @@ app.post("/clients/new", requireAuth, requireModule("clients"), async (req: any,
     });
 
     await logActivity(req.session.userId, "CREATION_CLIENT", "Client", newClient.id);
-    req.session.success_msg = `Client "${nom}" enregistré avec succès !`;
+    req.session.success_msg = "Client créé avec succès !";
     res.redirect("/clients");
   } catch (error: any) {
     console.error(error);

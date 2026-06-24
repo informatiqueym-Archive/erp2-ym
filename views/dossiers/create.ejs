@@ -315,6 +315,16 @@ document.addEventListener("DOMContentLoaded", function() {
         const newOption = new Option(result.client.nom, result.client.id, true, true);
         select.add(newOption);
         
+        // Show success alert above the card
+        const successContainer = document.createElement("div");
+        successContainer.className = "alert alert-success alert-dismissible fade show text-start";
+        successContainer.role = "alert";
+        successContainer.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>Client créé avec succès !<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+        const mainCard = document.querySelector(".card.border-0.shadow-sm");
+        if (mainCard) {
+          mainCard.parentNode.insertBefore(successContainer, mainCard);
+        }
+        
         // Hide modal using bootstrap if loaded, otherwise just manual class hide
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
           const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);

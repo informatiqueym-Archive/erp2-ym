@@ -228,7 +228,7 @@ const handleDossierCreation = async (req: any, res: any) => {
       newDossier.id
     );
 
-    req.session.success_msg = `✅ Dossier ${newDossier.numero} créé avec succès ! Il est maintenant en attente de traitement GUCE.`;
+    req.session.success_msg = "Dossier créé avec succès !";
     res.redirect("/dashboard");
   } catch (error: any) {
     console.error("Erreur de création du dossier :", error);

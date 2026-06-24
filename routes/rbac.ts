@@ -95,6 +95,11 @@ export const requireModule = (moduleName: string) => {
       return next();
     }
 
+    // 1.5. Secretariat can always write to clients, dossiers, and taches modules
+    if (user.role === "secretariat" && ["clients", "dossiers", "taches", "dashboard"].includes(moduleName)) {
+      return next();
+    }
+
     // 2. All other users can view (GET) any module/functionality of the system
     if (req.method === "GET") {
       return next();
