@@ -37,10 +37,17 @@
         <form action="/dossiers/create" method="POST">
           <!-- Client Selection -->
           <div class="mb-3 text-start">
-            <label class="form-label small fw-semibold text-slate-700">Client / Importateur / Exportateur <span class="text-danger">*</span></label>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label small fw-semibold text-slate-700 mb-0">Client / Importateur / Exportateur <span class="text-danger">*</span></label>
+              <% if (user && ['super_admin', 'secretariat', 'commercial', 'operationnel', 'comptable'].includes(user.role)) { %>
+                <button type="button" class="btn btn-link p-0 text-decoration-none small fw-semibold" style="font-size: 0.8rem;" data-bs-toggle="modal" data-bs-target="#quickClientModal">
+                  <i class="bi bi-person-plus-fill me-1"></i>+ Créer un client
+                </button>
+              <% } %>
+            </div>
             <div class="input-group">
               <span class="input-group-text bg-light text-slate-500"><i class="bi bi-person-badge-fill"></i></span>
-              <select class="form-select" name="client_id" required>
+              <select class="form-select" id="clientSelect" name="client_id" required>
                 <option value="">-- Sélectionnez le donneur d'ordre --</option>
                 <% if (clients && clients.length > 0) { %>
                   <% clients.forEach(cl => { %>
@@ -205,5 +212,135 @@
     </div>
   </div>
 </div>
+
+<!-- Quick Client Modal -->
+<div class="modal fade" id="quickClientModal" tabindex="-1" aria-labelledby="quickClientModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header bg-slate-900 text-white py-3">
+        <h5 class="modal-title fw-bold text-white fs-6" id="quickClientModalLabel">
+          <i class="bi bi-person-plus-fill me-2"></i>Création Rapide d'un Client
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickClientForm">
+        <div class="modal-body text-start">
+          <div id="quickClientAlert" class="alert alert-danger d-none py-2" style="font-size: 0.85rem;"></div>
+          
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Raison Sociale / Nom Complet <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="quick_nom" required placeholder="Ex: Sodecoton S.A.">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">N.I.U (Identifiant Unique)</label>
+              <input type="text" class="form-control form-control-sm" id="quick_niu" placeholder="M0123456789X">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">R.C.C.M</label>
+              <input type="text" class="form-control form-control-sm" id="quick_rccm" placeholder="RC/DLA/...">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Téléphone</label>
+            <input type="text" class="form-control form-control-sm" id="quick_tel" placeholder="+237 ...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Adresse Géographique</label>
+            <input type="text" class="form-control form-control-sm" id="quick_adresse" placeholder="Ex: Akwa, Douala">
+          </div>
+        </div>
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm d-inline-flex align-items-center" id="quickClientSubmitBtn">
+            <span class="spinner-border spinner-border-sm me-1.5 d-none" id="quickClientSpinner" role="status" aria-hidden="true"></span>
+            Enregistrer et Sélectionner
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.getElementById("quickClientForm");
+  const select = document.getElementById("clientSelect");
+  const alertDiv = document.getElementById("quickClientAlert");
+  const submitBtn = document.getElementById("quickClientSubmitBtn");
+  const spinner = document.getElementById("quickClientSpinner");
+  const modalEl = document.getElementById("quickClientModal");
+  
+  if (form) {
+    form.addEventListener("submit", async function(e) {
+      e.preventDefault();
+      
+      // Reset alert
+      alertDiv.classList.add("d-none");
+      alertDiv.textContent = "";
+      
+      // Get values
+      const nom = document.getElementById("quick_nom").value.trim();
+      const niu = document.getElementById("quick_niu").value.trim();
+      const rccm = document.getElementById("quick_rccm").value.trim();
+      const tel = document.getElementById("quick_tel").value.trim();
+      const adresse = document.getElementById("quick_adresse").value.trim();
+      
+      if (!nom) {
+        alertDiv.textContent = "La raison sociale est obligatoire.";
+        alertDiv.classList.remove("d-none");
+        return;
+      }
+      
+      // Show spinner & disable button
+      spinner.classList.remove("d-none");
+      submitBtn.disabled = true;
+      
+      try {
+        const response = await fetch("/api/clients/quick", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ nom, niu, rccm, tel, adresse })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Une erreur est survenue lors de l'enregistrement.");
+        }
+        
+        // Add to select and select it
+        const newOption = new Option(result.client.nom, result.client.id, true, true);
+        select.add(newOption);
+        
+        // Hide modal using bootstrap if loaded, otherwise just manual class hide
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+          if (modal) modal.hide();
+        } else {
+          // Fallback jQuery or DOM hide
+          modalEl.classList.remove("show");
+          document.body.classList.remove("modal-open");
+          const backdrop = document.querySelector(".modal-backdrop");
+          if (backdrop) backdrop.remove();
+        }
+        
+        // Reset form
+        form.reset();
+        
+      } catch (err) {
+        console.error(err);
+        alertDiv.textContent = err.message;
+        alertDiv.classList.remove("d-none");
+      } finally {
+        spinner.classList.add("d-none");
+        submitBtn.disabled = false;
+      }
+    });
+  }
+});
+</script>
 
 <%- include('../partials/footer') %>

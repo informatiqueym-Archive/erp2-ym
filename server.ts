@@ -262,6 +262,97 @@ app.use(profilRoutes);
 app.use(adminRoutes);
 app.use(bonsRoutes);
 
+// ==================== NOTIFICATIONS API ROUTES ====================
+
+app.get("/api/notifications/poll", requireAuth, async (req: any, res: any) => {
+  try {
+    const userId = req.session.userId;
+    if (!userId) return res.json({ ok: false, notifications: [] });
+
+    // Only return notifications NOT yet shown in browser
+    // AND created in the last 24 hours maximum
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    const newNotifs = await prisma.notification.findMany({
+      where: {
+        user_id: userId,
+        browser_shown: false,
+        created_at: { gte: since }
+      },
+      orderBy: { created_at: "desc" },
+      take: 10
+    });
+
+    // Mark them as browser_shown immediately so they NEVER fire again
+    if (newNotifs.length > 0) {
+      await prisma.notification.updateMany({
+        where: { id: { in: newNotifs.map(n => n.id) } },
+        data: { browser_shown: true }
+      });
+    }
+
+    // Also return unread count for the bell icon
+    const unreadCount = await prisma.notification.count({
+      where: { user_id: userId, lu: false }
+    });
+
+    const returnedNotifs = newNotifs.map(n => ({
+      ...n,
+      title: n.titre,
+      content: n.contenu,
+      url: n.lien
+    }));
+
+    res.json({ 
+      ok: true, 
+      notifications: returnedNotifs,
+      unreadCount 
+    });
+  } catch (e: any) {
+    res.json({ ok: false, notifications: [], unreadCount: 0 });
+  }
+});
+
+// Fetch dropdown list
+app.get("/api/notifications/list", requireAuth, async (req: any, res: any) => {
+  try {
+    const notifs = await prisma.notification.findMany({
+      where: { user_id: req.session.userId },
+      orderBy: [{ lu: "asc" }, { created_at: "desc" }],
+      take: 15
+    });
+    res.json({ ok: true, notifications: notifs });
+  } catch (e: any) {
+    res.json({ ok: false, notifications: [] });
+  }
+});
+
+// Mark notification as read
+app.patch("/api/notifications/:id/read", requireAuth, async (req: any, res: any) => {
+  try {
+    await prisma.notification.update({
+      where: { id: parseInt(req.params.id) },
+      data: { lu: true }
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false });
+  }
+});
+
+// Mark ALL as read
+app.patch("/api/notifications/read-all", requireAuth, async (req: any, res: any) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { user_id: req.session.userId, lu: false },
+      data: { lu: true }
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false });
+  }
+});
+
 // ==================== 2. TABLEAU DE BORD (DASHBOARD) ====================
 
 app.use(dashboardRoutes);
@@ -275,7 +366,7 @@ app.use(facturesFournisseurRoutes);
 
 // ==================== 3. OPERATIONS CLIENTS ====================
 
-app.get("/clients", requireAuth, async (req: any, res: any) => {
+app.get("/clients", requireAuth, requireModule("clients"), async (req: any, res: any) => {
   try {
     const clientsList = await prisma.client.findMany({
       include: {
@@ -290,7 +381,7 @@ app.get("/clients", requireAuth, async (req: any, res: any) => {
   }
 });
 
-app.post("/clients/new", requireAuth, async (req: any, res: any) => {
+app.post("/clients/new", requireAuth, requireModule("clients"), async (req: any, res: any) => {
   try {
     const { nom, niu, rccm, tel, adresse } = req.body;
     if (!nom) {
@@ -319,7 +410,34 @@ app.post("/clients/new", requireAuth, async (req: any, res: any) => {
   }
 });
 
-app.post("/clients/update/:id", requireAuth, async (req: any, res: any) => {
+// Endpoint API pour la création rapide de client (utilisé en AJAX depuis la création de dossier)
+app.post("/api/clients/quick", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+  try {
+    const { nom, niu, rccm, tel, adresse } = req.body;
+    if (!nom) {
+      return res.status(400).json({ success: false, error: "La raison sociale du client est obligatoire." });
+    }
+
+    const newClient = await prisma.client.create({
+      data: {
+        nom,
+        niu: niu || null,
+        rccm: rccm || null,
+        tel: tel || null,
+        adresse: adresse || null,
+        societe: res.locals.user?.societe || "YM-TRANSIT Transit & Logistics Ltd",
+      },
+    });
+
+    await logActivity(req.session.userId, "CREATION_CLIENT_RAPIDE", "Client", newClient.id);
+    return res.json({ success: true, client: newClient });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({ success: false, error: "Erreur lors de la création du client: " + (error.message || error) });
+  }
+});
+
+app.post("/clients/update/:id", requireAuth, requireModule("clients"), async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
     const { nom, niu, rccm, tel, adresse } = req.body;
@@ -345,7 +463,7 @@ app.post("/clients/update/:id", requireAuth, async (req: any, res: any) => {
   }
 });
 
-app.post("/clients/delete/:id", requireAuth, async (req: any, res: any) => {
+app.post("/clients/delete/:id", requireAuth, requireModule("clients"), async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
     const client = await prisma.client.findUnique({ where: { id: clId } });
@@ -444,9 +562,46 @@ app.get("/facturation/:id", requireAuth, async (req: any, res: any) => {
   }
 });
 
+app.get("/facturation/new", requireAuth, async (req: any, res: any) => {
+  try {
+    const { dossier_id, bon_reel_id } = req.query;
+    const clients = await prisma.client.findMany({ orderBy: { nom: "asc" } });
+
+    let prefill = null;
+    if (dossier_id) {
+      const dossier = await prisma.dossier.findUnique({
+        where: { id: parseInt(dossier_id as string) },
+        include: { client: true }
+      });
+      if (dossier) {
+        const bonReel = bon_reel_id
+          ? await prisma.bonReel.findUnique({ where: { id: parseInt(bon_reel_id as string) } })
+          : null;
+
+        const count = await prisma.document.count();
+        const autoNumero = `FAC-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+
+        prefill = {
+          dossier_id: dossier.id,
+          dossier_numero: dossier.numero,
+          client_id: dossier.client_id,
+          client_nom: dossier.client.nom,
+          montant_acconage: bonReel?.montant_reel || 0,
+          ecart: bonReel?.ecart || 0,
+          autoNumero
+        };
+      }
+    }
+    res.render("facturation/new", { clients, prefill, title: "Nouvelle Facture" });
+  } catch (error: any) {
+    console.error("Erreur GET /facturation/new :", error);
+    res.status(500).send("Erreur de chargement du formulaire de facturation.");
+  }
+});
+
 app.post("/facturation/new", requireAuth, async (req: any, res: any) => {
   try {
-    const { client_id, type, numero, societe, etat } = req.body;
+    const { client_id, type, numero, societe, etat, dossier_id } = req.body;
     if (!client_id || !type || !numero || !societe) {
       req.session.error_msg = "Veuillez configurer correctement l'en-tête de facturation.";
       return res.redirect("/facturation");
@@ -458,37 +613,97 @@ app.post("/facturation/new", requireAuth, async (req: any, res: any) => {
       return res.redirect("/facturation");
     }
 
+    let totalHT = 0;
+    let totalTTC = 0;
+
+    let descriptions = req.body.line_descriptions || [];
+    let prices = req.body.line_prices || [];
+    let quantities = req.body.line_quantities || [];
+    let taxes = req.body.line_taxes || [];
+
+    if (!Array.isArray(descriptions)) {
+      descriptions = descriptions ? [descriptions] : [];
+    }
+    if (!Array.isArray(prices)) {
+      prices = prices ? [prices] : [];
+    }
+    if (!Array.isArray(quantities)) {
+      quantities = quantities ? [quantities] : [];
+    }
+    if (!Array.isArray(taxes)) {
+      taxes = taxes ? [taxes] : [];
+    }
+
+    const linesToCreate = [];
+    for (let i = 0; i < descriptions.length; i++) {
+      if (!descriptions[i] || !descriptions[i].trim()) continue;
+      const pu = parseFloat(prices[i]) || 0;
+      const qty = parseInt(quantities[i]) || 1;
+      const tot = pu * qty;
+      const tax = taxes[i] || "EXONERE";
+      
+      linesToCreate.push({
+        description: descriptions[i].trim(),
+        prix_unitaire: pu,
+        quantite: qty,
+        taxe_id: tax,
+        total: tot
+      });
+
+      totalHT += tot;
+      if (tax === "TVA_19_25") {
+        totalTTC += tot * 1.1925;
+      } else {
+        totalTTC += tot;
+      }
+    }
+
     const newDoc = await prisma.document.create({
       data: {
         client_id: parseInt(client_id),
         type,
         numero,
         societe,
-        total_ht: 0,
-        total_ttc: 0,
+        total_ht: totalHT,
+        total_ttc: Math.round(totalTTC),
         etat: etat || "BROUILLON",
+        lines: {
+          create: linesToCreate
+        }
       },
     });
 
-    const allDossiers = await prisma.dossier.findMany({ select: { numero: true } });
-    let matchedDossierNum: string | null = null;
-    for (const d of allDossiers) {
-      if (numero.toUpperCase().includes(d.numero.toUpperCase())) {
-        matchedDossierNum = d.numero;
-        break;
+    // Enregistrement d'activité & mise à jour état pipeline à CLOTURE si disponible
+    const finalDossierId = dossier_id ? parseInt(dossier_id) : null;
+    let dNum = "";
+
+    if (finalDossierId && !isNaN(finalDossierId)) {
+      const d = await prisma.dossier.update({
+        where: { id: finalDossierId },
+        data: { pipeline_status: "CLOTURE" }
+      });
+      dNum = d.numero;
+    } else {
+      // Recherche alternative de correspondance par numéro
+      const allDossiers = await prisma.dossier.findMany({ select: { id: true, numero: true } });
+      for (const d of allDossiers) {
+        if (numero.toUpperCase().includes(d.numero.toUpperCase())) {
+          dNum = d.numero;
+          break;
+        }
       }
     }
 
-    if (matchedDossierNum) {
+    if (dNum) {
       await prisma.activityLog.create({
         data: {
           user_id: req.session.userId,
           action: 'document.created',
           entity: 'dossier',
-          entity_id: String(matchedDossierNum),
+          entity_id: String(dNum),
           meta: JSON.stringify({
             numero: numero,
-            montant: 0,
+            montant: totalTTC || 0,
             type: type
           })
         }
@@ -496,11 +711,16 @@ app.post("/facturation/new", requireAuth, async (req: any, res: any) => {
     }
 
     await logActivity(req.session.userId, "CREATION_DOCUMENT", "Document", newDoc.id);
-    req.session.success_msg = `Devis d'acconage / Facture ${numero} initialisé en état Brouillon.`;
-    res.redirect(`/facturation/${newDoc.id}`);
+    req.session.success_msg = `La facture ${numero} a été générée avec succès et le dossier est clôturé.`;
+
+    if (finalDossierId && !isNaN(finalDossierId)) {
+      res.redirect(`/dossiers/${finalDossierId}`);
+    } else {
+      res.redirect(`/facturation/${newDoc.id}`);
+    }
   } catch (error) {
     console.error(error);
-    req.session.error_msg = "Erreur d'initialisation de la facture.";
+    req.session.error_msg = "Erreur lors de l'initialisation de la facture.";
     res.redirect("/facturation");
   }
 });

@@ -189,157 +189,124 @@
     </div>
 
     <% const currentPath = typeof path !== 'undefined' ? path : ''; %>
+    
+    <%
+      const menuItems = [
+        { 
+          label: "Tableau de bord", 
+          icon: "bi-grid", 
+          href: "/dashboard", 
+          roles: ["*"]  // everyone
+        },
+        { 
+          label: "Dossiers de Transit", 
+          icon: "bi-folder2-open", 
+          href: "/dossiers", 
+          roles: ["*"]  // everyone can VIEW
+        },
+        { 
+          label: "Tiers / Clients", 
+          icon: "bi-people", 
+          href: "/clients", 
+          roles: ["*"]  // everyone can VIEW
+        },
+        { 
+          label: "Archives", 
+          icon: "bi-archive", 
+          href: "/dossiers/archives", 
+          roles: ["*"]  // everyone
+        },
+        { 
+          label: "Bons de Débours", 
+          icon: "bi-cash-stack", 
+          href: "/bons/provisoir/pending", 
+          roles: ["acconage", "enlevement", "pdg", "dg", "dga", "daf", "auditeur1", "auditeur2", "caisse", "agent_payeur", "super_admin"],
+          lockedLabel: "Réservé au service Acconage, Enlèvement et Direction"
+        },
+        { 
+          label: "Factures & Devis", 
+          icon: "bi-receipt", 
+          href: "/facturation", 
+          roles: ["finances", "facturation", "comptable", "comptable_ops", "pdg", "dg", "dga", "daf", "auditeur1", "caisse", "super_admin"],
+          lockedLabel: "Réservé au service Facturation et Comptabilité"
+        },
+        { 
+          label: "Suivi des Tâches", 
+          icon: "bi-check2-square", 
+          href: "/taches", 
+          roles: ["*"]
+        },
+        { 
+          label: "Analyses & Rapports", 
+          icon: "bi-graph-up-arrow", 
+          href: "/analytics", 
+          roles: ["analyste", "auditeur1", "auditeur2", "pdg", "dg", "dga", "daf", "comptable", "comptable_ops", "super_admin", "fiscalite"],
+          lockedLabel: "Réservé aux Analystes, Auditeurs et Direction"
+        },
+        { 
+          label: "Livre Journal", 
+          icon: "bi-journal-text", 
+          href: "/accounting/journal", 
+          roles: ["comptable", "comptable_ops", "daf", "auditeur1", "super_admin", "caisse"],
+          lockedLabel: "Réservé à la Comptabilité et au DAF"
+        },
+        { 
+          label: "Stock", 
+          icon: "bi-boxes", 
+          href: "/stock", 
+          roles: ["magasinier", "comptable", "super_admin", "daf"],
+          lockedLabel: "Réservé au Magasinier et à la Comptabilité"
+        },
+        { 
+          label: "Fournisseurs", 
+          icon: "bi-building-add", 
+          href: "/fournisseurs", 
+          roles: ["comptable", "comptable_ops", "daf", "super_admin"],
+          lockedLabel: "Réservé à la Comptabilité et au DAF"
+        },
+        { 
+          label: "Administration", 
+          icon: "bi-shield-lock", 
+          href: "/admin/users", 
+          roles: ["super_admin", "pdg", "dg"],
+          lockedLabel: "Réservé aux Super Administrateurs et à la Direction"
+        }
+      ];
+    %>
+
     <ul class="list-unstyled components text-start">
-      <li class="<%= currentPath === '/dashboard' ? 'active' : '' %>">
-        <a href="/dashboard">
-          <i class="bi bi-speedometer2"></i>
-          <span>Tableau de bord</span>
-        </a>
-      </li>
-
-      <% if (typeof user !== 'undefined') { %>
-        
-        <% if (['super_admin', 'comptable', 'commercial', 'operationnel', 'lecture', 'secretariat', 'finances'].includes(user.role)) { %>
-          <li class="<%= currentPath.startsWith('/clients') ? 'active' : '' %>">
-            <a href="/clients">
-              <i class="bi bi-people"></i>
-              <span>Clients</span>
-            </a>
+      <% if (typeof user !== "undefined") { %>
+        <% menuItems.forEach(item => { %>
+          <% 
+            const hasAccess = item.roles.includes("*") || item.roles.includes(user.role);
+            let isActive = false;
+            if (item.href === "/dashboard") {
+              isActive = (currentPath === "/dashboard");
+            } else {
+              isActive = currentPath.startsWith(item.href) || (item.href === "/dossiers/archives" && currentPath === "/archives");
+            }
+          %>
+          <li class="<%= isActive ? 'active' : '' %>" style="list-style-type: none;">
+            <% if (hasAccess) { %>
+              <a href="<%= item.href %>">
+                <i class="bi <%= item.icon %>"></i>
+                <span class="ms-1"><%= item.label %></span>
+              </a>
+            <% } else { %>
+              <a href="#" 
+                 class="opacity-50 text-muted" 
+                 style="cursor: not-allowed;"
+                 data-bs-toggle="tooltip" 
+                 data-bs-placement="right" 
+                 title="<%= item.lockedLabel || 'Accès restreint pour votre rôle' %>"
+                 onclick="showLockedMessage('<%= item.label %>', '<%= item.lockedLabel %>'); return false;">
+                <i class="bi <%= item.icon %>"></i>
+                <span class="ms-1 text-muted"><%= item.label %></span>
+                <i class="bi bi-lock-fill ms-auto small text-warning" style="font-size: 0.75rem;"></i>
+              </a>
+            <% } %>
           </li>
-        <% } %>
-
-        <% if (['super_admin', 'commercial', 'operationnel', 'lecture', 'secretariat', 'validation_role', 'guce', 'acconage', 'enlevement', 'finances', 'comptable_ops', 'direction', 'agent_payeur'].includes(user.role)) { %>
-          <li class="<%= currentPath === '/dossiers' || (currentPath.startsWith('/dossiers') && !currentPath.includes('/archives')) ? 'active' : '' %>">
-            <a href="/dossiers">
-              <i class="bi bi-folder-fill"></i>
-              <span>Dossiers de Transit</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'comptable', 'direction', 'comptable_ops', 'commercial', 'operationnel', 'lecture', 'secretariat', 'validation_role', 'guce', 'acconage', 'enlevement', 'finances', 'agent_payeur'].includes(user.role)) { %>
-          <li class="<%= currentPath.startsWith('/archives') || currentPath.startsWith('/dossiers/archives') ? 'active' : '' %>">
-            <a href="/archives">
-              <i class="bi bi-archive-fill"></i>
-              <span>Archives Dossiers</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'comptable', 'commercial', 'lecture', 'finances', 'comptable_ops'].includes(user.role)) { %>
-          <li class="<%= currentPath.startsWith('/documents') ? 'active' : '' %>">
-            <a href="/documents">
-              <i class="bi bi-receipt"></i>
-              <span>Factures & Devis</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'commercial', 'operationnel', 'lecture'].includes(user.role)) { %>
-          <li class="<%= currentPath.startsWith('/taches') ? 'active' : '' %>">
-            <a href="/taches">
-              <i class="bi bi-kanban"></i>
-              <span>Suivi des Tâches</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'comptable', 'commercial', 'lecture', 'direction'].includes(user.role)) { %>
-          <li class="<%= currentPath.startsWith('/analytics') ? 'active' : '' %>">
-            <a href="/analytics">
-              <i class="bi bi-bar-chart-line-fill"></i>
-              <span>Analyses & Rapports</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'comptable', 'lecture', 'comptable_ops'].includes(user.role)) { %>
-          <li class="<%= currentPath === '/accounting/journal' ? 'active' : '' %>">
-            <a href="/accounting/journal">
-              <i class="bi bi-book"></i>
-              <span>Livre Journal</span>
-            </a>
-          </li>
-          <li class="<%= currentPath === '/accounting/grand-livre' ? 'active' : '' %>">
-            <a href="/accounting/grand-livre">
-              <i class="bi bi-journals"></i>
-              <span>Grand Livre</span>
-            </a>
-          </li>
-          <li class="<%= currentPath === '/accounting/balance' ? 'active' : '' %>">
-            <a href="/accounting/balance">
-              <i class="bi bi-calculator"></i>
-              <span>Balance Générale</span>
-            </a>
-          </li>
-          <li class="<%= currentPath === '/accounting/periodes' ? 'active' : '' %>">
-            <a href="/accounting/periodes">
-              <i class="bi bi-lock-fill"></i>
-              <span>Clôtures & Périodes</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'magasinier', 'comptable', 'lecture'].includes(user.role)) { %>
-          <li class="<%= currentPath.startsWith('/stock') ? 'active' : '' %>">
-            <a href="/stock">
-              <i class="bi bi-box-seam"></i>
-              <span>Gestion du Stock</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'comptable', 'magasinier', 'lecture'].includes(user.role)) { %>
-          <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Achats & Fournisseurs</li>
-          <li class="<%= currentPath.startsWith('/fournisseurs') ? 'active' : '' %>">
-            <a href="/fournisseurs">
-              <i class="bi bi-person-rolodex"></i>
-              <span>Fournisseurs</span>
-            </a>
-          </li>
-          <li class="<%= currentPath.startsWith('/commandes') ? 'active' : '' %>">
-            <a href="/commandes">
-              <i class="bi bi-cart-check"></i>
-              <span>Bons de commande</span>
-            </a>
-          </li>
-          <li class="<%= currentPath.startsWith('/factures-fournisseur') ? 'active' : '' %>">
-            <a href="/factures-fournisseur">
-              <i class="bi bi-file-earmark-ruled"></i>
-              <span>Factures Directes</span>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (['super_admin', 'acconage', 'enlevement', 'direction', 'agent_payeur'].includes(user.role)) { %>
-          <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Trésorerie & Caisse</li>
-          <li class="<%= currentPath.startsWith('/bons') ? 'active' : '' %>">
-            <a href="/bons/provisoir/pending">
-              <i class="bi bi-wallet2 text-success"></i>
-              <span class="text-success">Bons de caisse</span>
-              <% if (typeof pendingBonsCount !== 'undefined' && pendingBonsCount > 0) { %>
-                <span class="badge bg-danger ms-auto rounded-pill"><%= pendingBonsCount %></span>
-              <% } %>
-            </a>
-          </li>
-        <% } %>
-
-        <% if (user.role === 'super_admin') { %>
-          <li class="nav-section-title px-4 pt-3 pb-1 text-uppercase fw-bold text-slate-400" style="letter-spacing: 0.08em; font-size: 0.72rem; list-style-type: none;">Administration</li>
-          <li class="<%= currentPath.startsWith('/admin/users') ? 'active' : '' %>">
-            <a href="/admin/users">
-              <i class="bi bi-people-fill text-warning"></i>
-              <span class="text-warning">Utilisateurs & Droits</span>
-            </a>
-          </li>
-          <li class="<%= currentPath.startsWith('/logs') ? 'active' : '' %>">
-            <a href="/logs">
-              <i class="bi bi-journal-text text-warning"></i>
-              <span class="text-warning">Notes d'activités</span>
-            </a>
-          </li>
-        <% } %>
-
+        <% }) %>
       <% } %>
     </ul>
 
@@ -361,8 +328,26 @@
         </span>
       </div>
       
-      <div class="d-flex align-items-center">
+      <div class="d-flex align-items-center font-sans">
         <% if (typeof user !== 'undefined') { %>
+          
+          <!-- Notification Bell Dropdown -->
+          <div class="dropdown me-3">
+            <button class="btn btn-link link-secondary position-relative p-1 text-decoration-none border-0" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" onclick="loadNotificationsList()">
+              <i class="bi bi-bell-fill fs-5 text-dark"></i>
+              <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none; font-size: 0.65rem; padding: 0.25em 0.5em;">0</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-0" aria-labelledby="notifDropdownBtn" style="width: 320px; max-height: 400px; overflow-y: auto; z-index: 1050;">
+              <li class="p-2 border-bottom d-flex align-items-center justify-content-between bg-light">
+                <span class="fw-bold small text-dark">Notifications récentes</span>
+                <button onclick="markAllNotificationsAsRead(event)" class="btn btn-xs btn-link text-decoration-none p-0 fw-bold text-xs" style="font-size: 0.75rem;">Tout marquer lu</button>
+              </li>
+              <div id="notif-list-container" class="overflow-auto" style="max-height: 320px;">
+                <div class="text-center py-3 text-muted"><em>Chargement...</em></div>
+              </div>
+            </ul>
+          </div>
+
           <div class="dropdown">
             <button class="btn btn-link text-decoration-none text-dark dropdown-toggle d-flex align-items-center" type="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
               <div class="bg-dark text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
@@ -389,6 +374,193 @@
         <% } %>
       </div>
     </header>
+
+    <!-- Modal for locked section details (Always present in DOM if header is included) -->
+    <div class="modal fade animate-scale-in" id="accessDeniedModal" tabindex="-1" aria-labelledby="accessDeniedModalLabel" aria-hidden="true" style="z-index: 2000;">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-danger text-white border-0">
+            <h5 class="modal-title font-display" id="accessDeniedModalLabel">
+              <i class="bi bi-shield-lock me-2"></i>Accès Verrouillé
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-4 text-center">
+            <div class="d-inline-flex bg-danger-subtle p-3 rounded-circle text-danger mb-3">
+              <i class="bi bi-lock-fill" style="font-size: 2.5rem;"></i>
+            </div>
+            <h5 class="fw-bold mt-2 mb-2" id="lockedSectionName">Section</h5>
+            <p class="text-muted text-sm mb-0" id="lockedSectionReason">Cette section est réservée.</p>
+          </div>
+          <div class="modal-footer border-0 bg-light">
+            <button type="button" class="btn btn-secondary rounded-pill w-100 fw-bold" data-bs-dismiss="modal">Compris</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Frontend notifications and tooltip hooks scripts -->
+    <script>
+      // Global functions for lock notification
+      function showLockedMessage(label, reason) {
+        document.getElementById('lockedSectionName').innerText = label;
+        document.getElementById('lockedSectionReason').innerText = reason || 'Accès non autorisé pour votre rôle.';
+        
+        try {
+          const modalEl = document.getElementById('accessDeniedModal');
+          if (window.bootstrap && modalEl) {
+            const myModal = new bootstrap.Modal(modalEl);
+            myModal.show();
+          } else {
+            alert(`Section Verrouillée : ${label}\n${reason}`);
+          }
+        } catch (e) {
+          alert(`Section Verrouillée : ${label}\n${reason}`);
+        }
+      }
+
+      // Bell badge count updater
+      async function pollNotifications() {
+        try {
+          const res = await fetch("/api/notifications/poll");
+          const data = await res.json();
+          if (!data.ok) return;
+
+          const badge = document.getElementById("notif-badge");
+          if (badge) {
+            badge.textContent = data.unreadCount > 9 ? "9+" : data.unreadCount;
+            badge.style.display = data.unreadCount > 0 ? "inline-flex" : "none";
+          }
+
+          if (data.notifications && data.notifications.length > 0) {
+            for (const notif of data.notifications) {
+              if ("Notification" in window && Notification.permission === "granted") {
+                const n = new Notification("YM-TRANSIT ERP", {
+                  body: notif.titre + "\n" + notif.contenu,
+                  icon: "/favicon.ico",
+                  tag: "notif-" + notif.id
+                });
+                n.onclick = () => {
+                  window.focus();
+                  if (notif.lien) window.location.href = notif.lien;
+                  n.close();
+                };
+                setTimeout(() => n.close(), 8000);
+              }
+              showToast(notif.titre, notif.contenu);
+            }
+          }
+        } catch (e) {
+          console.warn("Poll notifications failure:", e);
+        }
+      }
+
+      function showToast(titre, contenu) {
+        const toast = document.createElement("div");
+        toast.style.cssText = `
+          position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+          background: #1e293b; color: white; border-left: 4px solid #2563eb;
+          padding: 12px 16px; border-radius: 8px; max-width: 320px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3); font-size: 0.85rem;
+          transition: all 0.5s ease;
+        `;
+        toast.innerHTML = `
+          <div style="font-weight:600;margin-bottom:4px">🔔 ${titre}</div>
+          <div style="opacity:0.85">${contenu}</div>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateY(20px)";
+          setTimeout(() => toast.remove(), 500);
+        }, 5500);
+      }
+
+      // Soft load of populating notifications drop menu
+      async function loadNotificationsList() {
+        const container = document.getElementById("notif-list-container");
+        if (!container) return;
+        try {
+          const data = await fetch("/api/notifications/list").then(r => r.json());
+          if (!data.ok || !data.notifications || data.notifications.length === 0) {
+            container.innerHTML = `<div class="text-center py-4 text-muted small"><i class="bi bi-bell-slash d-block fs-4 mb-1 text-secondary"></i>Aucune notification.</div>`;
+            return;
+          }
+          
+          container.innerHTML = "";
+          data.notifications.forEach(notif => {
+            const item = document.createElement("li");
+            item.style.cssText = `cursor: pointer; transition: all 0.2s; border-bottom: 1px solid #f1f5f9; list-style-type: none;`;
+            item.className = `p-3 notif-item ${notif.lu ? 'bg-white opacity-75' : 'bg-info-subtle'}`;
+            
+            const timeStr = new Date(notif.created_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            item.innerHTML = `
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <strong class="text-dark small" style="font-size:0.83rem">${notif.titre}</strong>
+                <small class="text-muted font-monospace" style="font-size:0.75rem">${timeStr}</small>
+              </div>
+              <div class="text-secondary text-xs mb-2" style="font-size:0.8rem; line-height: 1.3;">${notif.contenu}</div>
+              ${!notif.lu ? `<button class="btn btn-xs btn-outline-primary py-0 px-2 text-xs rounded-pill" onclick="markAsRead(event, ${notif.id}${notif.lien ? `, '${notif.lien}'` : ''})" style="font-size: 0.72rem;">Marquer lu</button>` : ''}
+            `;
+            
+            item.onclick = (e) => {
+              if (e.target.tagName !== "BUTTON") {
+                markAsRead(e, notif.id, notif.lien);
+              }
+            };
+            container.appendChild(item);
+          });
+        } catch (e) {
+          container.innerHTML = `<div class="text-center py-3 text-danger"><small>Erreur de récuperation</small></div>`;
+        }
+      }
+
+      async function markAsRead(event, id, lien) {
+        if (event) event.stopPropagation();
+        try {
+          await fetch(`/api/notifications/${id}/read`, { method: "PATCH" });
+          pollNotifications();
+          loadNotificationsList();
+          if (lien) {
+            window.location.href = lien;
+          }
+        } catch (e) {
+          console.error("Error marking read:", e);
+        }
+      }
+
+      async function markAllNotificationsAsRead(event) {
+        if (event) event.stopPropagation();
+        try {
+          await fetch("/api/notifications/read-all", { method: "PATCH" });
+          pollNotifications();
+          loadNotificationsList();
+        } catch (e) {
+          console.error("Error marking all read:", e);
+        }
+      }
+
+      // Initialize tooltips and fast-poll
+      document.addEventListener("DOMContentLoaded", () => {
+        // Initialize Bootstrap custom tooltips passive
+        if (window.bootstrap) {
+          const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+          tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+          });
+        }
+        
+        // Request HTML5 notification permission
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+
+        // Count fetch on startup
+        pollNotifications();
+        // Hook poll checking within our local scope to refresh bell badge
+        setInterval(pollNotifications, 15000);
+      });
+    </script>
 
     <!-- App Messages (flash messages style) -->
     <main class="container-fluid py-4 flex-grow-1">
