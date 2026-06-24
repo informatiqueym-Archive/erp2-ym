@@ -93,6 +93,33 @@ export const requireModule = (moduleName: string) => {
 
     const userRole = (user.role || "").trim().toLowerCase();
 
+    // To prevent root-mounted router middleware from running on unrelated routes
+    // (since routers are mounted at root '/' via app.use(router) in server.ts),
+    // we should only enforce module permissions if the request path actually matches
+    // the module's target paths.
+    let pathMatchesModule = true;
+    const path = req.path || "";
+
+    if (moduleName === "facturation") {
+      pathMatchesModule = path.startsWith("/documents") || path.startsWith("/api/documents");
+    } else if (moduleName === "analytics") {
+      pathMatchesModule = path.startsWith("/analytics");
+    } else if (moduleName === "comptabilite") {
+      pathMatchesModule = path.startsWith("/accounting");
+    } else if (moduleName === "achats") {
+      pathMatchesModule = path.startsWith("/fournisseurs") || path.startsWith("/commandes") || path.startsWith("/factures-fournisseur");
+    } else if (moduleName === "taches") {
+      pathMatchesModule = path.startsWith("/taches") || path.startsWith("/subtasks");
+    } else if (moduleName === "dossiers") {
+      pathMatchesModule = path.startsWith("/dossiers") || path.startsWith("/archives");
+    } else if (moduleName === "clients") {
+      pathMatchesModule = path.startsWith("/clients") || path.startsWith("/api/clients");
+    }
+
+    if (!pathMatchesModule) {
+      return next();
+    }
+
     // 1. Super admin can always perform any action
     if (userRole === "super_admin") {
       return next();
