@@ -527,6 +527,14 @@ router.post("/dossiers/:id/comment", requireAuth, async (req: any, res: any) => 
 
 // POST /dossiers/:id/upload - Upload de pièce jointe
 router.post("/dossiers/:id/upload", requireAuth, (req: any, res: any) => {
+  const userRole = (req.session.user?.role || "").trim().toLowerCase();
+  const allowedRoles = ["super_admin", "secretaire", "secretariat", "guce", "validation", "validation_role", "pdg", "dg", "dga", "daf"];
+  
+  if (!allowedRoles.includes(userRole)) {
+    req.session.error_msg = "Accès refusé : Vous n'avez pas l'autorisation d'importer des fichiers pour ce dossier.";
+    return res.redirect(`/dossiers/${req.params.id}`);
+  }
+
   upload.single("pdf_file")(req, res, async function (err: any) {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -596,6 +604,67 @@ router.post("/dossiers/:id/upload", requireAuth, (req: any, res: any) => {
       res.redirect(`/dossiers/${id}`);
     }
   });
+});
+
+// POST /dossiers/:id/delete-file/:fileId - Suppression d'un document du dossier
+router.post("/dossiers/:id/delete-file/:fileId", requireAuth, async (req: any, res: any) => {
+  const dossierId = parseInt(req.params.id);
+  const fileId = parseInt(req.params.fileId);
+  if (isNaN(dossierId) || isNaN(fileId)) {
+    req.session.error_msg = "Identifiants invalides.";
+    return res.redirect("/dossiers");
+  }
+
+  try {
+    const file = await prisma.dossierFile.findUnique({
+      where: { id: fileId }
+    });
+
+    if (!file || file.dossier_id !== dossierId) {
+      req.session.error_msg = "Fichier introuvable.";
+      return res.redirect(`/dossiers/${dossierId}`);
+    }
+
+    const currentUser = req.session.user;
+    const isOwner = file.user_id === currentUser.id;
+    const isSuperAdmin = currentUser.role === "super_admin";
+
+    if (!isOwner && !isSuperAdmin) {
+      req.session.error_msg = "Accès refusé : Vous ne pouvez pas supprimer un fichier importé par un autre utilisateur.";
+      return res.redirect(`/dossiers/${dossierId}`);
+    }
+
+    // Supprimer le fichier du disque
+    if (file.path && fs.existsSync(file.path)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (err) {
+        console.error("Erreur suppression fichier physique :", err);
+      }
+    }
+
+    // Supprimer de la base
+    await prisma.dossierFile.delete({
+      where: { id: fileId }
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        user_id: req.session.userId,
+        action: 'fichier.deleted',
+        entity: 'dossier',
+        entity_id: String(dossierId),
+        meta: JSON.stringify({ filename: file.original })
+      }
+    });
+
+    req.session.success_msg = `✅ Fichier supprimé avec succès : ${file.original}`;
+    res.redirect(`/dossiers/${dossierId}`);
+  } catch (err: any) {
+    console.error("Erreur suppression dossier file :", err);
+    req.session.error_msg = "Une erreur est survenue lors de la suppression du fichier.";
+    res.redirect(`/dossiers/${dossierId}`);
+  }
 });
 
 // GET /dossiers/:id/download/:filename - Téléchargement d'une pièce jointe

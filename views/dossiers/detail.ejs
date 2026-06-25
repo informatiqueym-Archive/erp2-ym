@@ -1575,7 +1575,11 @@
       <div class="card-body">
         <p class="text-xs text-muted mb-3 text-start">Retrouvez ci-dessous l'ensemble des documents justificatifs administratifs et de transit triés par catégorie.</p>
 
-        <% if (dossier.etat !== "ARCHIVE" && dossier.pipeline_status !== "ARCHIVE") { %>
+        <% 
+          const userRole = (user && user.role) ? user.role.trim().toLowerCase() : "";
+          const canUpload = ["super_admin", "secretaire", "secretariat", "guce", "validation", "validation_role", "pdg", "dg", "dga", "daf"].includes(userRole);
+        %>
+        <% if (dossier.etat !== "ARCHIVE" && dossier.pipeline_status !== "ARCHIVE" && canUpload) { %>
           <!-- Collapse/Button trigger for generic upload -->
           <div class="mb-4 text-start">
             <button class="btn btn-outline-primary d-inline-flex align-items-center fw-bold text-xs rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUploadForm" aria-expanded="false" aria-controls="collapseUploadForm">
@@ -1673,10 +1677,17 @@
                           Déposé par <%= file.user ? file.user.nom : 'Système' %> (<%= file.user ? file.user.role : 'Robot' %>) le <%= new Date(file.created_at).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) %>
                         </div>
                       </div>
-                      <div class="flex-shrink-0 ms-1">
+                      <div class="flex-shrink-0 ms-1 d-flex gap-1.5 align-items-center">
                         <a href="/dossiers/<%= dossier.id %>/download/<%= file.filename %>" class="btn btn-xs btn-outline-success rounded-circle p-1 d-inline-flex align-items-center justify-content-center" style="width:24px; height:24px" title="Télécharger">
                           <i class="bi bi-download" style="font-size: 0.75rem;"></i>
                         </a>
+                        <% if (user && (user.role === 'super_admin' || file.user_id === user.id)) { %>
+                          <form action="/dossiers/<%= dossier.id %>/delete-file/<%= file.id %>" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce document ?')">
+                            <button type="submit" class="btn btn-xs btn-outline-danger rounded-circle p-1 d-inline-flex align-items-center justify-content-center" style="width:24px; height:24px" title="Supprimer">
+                              <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
+                            </button>
+                          </form>
+                        <% } %>
                       </div>
                     </div>
                   <% }) %>
