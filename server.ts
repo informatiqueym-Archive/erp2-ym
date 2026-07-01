@@ -16,6 +16,7 @@ import accountingRoutes from "./routes/accounting";
 import fournisseursRoutes from "./routes/fournisseurs";
 import commandesRoutes from "./routes/commandes";
 import facturesFournisseurRoutes from "./routes/factures-fournisseur";
+import clientsRoutes from "./routes/clients";
 import { postPaymentEcriture } from "./lib/accounting";
 import adminRoutes from "./routes/admin";
 import profilRoutes from "./routes/profil";
@@ -120,6 +121,7 @@ app.use((req: any, res: any, next: any) => {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use("/assets", express.static(path.join(process.cwd(), "assets")));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Configuration du moteur EJS
 app.set("view engine", "ejs");
@@ -366,122 +368,41 @@ app.use(facturesFournisseurRoutes);
 
 // ==================== 3. OPERATIONS CLIENTS ====================
 
-app.get("/clients", requireAuth, requireModule("clients"), async (req: any, res: any) => {
-  try {
-    const clientsList = await prisma.client.findMany({
-      include: {
-        _count: { select: { dossiers: true } },
-      },
-      orderBy: { nom: "asc" },
-    });
-    res.render("clients/index", { clients: clientsList });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Erreur lors du chargement des clients.");
-  }
-});
-
-app.post("/clients/new", requireAuth, requireModule("clients"), async (req: any, res: any) => {
-  try {
-    const { nom, niu, rccm, tel, adresse } = req.body;
-    if (!nom) {
-      req.session.error_msg = "La raison sociale du client est obligatoire.";
-      return res.redirect("/clients");
-    }
-
-    const newClient = await prisma.client.create({
-      data: {
-        nom,
-        niu: niu || null,
-        rccm: rccm || null,
-        tel: tel || null,
-        adresse: adresse || null,
-        societe: res.locals.user?.societe || "YM-TRANSIT Transit & Logistics Ltd",
-      },
-    });
-
-    await logActivity(req.session.userId, "CREATION_CLIENT", "Client", newClient.id);
-    req.session.success_msg = "Client créé avec succès !";
-    res.redirect("/clients");
-  } catch (error: any) {
-    console.error(error);
-    req.session.error_msg = "Erreur lors de la création du client: " + (error.message || error);
-    res.redirect("/clients");
-  }
-});
-
-// Endpoint API pour la création rapide de client (utilisé en AJAX depuis la création de dossier)
-app.post("/api/clients/quick", requireAuth, requireModule("clients"), async (req: any, res: any) => {
-  try {
-    const { nom, niu, rccm, tel, adresse } = req.body;
-    if (!nom) {
-      return res.status(400).json({ success: false, error: "La raison sociale du client est obligatoire." });
-    }
-
-    const newClient = await prisma.client.create({
-      data: {
-        nom,
-        niu: niu || null,
-        rccm: rccm || null,
-        tel: tel || null,
-        adresse: adresse || null,
-        societe: res.locals.user?.societe || "YM-TRANSIT Transit & Logistics Ltd",
-      },
-    });
-
-    await logActivity(req.session.userId, "CREATION_CLIENT_RAPIDE", "Client", newClient.id);
-    return res.json({ success: true, client: newClient });
-  } catch (error: any) {
-    console.error(error);
-    return res.status(500).json({ success: false, error: "Erreur lors de la création du client: " + (error.message || error) });
-  }
-});
-
-app.post("/clients/update/:id", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+app.get("/api/clients/:id", requireAuth, async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
-    const { nom, niu, rccm, tel, adresse } = req.body;
-
-    await prisma.client.update({
+    const client = await prisma.client.findUnique({
       where: { id: clId },
-      data: {
-        nom,
-        niu: niu || null,
-        rccm: rccm || null,
-        tel: tel || null,
-        adresse: adresse || null,
-      },
+      include: {
+        client_documents: true
+      }
     });
 
-    await logActivity(req.session.userId, "EDITION_CLIENT", "Client", clId);
-    req.session.success_msg = "Coordonnées de l'importateur mises à jour.";
-    res.redirect("/clients");
-  } catch (error) {
-    console.error(error);
-    req.session.error_msg = "Erreur de modification du client.";
-    res.redirect("/clients");
-  }
-});
-
-app.post("/clients/delete/:id", requireAuth, requireModule("clients"), async (req: any, res: any) => {
-  try {
-    const clId = parseInt(req.params.id);
-    const client = await prisma.client.findUnique({ where: { id: clId } });
     if (!client) {
-      req.session.error_msg = "Client introuvable.";
-      return res.redirect("/clients");
+      return res.status(404).json({ error: "Client non trouvé" });
     }
 
-    await prisma.client.delete({ where: { id: clId } });
-    await logActivity(req.session.userId, "SUPPRESSION_CLIENT", "Client", clId);
-    req.session.success_msg = `Client "${client.nom}" et toutes les données associées ont été supprimés.`;
-    res.redirect("/clients");
-  } catch (error) {
-    console.error(error);
-    req.session.error_msg = "Erreur de suppression de l'importateur.";
-    res.redirect("/clients");
+    const has_cni = client.client_documents.some(doc => doc.category === "CNI");
+    const has_procu = client.client_documents.some(doc => doc.category === "PROCU");
+
+    return res.json({
+      id: client.id,
+      nom: client.nom,
+      representant: client.representant || "",
+      niu: client.niu || "",
+      rccm: client.rccm || "",
+      acf: client.acf || "",
+      statut_initial: client.statut_initial || "IMPORTATEUR",
+      has_cni,
+      has_procu
+    });
+  } catch (error: any) {
+    console.error("Erreur API client detail:", error);
+    return res.status(500).json({ error: error.message });
   }
 });
+
+app.use(clientsRoutes);
 
 // ==================== 4. OPERATIONS DOSSIERS DE TRANSIT ====================
 

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche de Transit : <%= dossier.numero %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #fff;
+      color: #333;
+      padding: 20px;
+    }
+    .print-container {
+      max-width: 900px;
+      margin: 0 auto;
+      border: 1px solid #ddd;
+      padding: 30px;
+      border-radius: 8px;
+    }
+    .border-custom {
+      border-bottom: 2px solid #334155;
+    }
+    .bg-slate {
+      background-color: #0f172a !important;
+      color: white !important;
+    }
+    .bg-slate-light {
+      background-color: #f1f5f9;
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e293b;
+      border-bottom: 2px solid #cbd5e1;
+      padding-bottom: 5px;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+    }
+    @media print {
+      body {
+        padding: 0;
+        background-color: #fff;
+      }
+      .print-container {
+        border: none;
+        padding: 0;
+      }
+      .btn-print-action {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-container">
+  
+  <!-- Print action button (visible only in browser) -->
+  <div class="d-flex justify-content-between align-items-center mb-4 btn-print-action">
+    <a href="/dossiers" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Retour
+    </a>
+    <button onclick="window.print();" class="btn btn-primary btn-sm">
+      <i class="bi bi-printer-fill me-1"></i> Imprimer cette fiche
+    </button>
+  </div>
+
+  <!-- Header -->
+  <div class="row align-items-center pb-3 mb-4 border-custom">
+    <div class="col-6">
+      <h3 class="fw-bold text-uppercase mb-1" style="letter-spacing: 1px;">YM-TRANSIT ERP</h3>
+      <p class="text-muted small mb-0">Douala Port, Cameroun | Transit & Douane Maritime</p>
+    </div>
+    <div class="col-6 text-end">
+      <span class="badge bg-slate p-2 font-monospace fs-6">N° DOSSIER : <%= dossier.numero %></span>
+      <p class="text-muted small mt-1 mb-0">Date d'ouverture : <%= new Date(dossier.created_at).toLocaleDateString('fr-FR') %></p>
+    </div>
+  </div>
+
+  <div class="row g-4 text-start">
+    
+    <!-- Left column: Section A & B -->
+    <div class="col-md-8">
+      
+      <!-- Section A -->
+      <div class="mb-4">
+        <h5 class="section-title"><i class="bi bi-person-fill"></i> Section A — Profil Client & Mandat</h5>
+        <div class="p-3 bg-slate-light rounded">
+          <table class="table table-borderless table-sm mb-0 text-start">
+            <tr>
+              <td class="fw-bold" style="width: 35%;">Client Importateur :</td>
+              <td><%= dossier.client.nom %></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Réf. Interne Client :</td>
+              <td class="font-monospace"><%= dossier.client.ref_interne || 'N/A' %></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">E-mail de contact :</td>
+              <td><%= dossier.client.email || 'N/A' %></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Représentant Mandataire :</td>
+              <td><%= dossier.representant || 'Non spécifié' %></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Statut du Dossier :</td>
+              <td><span class="badge bg-primary"><%= dossier.etat %></span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section B -->
+      <div class="mb-4">
+        <h5 class="section-title"><i class="bi bi-shield-fill-check"></i> Section B — Éléments Opérationnels & Douane</h5>
+        <div class="p-3 bg-slate-light rounded">
+          <table class="table table-borderless table-sm mb-0 text-start">
+            <tr>
+              <td class="fw-bold" style="width: 35%;">Régime d'expédition :</td>
+              <td><span class="badge bg-success"><%= dossier.nature %></span></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Bureau de Douane / Port :</td>
+              <td><%= dossier.port %></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">N° Connaissement (BL) :</td>
+              <td class="font-monospace fw-bold"><%= dossier.bl %></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Valeur Estimée CAF :</td>
+              <td class="fw-bold text-primary">
+                <%= dossier.valeur_douane ? dossier.valeur_douane.toLocaleString('fr-FR') + ' FCFA' : 'Non précisée' %>
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Droits Douane Estimés :</td>
+              <td class="fw-bold text-danger">
+                <%= dossier.droits_douane ? dossier.droits_douane.toLocaleString('fr-FR') + ' FCFA' : 'Non précisés' %>
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Marchandises :</td>
+              <td><%= dossier.contenu || 'Aucun descriptif fourni' %></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column: Section C & Compliance -->
+    <div class="col-md-4">
+      
+      <!-- Section C -->
+      <div class="mb-4">
+        <h5 class="section-title"><i class="bi bi-file-earmark-ruled-fill"></i> Section C — Fiscalité</h5>
+        <div class="p-3 bg-light border rounded">
+          <div class="mb-3">
+            <span class="small fw-semibold text-muted d-block uppercase mb-1">N.I.U</span>
+            <div class="font-monospace small fw-bold text-dark"><%= dossier.client.niu || 'NON SPECIFIE' %></div>
+          </div>
+          <div class="mb-3">
+            <span class="small fw-semibold text-muted d-block uppercase mb-1">R.C.C.M</span>
+            <div class="font-monospace small fw-bold text-dark"><%= dossier.client.rccm || 'NON SPECIFIE' %></div>
+          </div>
+          <div class="mb-0">
+            <span class="small fw-semibold text-muted d-block uppercase mb-1">Attestation Fiscalité (ACF)</span>
+            <div class="font-monospace small fw-bold text-dark"><%= dossier.client.acf || 'NON FOURNIE' %></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compliance indicator -->
+      <div class="mb-4">
+        <h5 class="section-title"><i class="bi bi-patch-check-fill"></i> Conformité KYC</h5>
+        <div class="p-3 bg-light border rounded">
+          <div class="mb-2">
+            <span class="small text-muted d-block">Pièce d'identité (CNI) :</span>
+            <% if (dossier.client.has_cni) { %>
+              <span class="text-success fw-bold small"><i class="bi bi-check-circle-fill"></i> CONFORME</span>
+            <% } else { %>
+              <span class="text-warning fw-bold small"><i class="bi bi-exclamation-triangle-fill"></i> ABSENT</span>
+            <% } %>
+          </div>
+          <div>
+            <span class="small text-muted d-block">Procuration Signée :</span>
+            <% if (dossier.client.has_procu) { %>
+              <span class="text-success fw-bold small"><i class="bi bi-check-circle-fill"></i> DISPONIBLE</span>
+            <% } else { %>
+              <span class="text-secondary fw-bold small"><i class="bi bi-slash-circle"></i> NON FOURNIE</span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Documents list attached to dossier -->
+  <div class="row mt-4 text-start">
+    <div class="col-12">
+      <h5 class="section-title"><i class="bi bi-folder-fill text-warning"></i> Pièces Jointes & Justificatifs Enregistrés</h5>
+      <table class="table table-bordered table-striped table-sm">
+        <thead class="table-dark">
+          <tr>
+            <th style="width: 20%;">Catégorie</th>
+            <th style="width: 40%;">Nom du Fichier Original</th>
+            <th>Référence Documentaire / Commentaire</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (dossier.files && dossier.files.length > 0) { %>
+            <% dossier.files.forEach(f => { %>
+              <tr>
+                <td class="fw-bold font-monospace"><%= f.category %></td>
+                <td><%= f.original %></td>
+                <td><%= f.comment || 'N/A' %></td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="3" class="text-center text-muted py-3">Aucun fichier joint associé à ce dossier.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Signatures -->
+  <div class="row mt-5 pt-4 border-top">
+    <div class="col-6 text-start">
+      <p class="small text-muted mb-5">Signature de l'Agent d'Accueil Secrétariat :</p>
+      <div style="width: 150px; border-bottom: 1px solid #aaa;" class="mt-4"></div>
+    </div>
+    <div class="col-6 text-end">
+      <p class="small text-muted mb-5">Cachet & Signature du Représentant :</p>
+      <div style="width: 150px; border-bottom: 1px solid #aaa; margin-left: auto;" class="mt-4"></div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

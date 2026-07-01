@@ -115,6 +115,11 @@
                   <div class="text-xs text-slate-500 mt-1 font-monospace" style="font-weight: 500;" title="Bill of Lading / Connaissement">
                     <i class="bi bi-file-earmark-text-fill text-secondary me-1"></i>BL: <%= ds.bl || 'N/A' %>
                   </div>
+                  <div class="mt-1">
+                    <span class="badge bg-secondary-subtle text-secondary py-0.5 px-2 rounded-pill font-sans" style="font-size: 0.72rem;">
+                      <i class="bi bi-file-earmark-arrow-up"></i> <%= (ds._count && typeof ds._count.files !== 'undefined') ? ds._count.files : 0 %> Doc(s)
+                    </span>
+                  </div>
                 </td>
                 <td>
                   <div class="fw-bold text-slate-800"><%= ds.client.nom %></div>
@@ -173,8 +178,14 @@
                   <% } %>
                 </td>
                 <td class="text-end pe-4">
-                  <div class="d-inline-flex gap-1">
-                    <a href="/dossiers/<%= ds.id %>" class="btn btn-outline-primary btn-sm rounded-circle p-1.5" title="Gérer la fiche détaillée">
+                  <div class="d-inline-flex gap-1 align-items-center">
+                    <a href="/dossiers/<%= ds.id %>/print" target="_blank" class="btn btn-xs btn-outline-info d-inline-flex align-items-center gap-1 py-1 px-2.5 rounded-pill" title="EDITER la fiche d'impression">
+                      <i class="bi bi-printer"></i> EDITER
+                    </a>
+                    <a href="/dossiers/<%= ds.id %>/edit" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 py-1 px-2.5 rounded-pill" title="MODI le dossier">
+                      <i class="bi bi-pencil"></i> MODI
+                    </a>
+                    <a href="/dossiers/<%= ds.id %>" class="btn btn-outline-secondary btn-sm rounded-circle p-1.5" title="Suivi Logistique">
                       <i class="bi bi-gear-fill" style="font-size: 0.85rem;"></i>
                     </a>
                     <form action="/dossiers/delete/<%= ds.id %>" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce dossier et toutes ses données rattachées ?');">

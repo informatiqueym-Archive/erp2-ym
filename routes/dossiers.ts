@@ -43,6 +43,35 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB
 });
 
+// Setup specialized Multer for initial 3-section creation document upload
+const dossierTempDir = path.join(process.cwd(), "uploads", "dossiers", "temp");
+if (!fs.existsSync(dossierTempDir)) {
+  fs.mkdirSync(dossierTempDir, { recursive: true });
+}
+
+const dossierCreateUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, dossierTempDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const cleanedName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      cb(null, `${uniqueSuffix}-${cleanedName}`);
+    }
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req: any, file: any, cb: any) => {
+    const filetypes = /pdf|jpg|jpeg|png/i;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error("Seuls les formats PDF, JPG, JPEG et PNG sont acceptés !"));
+  }
+});
+
 // Helper de log
 async function logActivity(userId: number, action: string, entity: string, entityId?: number | string) {
   try {
@@ -63,6 +92,8 @@ async function logActivity(userId: number, action: string, entity: string, entit
 router.get("/dossiers", requireAuth, async (req: any, res: any) => {
   try {
     const { client_id, etat } = req.query;
+    const user = req.session.user;
+    const userRole = (user?.role || "").trim().toLowerCase();
 
     const filterObj: any = {};
     if (client_id) {
@@ -71,6 +102,10 @@ router.get("/dossiers", requireAuth, async (req: any, res: any) => {
     if (etat) {
       filterObj.etat = etat;
     }
+    // Filter by created_by for secretariat role
+    if (userRole === "secretariat" || userRole === "secretaire") {
+      filterObj.created_by = req.session.userId;
+    }
 
     const [dossiers, clients] = await Promise.all([
       prisma.dossier.findMany({
@@ -78,6 +113,7 @@ router.get("/dossiers", requireAuth, async (req: any, res: any) => {
         include: {
           client: true,
           taches: true,
+          _count: { select: { files: true } }
         },
         orderBy: {
           created_at: "desc",
@@ -149,98 +185,134 @@ router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
   }
 });
 
-// POST /dossiers/create - Enregistrement d'un dossier (et route compatible /dossiers/new)
-const handleDossierCreation = async (req: any, res: any) => {
-  try {
-    const user = req.session.user;
-    const userRole = (user?.role || "").trim().toLowerCase();
-    if (userRole !== "secretariat" && userRole !== "secretaire" && userRole !== "super_admin") {
-      req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
-      return res.redirect("/dossiers");
-    }
-
-    const { client_id, numero, port, nature, etat, bl, contenu, droits_douane, validation, valeur_douane, representant } = req.body;
-
-    if (!client_id || !numero || !port || !nature || !bl) {
-      req.session.error_msg = "Veuillez remplir correctement tous les champs obligatoires (*), y compris le N° de BL.";
-      return res.redirect("/dossiers/create");
-    }
-
-    const clientIdParsed = parseInt(client_id);
-
-    // Vérifier l'unicité du numéro de dossier
-    const existing = await prisma.dossier.findUnique({
-      where: { numero: numero.trim() },
-    });
-
-    if (existing) {
-      req.session.error_msg = `Le numéro de dossier ${numero} est déjà utilisé par une autre expédition.`;
-      return res.redirect("/dossiers/create");
-    }
-
-    const rawDroits = parseFloat(droits_douane);
-    const rawValeur = parseFloat(valeur_douane);
-    const parsedDroits = (droits_douane && !isNaN(rawDroits)) ? rawDroits : null;
-    const parsedValeur = (valeur_douane && !isNaN(rawValeur)) ? rawValeur : null;
-    const validationBool = (validation === 'true' || validation === true || validation === 'on');
-
-    let newDossier;
+// POST /dossiers/create - Enregistrement d'un dossier
+router.post(
+  "/dossiers/create",
+  requireAuth,
+  dossierCreateUpload.fields([
+    { name: "fichier_bl",   maxCount: 1 },
+    { name: "fichier_fac",  maxCount: 1 },
+    { name: "fichier_sgs",  maxCount: 1 },
+    { name: "fichier_di",   maxCount: 1 },
+    { name: "fichier_besc", maxCount: 1 },
+    { name: "fichier_anor", maxCount: 1 }
+  ]),
+  async (req: any, res: any) => {
     try {
-      newDossier = await prisma.dossier.create({
+      const user = req.session.user;
+      const userRole = (user?.role || "").trim().toLowerCase();
+      if (userRole !== "secretariat" && userRole !== "secretaire" && userRole !== "super_admin") {
+        req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
+        return res.redirect("/dossiers");
+      }
+
+      const {
+        client_id, numero, port, nature, etat,
+        ref_bl, ref_fac, ref_sgs, ref_di, ref_besc, ref_anor,
+        contenu, droits_douane, validation, valeur_douane, representant
+      } = req.body;
+
+      if (!client_id || !numero || !port || !nature || !ref_bl) {
+        req.session.error_msg = "Veuillez remplir correctement tous les champs obligatoires (*), y compris le N° de BL.";
+        return res.redirect("/dossiers/create");
+      }
+
+      const clientIdParsed = parseInt(client_id);
+
+      // Vérifier l'unicité du numéro de dossier
+      const existing = await prisma.dossier.findUnique({
+        where: { numero: numero.trim() },
+      });
+
+      if (existing) {
+        req.session.error_msg = `Le numéro de dossier ${numero} est déjà utilisé par une autre expédition.`;
+        return res.redirect("/dossiers/create");
+      }
+
+      const rawDroits = parseFloat(droits_douane);
+      const rawValeur = parseFloat(valeur_douane);
+      const parsedDroits = (droits_douane && !isNaN(rawDroits)) ? rawDroits : null;
+      const parsedValeur = (valeur_douane && !isNaN(rawValeur)) ? rawValeur : null;
+      const validationBool = (validation === 'true' || validation === true || validation === 'on');
+
+      const newDossier = await prisma.dossier.create({
         data: {
           client_id: clientIdParsed,
           numero: numero.trim(),
           port: port,
           nature: nature,
-          bl: bl.trim(),
+          bl: ref_bl.trim(),
           etat: etat || "OUVERT",
           contenu: contenu || null,
           droits_douane: parsedDroits,
           validation: validationBool,
           valeur_douane: parsedValeur,
           representant: representant ? representant.trim() : null,
-          pipeline_status: "CREE"
+          pipeline_status: "CREE",
+          created_by: req.session.userId,
         },
       });
-    } catch (e: any) {
-      if (e.message && e.message.includes("Unknown argument")) {
-        newDossier = await prisma.dossier.create({
-          data: {
-            client_id: clientIdParsed,
-            numero: numero.trim(),
-            port: port,
-            nature: nature,
-            bl: bl.trim(),
-            etat: etat || "OUVERT",
-            contenu: contenu || null,
-            droits_douane: parsedDroits,
-            validation: validationBool,
-            valeur_douane: parsedValeur
-          },
-        });
-      } else {
-        throw e;
+
+      const dossierDir = path.join(process.cwd(), "uploads", "dossiers", String(newDossier.id));
+      if (!fs.existsSync(dossierDir)) {
+        fs.mkdirSync(dossierDir, { recursive: true });
       }
+
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const fileFields = [
+        { name: "fichier_bl", category: "BL", ref: ref_bl },
+        { name: "fichier_fac", category: "FAC", ref: ref_fac },
+        { name: "fichier_sgs", category: "SGS", ref: ref_sgs },
+        { name: "fichier_di", category: "DI", ref: ref_di },
+        { name: "fichier_besc", category: "BESC", ref: ref_besc },
+        { name: "fichier_anor", category: "ANOR", ref: ref_anor }
+      ];
+
+      for (const fField of fileFields) {
+        const fileArr = files?.[fField.name];
+        if (fileArr && fileArr.length > 0) {
+          const file = fileArr[0];
+          const destPath = path.join(dossierDir, file.filename);
+          
+          // Move
+          fs.renameSync(file.path, destPath);
+
+          // Save DossierFile
+          await prisma.dossierFile.create({
+            data: {
+              dossier_id: newDossier.id,
+              user_id: req.session.userId,
+              filename: file.filename,
+              original: file.originalname,
+              stage: "CREE",
+              category: fField.category,
+              comment: fField.ref ? `Réf: ${fField.ref}` : `Document ${fField.category}`,
+              path: `/uploads/dossiers/${newDossier.id}/${file.filename}`
+            }
+          });
+        }
+      }
+
+      await logActivity(
+        req.session.userId,
+        "OUVERTURE_DOSSIER",
+        "Dossier",
+        newDossier.id
+      );
+
+      req.session.success_msg = "Dossier créé avec succès !";
+      res.redirect("/dashboard");
+    } catch (error: any) {
+      console.error("Erreur de création du dossier :", error);
+      req.session.error_msg = "Une erreur est survenue lors de la création du dossier: " + (error.message || error);
+      res.redirect("/dossiers/create");
     }
-
-    await logActivity(
-      req.session.userId,
-      "OUVERTURE_DOSSIER",
-      "Dossier",
-      newDossier.id
-    );
-
-    req.session.success_msg = "Dossier créé avec succès !";
-    res.redirect("/dashboard");
-  } catch (error: any) {
-    console.error("Erreur de création du dossier :", error);
-    req.session.error_msg = "Une erreur est survenue lors de la création du dossier: " + (error.message || error);
-    res.redirect("/dossiers/create");
   }
-};
+);
 
-router.post("/dossiers/create", requireAuth, handleDossierCreation);
-router.post("/dossiers/new", requireAuth, handleDossierCreation);
+router.post("/dossiers/new", requireAuth, async (req: any, res: any) => {
+  res.redirect(307, "/dossiers/create");
+});
 
 // POST /dossiers/:id/update-custom - Mettre à jour les détails de douane, marchandises, client et conteneur
 router.post("/dossiers/:id/update-custom", requireAuth, async (req: any, res: any) => {
@@ -1293,5 +1365,185 @@ router.post("/dossiers/:id/pipeline/retour-arriere", requireAuth, async (req: an
     res.redirect(`/dossiers/${req.params.id}`);
   }
 });
+
+// GET /dossiers/:id/print - Printable view
+router.get("/dossiers/:id/print", requireAuth, async (req: any, res: any) => {
+  try {
+    const id = parseInt(req.params.id);
+    const dossier = await prisma.dossier.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        files: { include: { user: true } },
+        taches: true,
+        comments: { include: { user: true } }
+      }
+    });
+
+    if (!dossier) {
+      req.session.error_msg = "Dossier introuvable.";
+      return res.redirect("/dossiers");
+    }
+
+    res.render("dossiers/print", { dossier });
+  } catch (error) {
+    console.error("Erreur Impression dossier :", error);
+    res.status(500).send("Erreur lors de la préparation de l'impression.");
+  }
+});
+
+// GET /dossiers/:id/edit - Edit form view
+router.get("/dossiers/:id/edit", requireAuth, async (req: any, res: any) => {
+  try {
+    const id = parseInt(req.params.id);
+    const dossier = await prisma.dossier.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        files: true
+      }
+    });
+
+    if (!dossier) {
+      req.session.error_msg = "Dossier introuvable.";
+      return res.redirect("/dossiers");
+    }
+
+    const clients = await prisma.client.findMany({ orderBy: { nom: "asc" } });
+
+    res.render("dossiers/edit", { dossier, clients });
+  } catch (error) {
+    console.error("Erreur GET edit dossier :", error);
+    res.status(500).send("Erreur lors du chargement de la page d'édition.");
+  }
+});
+
+// POST /dossiers/:id/edit - Perform edit and handle file updates
+router.post(
+  "/dossiers/:id/edit",
+  requireAuth,
+  dossierCreateUpload.fields([
+    { name: "fichier_bl",   maxCount: 1 },
+    { name: "fichier_fac",  maxCount: 1 },
+    { name: "fichier_sgs",  maxCount: 1 },
+    { name: "fichier_di",   maxCount: 1 },
+    { name: "fichier_besc", maxCount: 1 },
+    { name: "fichier_anor", maxCount: 1 }
+  ]),
+  async (req: any, res: any) => {
+    try {
+      const id = parseInt(req.params.id);
+      const dossier = await prisma.dossier.findUnique({ where: { id } });
+      if (!dossier) {
+        req.session.error_msg = "Dossier introuvable.";
+        return res.redirect("/dossiers");
+      }
+
+      const {
+        client_id, numero, port, nature, etat,
+        ref_bl, ref_fac, ref_sgs, ref_di, ref_besc, ref_anor,
+        contenu, droits_douane, validation, valeur_douane, representant
+      } = req.body;
+
+      if (!client_id || !numero || !port || !nature || !ref_bl) {
+        req.session.error_msg = "Veuillez remplir correctement tous les champs obligatoires (*).";
+        return res.redirect(`/dossiers/${id}/edit`);
+      }
+
+      // Check uniqueness of numero (excluding current dossier)
+      const existing = await prisma.dossier.findFirst({
+        where: {
+          numero: numero.trim(),
+          NOT: { id }
+        }
+      });
+
+      if (existing) {
+        req.session.error_msg = `Le numéro de dossier ${numero} est déjà utilisé.`;
+        return res.redirect(`/dossiers/${id}/edit`);
+      }
+
+      const rawDroits = parseFloat(droits_douane);
+      const rawValeur = parseFloat(valeur_douane);
+      const parsedDroits = (droits_douane && !isNaN(rawDroits)) ? rawDroits : null;
+      const parsedValeur = (valeur_douane && !isNaN(rawValeur)) ? rawValeur : null;
+      const validationBool = (validation === 'true' || validation === true || validation === 'on');
+
+      await prisma.dossier.update({
+        where: { id },
+        data: {
+          client_id: parseInt(client_id),
+          numero: numero.trim(),
+          port,
+          nature,
+          bl: ref_bl.trim(),
+          etat: etat || dossier.etat,
+          contenu: contenu || null,
+          droits_douane: parsedDroits,
+          valeur_douane: parsedValeur,
+          representant: representant ? representant.trim() : null,
+          validation: validationBool
+        }
+      });
+
+      // Handle new file uploads if present
+      const dossierDir = path.join(process.cwd(), "uploads", "dossiers", String(id));
+      if (!fs.existsSync(dossierDir)) {
+        fs.mkdirSync(dossierDir, { recursive: true });
+      }
+
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const fileFields = [
+        { name: "fichier_bl", category: "BL", ref: ref_bl },
+        { name: "fichier_fac", category: "FAC", ref: ref_fac },
+        { name: "fichier_sgs", category: "SGS", ref: ref_sgs },
+        { name: "fichier_di", category: "DI", ref: ref_di },
+        { name: "fichier_besc", category: "BESC", ref: ref_besc },
+        { name: "fichier_anor", category: "ANOR", ref: ref_anor }
+      ];
+
+      for (const fField of fileFields) {
+        const fileArr = files?.[fField.name];
+        if (fileArr && fileArr.length > 0) {
+          const file = fileArr[0];
+          const destPath = path.join(dossierDir, file.filename);
+          
+          // Move
+          fs.renameSync(file.path, destPath);
+
+          // Delete existing file of same category for this dossier in DB if you want to replace it
+          await prisma.dossierFile.deleteMany({
+            where: {
+              dossier_id: id,
+              category: fField.category
+            }
+          });
+
+          // Save DossierFile
+          await prisma.dossierFile.create({
+            data: {
+              dossier_id: id,
+              user_id: req.session.userId,
+              filename: file.filename,
+              original: file.originalname,
+              stage: "CREE",
+              category: fField.category,
+              comment: fField.ref ? `Réf: ${fField.ref}` : `Document ${fField.category}`,
+              path: `/uploads/dossiers/${id}/${file.filename}`
+            }
+          });
+        }
+      }
+
+      await logActivity(req.session.userId, "EDITION_DOSSIER_CREATION", "Dossier", id);
+      req.session.success_msg = "Le dossier a été mis à jour avec succès !";
+      res.redirect("/dossiers");
+    } catch (error: any) {
+      console.error("Erreur modification dossier :", error);
+      req.session.error_msg = "Erreur serveur : " + (error.message || error);
+      res.redirect(`/dossiers/${req.params.id}/edit`);
+    }
+  }
+);
 
 export default router;

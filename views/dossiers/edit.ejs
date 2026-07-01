@@ -1,49 +1,56 @@
 <%- include('../partials/header') %>
 
-<div class="row mb-4 align-items-center" id="create-dossier-header">
+<div class="row mb-4 align-items-center" id="edit-dossier-header">
   <div class="col-sm-6 text-start">
     <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
-      <i class="bi bi-folder-plus text-primary me-2"></i>Ouvrir un Dossier de Transit
+      <i class="bi bi-pencil-square text-primary me-2"></i>Modifier le Dossier : <%= dossier.numero %>
     </h1>
-    <p class="text-muted mb-0">Initialisez les jalon-clés d'expédition, d'enregistrement douane et de pièces jointes.</p>
+    <p class="text-muted mb-0 font-monospace" style="font-size: 0.85rem;">Identifiant Interne : #<%= dossier.id %> | Étape actuelle : <%= dossier.pipeline_status %></p>
   </div>
   <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
     <a href="/dossiers" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-      <i class="bi bi-arrow-left me-1"></i> Retour à la Liste
+      <i class="bi bi-arrow-left me-1"></i> Annuler & Retour
     </a>
   </div>
 </div>
 
-<form action="/dossiers/create" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate id="dossier-create-form">
+<% 
+  const filesByCat = {};
+  if (dossier.files) {
+    dossier.files.forEach(f => { 
+      let ref = "";
+      if (f.comment && f.comment.startsWith("Réf: ")) {
+        ref = f.comment.replace("Réf: ", "");
+      }
+      filesByCat[f.category] = { file: f, ref: ref }; 
+    });
+  }
+%>
+
+<form action="/dossiers/<%= dossier.id %>/edit" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate id="dossier-edit-form">
   <div class="row g-4">
     <!-- Left Column: Section A & Section B -->
     <div class="col-lg-8">
       
       <!-- SECTION A — INFO/CLIENT -->
-      <div class="card border-0 shadow-sm mb-4 text-start" id="section-a-client">
+      <div class="card border-0 shadow-sm mb-4 text-start" id="edit-section-a">
         <div class="card-header bg-slate-900 text-white py-3">
           <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-person-badge-fill me-2"></i>SECTION A — INFO/CLIENT</h5>
         </div>
         <div class="card-body">
           <div class="row g-3">
             <div class="col-md-12">
-              <label class="form-label small fw-bold">Sélectionner le Client <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-person-fill"></i></span>
-                <select class="form-select" id="clientSelect" name="client_id" required>
-                  <option value="">-- Sélectionnez un client importateur / exportateur --</option>
-                  <% if (clients && clients.length > 0) { %>
-                    <% clients.forEach(cl => { %>
-                      <option value="<%= cl.id %>"><%= cl.nom %></option>
-                    <% }) %>
-                  <% } %>
-                </select>
-                <div class="invalid-feedback">Veuillez sélectionner un client donneur d'ordre.</div>
-              </div>
+              <label class="form-label small fw-bold">Client Associé <span class="text-danger">*</span></label>
+              <select class="form-select" id="clientSelect" name="client_id" required>
+                <% clients.forEach(cl => { %>
+                  <option value="<%= cl.id %>" <%= cl.id === dossier.client_id ? 'selected' : '' %>><%= cl.nom %></option>
+                <% }) %>
+              </select>
+              <div class="invalid-feedback">Veuillez sélectionner un client.</div>
             </div>
 
             <!-- Pre-verification documents badges -->
-            <div class="col-md-12 d-none" id="document-status-row">
+            <div class="col-md-12" id="document-status-row">
               <div class="p-3 bg-light border rounded d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div>
                   <span class="small fw-semibold text-muted d-block uppercase mb-1">Vérification de Conformité Administrative Client :</span>
@@ -54,32 +61,31 @@
                     <i class="bi bi-shield-fill-check"></i> Procuration non vérifiée
                   </span>
                 </div>
-                <div id="full-client-link-container"></div>
+                <div id="full-client-link-container">
+                  <a href="/clients/<%= dossier.client_id %>" target="_blank" class="btn btn-outline-primary btn-xs d-inline-flex align-items-center">
+                    <i class="bi bi-person-fill me-1"></i> Fiche client complète <i class="bi bi-box-arrow-up-right ms-1"></i>
+                  </a>
+                </div>
               </div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label small fw-bold">Représentant Désigné</label>
-              <input type="text" class="form-control" name="representant" id="representantInput" placeholder="Saisir le nom du mandataire">
-              <div class="form-text text-muted" style="font-size: 0.75rem;">Ajustable si le représentant change pour cette opération.</div>
+              <input type="text" class="form-control" name="representant" id="representantInput" value="<%= dossier.representant || '' %>" placeholder="Saisir le nom du mandataire">
             </div>
 
             <div class="col-md-6">
               <label class="form-label small fw-bold">Numéro de dossier unique <span class="text-danger">*</span></label>
-              <% 
-                const randomSeq = Math.floor(1000 + Math.random() * 9000); 
-                const autoDossierNum = `DOS-${new Date().getFullYear()}-${randomSeq}`;
-              %>
-              <input type="text" class="form-control font-monospace" name="numero" value="<%= autoDossierNum %>" required id="numeroDossierInput">
-              <div class="invalid-feedback">Le numéro de dossier unique est obligatoire.</div>
+              <input type="text" class="form-control font-monospace" name="numero" value="<%= dossier.numero %>" required id="numeroDossierInput">
+              <div class="invalid-feedback">Le numéro de dossier est requis.</div>
             </div>
 
             <div class="col-md-6">
-              <label class="form-label small fw-bold">Statut Initial <span class="text-danger">*</span></label>
+              <label class="form-label small fw-bold">Statut Dossier <span class="text-danger">*</span></label>
               <select class="form-select" name="etat" required id="etatDossierSelect">
-                <option value="OUVERT" selected>OUVERT / ATTENTE DOCS</option>
-                <option value="EN_COURS">EN COURS DE TRAITEMENT</option>
-                <option value="EN_ATTENTE">EN ATTENTE DE DECISION</option>
+                <option value="OUVERT" <%= dossier.etat === 'OUVERT' ? 'selected' : '' %>>OUVERT / ATTENTE DOCS</option>
+                <option value="EN_COURS" <%= dossier.etat === 'EN_COURS' ? 'selected' : '' %>>EN COURS DE TRAITEMENT</option>
+                <option value="EN_ATTENTE" <%= dossier.etat === 'EN_ATTENTE' ? 'selected' : '' %>>EN ATTENTE DE DECISION</option>
               </select>
             </div>
           </div>
@@ -87,126 +93,142 @@
       </div>
 
       <!-- SECTION B — INFO/DOUANE -->
-      <div class="card border-0 shadow-sm text-start" id="section-b-douane">
+      <div class="card border-0 shadow-sm text-start" id="edit-section-b">
         <div class="card-header bg-slate-800 text-white py-3">
-          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-shield-fill-check me-2"></i>SECTION B — INFO/DOUANE (Gestion Documentaire Opérationnelle)</h5>
+          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-shield-fill-check me-2"></i>SECTION B — INFO/DOUANE</h5>
         </div>
         <div class="card-body">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label small fw-bold">Régime / Nature de l'opération <span class="text-danger">*</span></label>
               <select class="form-select" name="nature" id="natureSelect" required>
-                <option value="IMPORT" selected>IMPORTATION (Mise en consommation)</option>
-                <option value="EXPORT">EXPORTATION (Envoi international)</option>
+                <option value="IMPORT" <%= dossier.nature === 'IMPORT' ? 'selected' : '' %>>IMPORTATION (Mise en consommation)</option>
+                <option value="EXPORT" <%= dossier.nature === 'EXPORT' ? 'selected' : '' %>>EXPORTATION (Envoi international)</option>
               </select>
             </div>
 
             <div class="col-md-6">
               <label class="form-label small fw-bold">Port ou Douane Cible <span class="text-danger">*</span></label>
               <select class="form-select" name="port" required id="portSelect">
-                <option value="Port Autonome de Douala (PAD)" selected>Port de Douala (PAD)</option>
-                <option value="Port de Kribi (Seaport)">Port de Kribi (Seaport)</option>
-                <option value="Aéroport International Douala">Aéroport International Douala</option>
-                <option value="Aéroport International Yaoundé-Nsimalen">Aéroport Nsimalen (YDE)</option>
+                <option value="Port Autonome de Douala (PAD)" <%= dossier.port === 'Port Autonome de Douala (PAD)' ? 'selected' : '' %>>Port de Douala (PAD)</option>
+                <option value="Port de Kribi (Seaport)" <%= dossier.port === 'Port de Kribi (Seaport)' ? 'selected' : '' %>>Port de Kribi (Seaport)</option>
+                <option value="Aéroport International Douala" <%= dossier.port === 'Aéroport International Douala' ? 'selected' : '' %>>Aéroport International Douala</option>
+                <option value="Aéroport International Yaoundé-Nsimalen" <%= dossier.port === 'Aéroport International Yaoundé-Nsimalen' ? 'selected' : '' %>>Aéroport Nsimalen (YDE)</option>
               </select>
             </div>
 
             <div class="col-md-6">
               <label class="form-label small fw-bold">Valeur en douane estimée (CIF / CAF en FCFA)</label>
-              <input type="number" class="form-control" name="valeur_douane" placeholder="Saisir montant en FCFA" id="valeurDouaneInput">
+              <input type="number" class="form-control" name="valeur_douane" value="<%= dossier.valeur_douane || '' %>" placeholder="Saisir montant en FCFA" id="valeurDouaneInput">
             </div>
 
             <div class="col-md-6">
               <label class="form-label small fw-bold">Montant des droits de douane estimés (FCFA)</label>
-              <input type="number" class="form-control" name="droits_douane" placeholder="Saisir montant en FCFA" id="droitsDouaneInput">
+              <input type="number" class="form-control" name="droits_douane" value="<%= dossier.droits_douane || '' %>" placeholder="Saisir montant en FCFA" id="droitsDouaneInput">
             </div>
 
             <div class="col-md-12">
               <label class="form-label small fw-bold">Contenu du conteneur / Description Marchandises</label>
-              <textarea class="form-control" name="contenu" rows="2" placeholder="Ex: 240 sacs de cacao, matériels industriels, etc." id="contenuInput"></textarea>
+              <textarea class="form-control" name="contenu" rows="2" placeholder="Ex: 240 sacs de cacao..." id="contenuInput"><%= dossier.contenu || '' %></textarea>
             </div>
 
-            <!-- Documents section -->
+            <!-- Documents Section with replacements -->
             <div class="col-md-12 mt-4">
-              <h6 class="fw-bold border-bottom pb-2 mb-3 text-slate-800"><i class="bi bi-folder-fill text-warning me-1"></i> Pièces Jointes Spécifiques & Numéros de Réf.</h6>
-              <p class="text-xs text-muted mb-4"><i class="bi bi-info-circle"></i> Chaque pièce jointe requiert sa référence textuelle et son fichier scan correspondant.</p>
+              <h6 class="fw-bold border-bottom pb-2 mb-3 text-slate-800"><i class="bi bi-folder-fill text-warning me-1"></i> Pièces Jointes & Remplacements de Fichiers</h6>
               
-              <!-- BL Document Row -->
-              <div class="row g-2 align-items-center mb-3">
+              <!-- BL Row -->
+              <div class="row g-2 align-items-center mb-4">
                 <div class="col-md-4">
                   <label class="form-label mb-0 fw-bold text-dark small">1. BL / LTA (Connaissement) <span class="text-danger">*</span></label>
                 </div>
                 <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_bl" placeholder="N° Réf. BL" required id="refBlInput">
-                  <div class="invalid-feedback">Le numéro de BL est requis.</div>
+                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_bl" value="<%= filesByCat['BL'] ? filesByCat['BL'].ref : dossier.bl %>" required id="refBlInput">
                 </div>
                 <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_bl" accept=".pdf, .jpg, .jpeg, .png" required id="fichierBlInput">
+                  <input type="file" class="form-control form-control-sm" name="fichier_bl" accept=".pdf, .jpg, .jpeg, .png" id="fichierBlInput">
+                  <% if (filesByCat['BL']) { %>
+                    <div class="mt-1 text-xs"><i class="bi bi-paperclip text-success"></i> <a href="<%= filesByCat['BL'].file.path %>" target="_blank" class="text-decoration-none"><%= filesByCat['BL'].file.original %></a></div>
+                  <% } %>
                 </div>
               </div>
 
-              <!-- FAC Document Row -->
-              <div class="row g-2 align-items-center mb-3">
+              <!-- FAC Row -->
+              <div class="row g-2 align-items-center mb-4">
                 <div class="col-md-4">
                   <label class="form-label mb-0 fw-bold text-dark small">2. Facture Commerciale</label>
                 </div>
                 <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_fac" placeholder="N° Réf. Facture" id="refFacInput">
+                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_fac" value="<%= filesByCat['FAC'] ? filesByCat['FAC'].ref : '' %>" placeholder="Réf. Facture" id="refFacInput">
                 </div>
                 <div class="col-md-4">
                   <input type="file" class="form-control form-control-sm" name="fichier_fac" accept=".pdf" id="fichierFacInput">
+                  <% if (filesByCat['FAC']) { %>
+                    <div class="mt-1 text-xs"><i class="bi bi-paperclip text-success"></i> <a href="<%= filesByCat['FAC'].file.path %>" target="_blank" class="text-decoration-none"><%= filesByCat['FAC'].file.original %></a></div>
+                  <% } %>
                 </div>
               </div>
 
-              <!-- SGS Document Row -->
-              <div class="row g-2 align-items-center mb-3">
+              <!-- SGS Row -->
+              <div class="row g-2 align-items-center mb-4">
                 <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">3. Rapport Inspection SGS</label>
+                  <label class="form-label mb-0 fw-bold text-dark small">3. Rapport SGS</label>
                 </div>
                 <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_sgs" placeholder="N° Réf. SGS" id="refSgsInput">
+                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_sgs" value="<%= filesByCat['SGS'] ? filesByCat['SGS'].ref : '' %>" placeholder="Réf. SGS" id="refSgsInput">
                 </div>
                 <div class="col-md-4">
                   <input type="file" class="form-control form-control-sm" name="fichier_sgs" accept=".pdf" id="fichierSgsInput">
+                  <% if (filesByCat['SGS']) { %>
+                    <div class="mt-1 text-xs"><i class="bi bi-paperclip text-success"></i> <a href="<%= filesByCat['SGS'].file.path %>" target="_blank" class="text-decoration-none"><%= filesByCat['SGS'].file.original %></a></div>
+                  <% } %>
                 </div>
               </div>
 
-              <!-- DI Document Row -->
-              <div class="row g-2 align-items-center mb-3">
+              <!-- DI Row -->
+              <div class="row g-2 align-items-center mb-4">
                 <div class="col-md-4">
                   <label class="form-label mb-0 fw-bold text-dark small">4. Déclaration d'Importation (DI)</label>
                 </div>
                 <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_di" placeholder="N° Réf. DI" id="refDiInput">
+                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_di" value="<%= filesByCat['DI'] ? filesByCat['DI'].ref : '' %>" placeholder="Réf. DI" id="refDiInput">
                 </div>
                 <div class="col-md-4">
                   <input type="file" class="form-control form-control-sm" name="fichier_di" accept=".pdf" id="fichierDiInput">
+                  <% if (filesByCat['DI']) { %>
+                    <div class="mt-1 text-xs"><i class="bi bi-paperclip text-success"></i> <a href="<%= filesByCat['DI'].file.path %>" target="_blank" class="text-decoration-none"><%= filesByCat['DI'].file.original %></a></div>
+                  <% } %>
                 </div>
               </div>
 
-              <!-- BESC Document Row -->
-              <div class="row g-2 align-items-center mb-3">
+              <!-- BESC Row -->
+              <div class="row g-2 align-items-center mb-4">
                 <div class="col-md-4">
                   <label class="form-label mb-0 fw-bold text-dark small">5. Document BESC</label>
                 </div>
                 <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_besc" placeholder="N° Réf. BESC" id="refBescInput">
+                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_besc" value="<%= filesByCat['BESC'] ? filesByCat['BESC'].ref : '' %>" placeholder="Réf. BESC" id="refBescInput">
                 </div>
                 <div class="col-md-4">
                   <input type="file" class="form-control form-control-sm" name="fichier_besc" accept=".pdf" id="fichierBescInput">
+                  <% if (filesByCat['BESC']) { %>
+                    <div class="mt-1 text-xs"><i class="bi bi-paperclip text-success"></i> <a href="<%= filesByCat['BESC'].file.path %>" target="_blank" class="text-decoration-none"><%= filesByCat['BESC'].file.original %></a></div>
+                  <% } %>
                 </div>
               </div>
 
-              <!-- ANOR Document Row -->
-              <div class="row g-2 align-items-center mb-3">
+              <!-- ANOR Row -->
+              <div class="row g-2 align-items-center mb-4">
                 <div class="col-md-4">
                   <label class="form-label mb-0 fw-bold text-dark small">6. Certification ANOR</label>
                 </div>
                 <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_anor" placeholder="N° Réf. ANOR" id="refAnorInput">
+                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_anor" value="<%= filesByCat['ANOR'] ? filesByCat['ANOR'].ref : '' %>" placeholder="Réf. ANOR" id="refAnorInput">
                 </div>
                 <div class="col-md-4">
                   <input type="file" class="form-control form-control-sm" name="fichier_anor" accept=".pdf" id="fichierAnorInput">
+                  <% if (filesByCat['ANOR']) { %>
+                    <div class="mt-1 text-xs"><i class="bi bi-paperclip text-success"></i> <a href="<%= filesByCat['ANOR'].file.path %>" target="_blank" class="text-decoration-none"><%= filesByCat['ANOR'].file.original %></a></div>
+                  <% } %>
                 </div>
               </div>
 
@@ -217,36 +239,36 @@
 
     </div>
 
-    <!-- Right Column: Section C - Fiscal Info Card -->
+    <!-- Right Column: Section C -->
     <div class="col-lg-4">
       
       <!-- SECTION C — INFO/FISC -->
-      <div class="card border-0 shadow-sm text-start" id="section-c-fisc">
+      <div class="card border-0 shadow-sm text-start" id="edit-section-c">
         <div class="card-header bg-primary text-white py-3">
           <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-file-earmark-ruled-fill me-2"></i>SECTION C — INFO/FISC</h5>
         </div>
         <div class="card-body bg-light-subtle">
-          <p class="text-xs text-muted mb-3"><i class="bi bi-info-circle"></i> Données fiscales récupérées depuis le registre d'importateur d'origine.</p>
+          <p class="text-xs text-muted mb-3"><i class="bi bi-info-circle"></i> Données fiscales issues de la fiche de l'importateur.</p>
           
           <div class="mb-3">
-            <span class="small fw-semibold text-muted d-block uppercase mb-1">N.I.U (Identifiant Unique)</span>
-            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-niu">Sélectionnez un client...</div>
+            <span class="small fw-semibold text-muted d-block uppercase mb-1">N.I.U</span>
+            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-niu"><%= dossier.client.niu || 'NON FOURNI' %></div>
           </div>
 
           <div class="mb-3">
-            <span class="small fw-semibold text-muted d-block uppercase mb-1">R.C.C.M (Numéro Registre)</span>
-            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-rccm">Sélectionnez un client...</div>
+            <span class="small fw-semibold text-muted d-block uppercase mb-1">R.C.C.M</span>
+            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-rccm"><%= dossier.client.rccm || 'NON FOURNI' %></div>
           </div>
 
           <div class="mb-3">
             <span class="small fw-semibold text-muted d-block uppercase mb-1">Attestation de Conformité Fiscale (ACF)</span>
-            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-acf">Sélectionnez un client...</div>
+            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-acf"><%= dossier.client.acf || 'NON FOURNIE' %></div>
           </div>
 
           <hr class="my-4">
 
-          <button type="submit" class="btn btn-primary w-full py-2.5 rounded shadow fw-bold d-inline-flex align-items-center justify-content-center" id="submit-dossier-btn">
-            <i class="bi bi-folder-plus me-2 fs-5"></i> Générer l'expédition
+          <button type="submit" class="btn btn-primary w-full py-2.5 rounded shadow fw-bold d-inline-flex align-items-center justify-content-center" id="submit-edit-btn">
+            <i class="bi bi-save me-2 fs-5"></i> Enregistrer les Modifications
           </button>
           
           <a href="/dossiers" class="btn btn-light w-full mt-2 py-2 border text-muted">
@@ -265,7 +287,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const representantInput = document.getElementById("representantInput");
   
   // Badges
-  const docStatusRow = document.getElementById("document-status-row");
   const badgeCni = document.getElementById("badge-cni");
   const badgeProcu = document.getElementById("badge-procu");
   const fullClientLinkContainer = document.getElementById("full-client-link-container");
@@ -278,7 +299,6 @@ document.addEventListener("DOMContentLoaded", function() {
   async function handleClientChange() {
     const clientId = select.value;
     if (!clientId) {
-      docStatusRow.classList.add("d-none");
       fiscNiu.textContent = "Sélectionnez un client...";
       fiscRccm.textContent = "Sélectionnez un client...";
       fiscAcf.textContent = "Sélectionnez un client...";
@@ -301,9 +321,6 @@ document.addEventListener("DOMContentLoaded", function() {
       fiscAcf.textContent = client.acf || "NON FOURNIE";
 
       // Badge status setup
-      docStatusRow.classList.remove("d-none");
-      
-      // CNI badge
       if (client.has_cni) {
         badgeCni.className = "badge bg-success-subtle text-success p-2.5 fs-7 border border-success";
         badgeCni.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> CNI disponible';
@@ -312,7 +329,6 @@ document.addEventListener("DOMContentLoaded", function() {
         badgeCni.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> CNI manquant';
       }
 
-      // Procu badge
       if (client.has_procu) {
         badgeProcu.className = "badge bg-success-subtle text-success p-2.5 fs-7 border border-success";
         badgeProcu.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Procuration disponible';
@@ -321,10 +337,9 @@ document.addEventListener("DOMContentLoaded", function() {
         badgeProcu.innerHTML = '<i class="bi bi-file-earmark-lock-fill me-1"></i> Non fournie';
       }
 
-      // Link container
       fullClientLinkContainer.innerHTML = `
         <a href="/clients/${client.id}" target="_blank" class="btn btn-outline-primary btn-xs d-inline-flex align-items-center">
-          <i class="bi bi-person-fill me-1"></i> Voir la fiche client complète <i class="bi bi-box-arrow-up-right ms-1"></i>
+          <i class="bi bi-person-fill me-1"></i> Fiche client complète <i class="bi bi-box-arrow-up-right ms-1"></i>
         </a>
       `;
 
@@ -334,17 +349,12 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   select.addEventListener("change", handleClientChange);
-
-  // Check URL query parameters for client_id pre-fill
-  const urlParams = new URLSearchParams(window.location.search);
-  const prefillClientId = urlParams.get("client_id");
-  if (prefillClientId) {
-    select.value = prefillClientId;
-    handleClientChange();
-  }
+  
+  // Trigger on load
+  handleClientChange();
 });
 
-// Form Validation starter
+// Form Validation
 (function () {
   'use strict'
   var forms = document.querySelectorAll('.needs-validation')

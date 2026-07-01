@@ -1,0 +1,194 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center" id="client-detail-header-container">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-person-fill text-primary me-2"></i>Fiche Client : <%= client.nom %></h1>
+    <p class="text-muted mb-0">Code Client : <span class="font-monospace fw-bold text-dark">CLI-<%= client.id %></span> | <%= client.statut_initial %></p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/clients" class="btn btn-outline-secondary btn-sm me-2">
+      <i class="bi bi-arrow-left me-1"></i> Tous les clients
+    </a>
+    <a href="/dossiers/create?client_id=<%= client.id %>" class="btn btn-primary btn-sm">
+      <i class="bi bi-folder-plus me-1"></i> Ouvrir un dossier
+    </a>
+  </div>
+</div>
+
+<div class="row g-4" id="client-detail-layout">
+  <!-- Left Side: Basic & Fiscal info cards -->
+  <div class="col-lg-7">
+    
+    <!-- Information générale -->
+    <div class="card border-0 shadow-sm mb-4" id="client-general-info-card">
+      <div class="card-header bg-slate-900 text-white py-3">
+        <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-info-circle-fill me-2"></i>Informations Générales</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped align-middle mb-0" style="font-size: 0.9rem;">
+            <tbody>
+              <tr>
+                <th class="bg-light text-slate-800" style="width: 35%;">Raison Sociale</th>
+                <td class="fw-bold text-slate-900"><%= client.nom %></td>
+              </tr>
+              <tr>
+                <th class="bg-light text-slate-800">Représentant en Douane</th>
+                <td><%= client.representant || 'Non renseigné' %></td>
+              </tr>
+              <tr>
+                <th class="bg-light text-slate-800">Référence Interne</th>
+                <td class="font-monospace text-primary fw-semibold"><%= client.ref_interne || 'CLI-' + client.id %></td>
+              </tr>
+              <tr>
+                <th class="bg-light text-slate-800">Statut Principal</th>
+                <td>
+                  <span class="badge bg-info-subtle text-info border px-2.5 rounded-pill"><%= client.statut_initial || 'IMPORTATEUR' %></span>
+                </td>
+              </tr>
+              <tr>
+                <th class="bg-light text-slate-800">Téléphone</th>
+                <td><%= client.tel || 'Non renseigné' %></td>
+              </tr>
+              <tr>
+                <th class="bg-light text-slate-800">Email de contact</th>
+                <td>
+                  <% if (client.email) { %>
+                    <a href="mailto:<%= client.email %>" class="text-decoration-none"><%= client.email %></a>
+                  <% } else { %>
+                    <span class="text-muted">Non renseigné</span>
+                  <% } %>
+                </td>
+              </tr>
+              <tr>
+                <th class="bg-light text-slate-800">Adresse</th>
+                <td><%= client.adresse || 'Non renseignée' %></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fiscalité -->
+    <div class="card border-0 shadow-sm" id="client-fiscal-info-card">
+      <div class="card-header bg-slate-800 text-white py-3">
+        <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-file-earmark-ruled me-2"></i>Dossier Fiscal & Douanier</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <div class="p-3 bg-light rounded border text-center">
+              <div class="text-muted text-xs uppercase fw-bold mb-1">N.I.U</div>
+              <div class="font-monospace fs-5 text-dark fw-bold"><%= client.niu || 'NON FOURNI' %></div>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="p-3 bg-light rounded border text-center">
+              <div class="text-muted text-xs uppercase fw-bold mb-1">R.C.C.M</div>
+              <div class="font-monospace fs-5 text-dark fw-bold"><%= client.rccm || 'NON FOURNI' %></div>
+            </div>
+          </div>
+          <div class="col-sm-12">
+            <div class="p-3 bg-light rounded border">
+              <div class="row align-items-center">
+                <div class="col-sm-8">
+                  <div class="text-muted text-xs uppercase fw-bold mb-1">Attestation de Conformité Fiscale (ACF)</div>
+                  <div class="font-monospace fs-6 text-dark fw-bold"><%= client.acf || 'MANQUANTE / NON FOURNIE' %></div>
+                </div>
+                <div class="col-sm-4 text-sm-end mt-2 mt-sm-0">
+                  <% if (client.acf) { %>
+                    <span class="badge bg-success-subtle text-success border"><i class="bi bi-shield-check me-1"></i> Conforme</span>
+                  <% } else { %>
+                    <span class="badge bg-danger-subtle text-danger border"><i class="bi bi-shield-exclamation me-1"></i> Non conforme</span>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right Side: Document list card -->
+  <div class="col-lg-5">
+    
+    <div class="card border-0 shadow-sm" id="client-documents-card">
+      <div class="card-header bg-primary text-white py-3">
+        <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-cloud-download-fill me-2"></i>Documents joints (Dossier d'importateur)</h5>
+      </div>
+      <div class="card-body p-0">
+        
+        <% if (client.client_documents && client.client_documents.length > 0) { %>
+          <div class="list-group list-group-flush" id="client-documents-list">
+            <% 
+               const categories = {
+                 CNI: { name: "CNI du représentant", icon: "bi-person-badge-fill", color: "bg-danger" },
+                 PROCU: { name: "Procuration / Mandat", icon: "bi-file-earmark-text-fill", color: "bg-warning text-dark" },
+                 RC: { name: "Registre de Commerce (RC)", icon: "bi-building-fill", color: "bg-primary" }
+               };
+            %>
+            <% client.client_documents.forEach(doc => { %>
+              <% const catInfo = categories[doc.category] || { name: doc.category, icon: "bi-file-earmark-fill", color: "bg-secondary" }; %>
+              <div class="list-group-item p-3 align-items-center d-flex justify-content-between">
+                <div class="d-flex align-items-center">
+                  <div class="p-2.5 rounded text-white me-3 <%= catInfo.color %>" style="font-size: 1.25rem;">
+                    <i class="bi <%= catInfo.icon %>"></i>
+                  </div>
+                  <div>
+                    <h6 class="mb-0 text-slate-800 fw-bold"><%= catInfo.name %></h6>
+                    <small class="text-muted d-block font-monospace text-xs truncate" style="max-width: 200px;"><%= doc.original %></small>
+                    <small class="text-muted" style="font-size: 0.70rem;">Ajouté le <%= new Date(doc.created_at).toLocaleDateString('fr-FR') %> par <%= doc.user?.nom %></small>
+                  </div>
+                </div>
+                <div>
+                  <a href="<%= doc.path %>" target="_blank" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center">
+                    <i class="bi bi-download me-1"></i> Télécharger
+                  </a>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-folder-x display-4 text-slate-300 d-block mb-3"></i>
+            Aucun document n'a été importé pour ce client.
+          </div>
+        <% } %>
+
+        <div class="p-3 bg-light border-top">
+          <button class="btn btn-sm btn-outline-secondary w-full" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+            <i class="bi bi-upload me-1"></i> Ajouter ou remplacer un document
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal adding document -->
+<div class="modal fade" id="addDocumentModal" tabindex="-1" aria-labelledby="addDocumentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header bg-slate-900 text-white">
+        <h5 class="modal-title fw-bold text-white" id="addDocumentModalLabel">Ajouter un Document Client</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <!-- Add a specific sub-upload post handler if they want to update files later -->
+      <form action="/clients/update/<%= client.id %>" method="POST">
+        <div class="modal-body">
+          <p class="text-sm text-muted">Pour mettre à jour les coordonnées du client ou attacher de nouveaux documents globaux, vous pouvez modifier les données de la fiche client en utilisant le bouton d'édition dans l'annuaire.</p>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+          <a href="/clients" class="btn btn-primary btn-sm"><i class="bi bi-arrow-right me-1"></i> Aller à l'annuaire</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

@@ -31,18 +31,26 @@ model User {
   dossier_files       DossierFile[]
   dossier_comments    DossierComment[]
   notifications       Notification[]
+  client_documents    ClientDocument[]    @relation("UserClientDocuments")
+  dossiers_created    Dossier[]           @relation("DossierCreator")
 }
 
 model Client {
-  id        Int        @id @default(autoincrement())
-  nom       String
-  niu       String?
-  rccm      String?
-  adresse   String?
-  tel       String?
-  societe   String
-  documents Document[]
-  dossiers  Dossier[]
+  id                Int              @id @default(autoincrement())
+  nom               String
+  niu               String?
+  rccm              String?
+  adresse           String?
+  tel               String?
+  societe           String
+  documents         Document[]
+  dossiers          Dossier[]
+  representant      String?
+  statut_initial    String?          @default("IMPORTATEUR")
+  acf               String?
+  email             String?
+  ref_interne       String?
+  client_documents  ClientDocument[] @relation("ClientDocuments")
 }
 
 model Dossier {
@@ -67,6 +75,8 @@ model Dossier {
   taches          Tache[]
   files           DossierFile[]
   comments        DossierComment[]
+  created_by      Int?
+  creator         User?          @relation("DossierCreator", fields:[created_by], references:[id])
 }
 
 model Tache {
@@ -356,5 +366,19 @@ model Notification {
   browser_shown Boolean  @default(false)
   created_at    DateTime @default(now())
   user          User     @relation(fields:[user_id], references:[id], onDelete:Cascade)
+}
+
+model ClientDocument {
+  id         Int      @id @default(autoincrement())
+  client_id  Int
+  user_id    Int
+  filename   String
+  original   String
+  category   String
+  comment    String?
+  path       String
+  created_at DateTime @default(now())
+  client     Client   @relation("ClientDocuments", fields:[client_id], references:[id], onDelete:Cascade)
+  user       User     @relation("UserClientDocuments", fields:[user_id], references:[id], onDelete:Cascade)
 }
 

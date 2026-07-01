@@ -1,0 +1,174 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center" id="create-client-container">
+  <div class="col-sm-6">
+    <h1 class="h3 text-slate-800"><i class="bi bi-person-plus-fill text-primary me-2"></i>Nouveau Client Importateur / Exportateur</h1>
+    <p class="text-muted mb-0">Création complète de profil client avec gestion documentaire.</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/clients" class="btn btn-outline-secondary d-inline-flex align-items-center">
+      <i class="bi bi-arrow-left me-2"></i> Retour à la liste
+    </a>
+  </div>
+</div>
+
+<form action="/clients/create" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate id="client-create-form">
+  <div class="row g-4">
+    <!-- Left Column: Fields -->
+    <div class="col-lg-8">
+      
+      <!-- SECTION 1 — INFO/CLIENT -->
+      <div class="card border-0 shadow-sm mb-4" id="section-info-client">
+        <div class="card-header bg-slate-900 text-white py-3">
+          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-person-badge-fill me-2"></i>SECTION 1 — INFO/CLIENT</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label small fw-bold">Nom du client / Raison Sociale <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="nom" placeholder="Ex: Sodecoton S.A." required id="client-nom-input">
+              <div class="invalid-feedback">Veuillez renseigner le nom ou la raison sociale.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Représentant (REPRESENTA) <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="representant" placeholder="Ex: Jean-Baptiste Ndzana" required id="representant-input">
+              <div class="form-text text-muted" style="font-size: 0.75rem;">Personne physique qui représente le client au guichet douanier</div>
+              <div class="invalid-feedback">Veuillez renseigner le représentant d'accès.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Numéro de référence interne</label>
+              <input type="text" class="form-control bg-light font-monospace" name="ref_interne" value="<%= auto_ref %>" placeholder="CLI-YYYY-XXXX" id="ref-interne-input">
+              <div class="form-text text-muted" style="font-size: 0.75rem;">Auto-suggéré par l'ERP (modifiable au besoin)</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Statut (STA INIT) <span class="text-danger">*</span></label>
+              <select class="form-select" name="statut_initial" required id="statut-initial-select">
+                <option value="IMPORTATEUR" selected>IMPORTATEUR</option>
+                <option value="EXPORTATEUR">EXPORTATEUR</option>
+                <option value="LES DEUX">LES DEUX (IMPORT / EXPORT)</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">NIU (Numéro d'Identifiant Unique)</label>
+              <input type="text" class="form-control font-monospace" name="niu" placeholder="Ex: M0123456789X" id="niu-input">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">RCCM (Registre de Commerce)</label>
+              <input type="text" class="form-control" name="rccm" placeholder="Ex: RC/DLA/2014/B/1234" id="rccm-input">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Téléphone</label>
+              <input type="text" class="form-control" name="tel" placeholder="Ex: +237 6xx xx xx xx" id="tel-input">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">E-mail de contact</label>
+              <input type="email" class="form-control" name="email" placeholder="Ex: contact@entreprise.cm" id="email-input">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Adresse</label>
+              <input type="text" class="form-control" name="adresse" placeholder="Ex: Rue de la Marine, Akwa, Douala" id="adresse-input">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2 — INFO/FISC -->
+      <div class="card border-0 shadow-sm mb-4" id="section-info-fisc">
+        <div class="card-header bg-slate-900 text-white py-3">
+          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-file-earmark-ruled-fill me-2"></i>SECTION 2 — INFO/FISC</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">RC (Numéro d'Inscription RC)</label>
+              <input type="text" class="form-control" name="rc_fisc" placeholder="Renseigner le numéro RC fiscal" id="rc-fisc-input">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">ACF (Attestation de Conformité Fiscale) <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="acf" placeholder="Ex: ACF-DGI-2026-X" required id="acf-input">
+              <div class="invalid-feedback">L'attestation ACF est requise pour le dossier fiscal guichet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Documents Upload -->
+    <div class="col-lg-4">
+      
+      <!-- SECTION 3 — Documents à joindre -->
+      <div class="card border-0 shadow-sm mb-4" id="section-documents-joindre">
+        <div class="card-header bg-primary text-white py-3">
+          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-cloud-upload-fill me-2"></i>SECTION 3 — Documents</h5>
+        </div>
+        <div class="card-body bg-light-subtle">
+          <p class="text-xs text-muted mb-3"><i class="bi bi-info-circle me-1"></i> Formats acceptés : PDF, JPG, PNG. Taille max : 20 Mo par document.</p>
+          
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-slate-800 d-block">CNI du représentant <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="file" class="form-control" name="fichier_cni" accept=".pdf, .jpg, .jpeg, .png" required id="fichier-cni-input">
+            </div>
+            <div class="form-text text-muted text-xs">CNI du représentant (scan recto-verso)</div>
+            <div class="invalid-feedback">Le scan de la CNI est strictement requis.</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-slate-800 d-block">Procuration (Optionnel)</label>
+            <div class="input-group">
+              <input type="file" class="form-control" name="fichier_procu" accept=".pdf, .jpg, .jpeg, .png" id="fichier-procu-input">
+            </div>
+            <div class="form-text text-muted text-xs">Procuration / Mandat (si différent du gérant)</div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-slate-800 d-block">RC scan (Optionnel)</label>
+            <div class="input-group">
+              <input type="file" class="form-control" name="fichier_rc" accept=".pdf" id="fichier-rc-input">
+            </div>
+            <div class="form-text text-muted text-xs">Registre de Commerce (scan au format PDF)</div>
+          </div>
+
+          <hr class="my-4">
+
+          <button type="submit" class="btn btn-primary w-full py-2.5 rounded shadow d-inline-flex align-items-center justify-content-center fw-bold" id="submit-client-btn">
+            <i class="bi bi-save me-2 fs-5"></i> Enregistrer le Client & Aller à la fiche
+          </button>
+          
+          <a href="/clients" class="btn btn-light w-full mt-2 py-2 border text-muted" id="cancel-client-btn">
+            Annuler
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+
+<script>
+  // Bootstrap 5 client-side form validation starter
+  (function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+  })()
+</script>
+
+<%- include('../partials/footer') %>
