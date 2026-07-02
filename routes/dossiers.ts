@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs" ;
 import { requireAuth, requireModule } from "./rbac";
 import prisma from "../lib/prismaClient";
+import { generateRef } from "../lib/generateRef";
 
 const router = Router();
 
@@ -95,6 +96,51 @@ router.get("/dossiers", requireAuth, async (req: any, res: any) => {
     const user = req.session.user;
     const userRole = (user?.role || "").trim().toLowerCase();
 
+    // CHANGE 1 - If user is secretariat/secretaire, render their dedicated control panel
+    if (userRole === "secretariat" || userRole === "secretaire") {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [monthDossiersCount, dossiersCreeCount, totalClients, recentDossiers] = await Promise.all([
+        prisma.dossier.count({
+          where: {
+            created_by: req.session.userId,
+            created_at: { gte: startOfMonth }
+          }
+        }),
+        prisma.dossier.count({
+          where: {
+            created_by: req.session.userId,
+            pipeline_status: "CREE"
+          }
+        }),
+        prisma.client.count(),
+        prisma.dossier.findMany({
+          where: {
+            created_by: req.session.userId
+          },
+          include: {
+            client: true,
+            representant_obj: true,
+            _count: { select: { files: true } }
+          },
+          orderBy: {
+            created_at: "desc"
+          },
+          take: 5
+        })
+      ]);
+
+      return res.render("dossiers/secretariat-workspace", {
+        monthDossiersCount,
+        dossiersCreeCount,
+        totalClients,
+        recentDossiers,
+        user,
+        title: "Espace Secrétariat — Bonjour " + user.nom
+      });
+    }
+
     const filterObj: any = {};
     if (client_id) {
       filterObj.client_id = parseInt(client_id);
@@ -102,16 +148,13 @@ router.get("/dossiers", requireAuth, async (req: any, res: any) => {
     if (etat) {
       filterObj.etat = etat;
     }
-    // Filter by created_by for secretariat role
-    if (userRole === "secretariat" || userRole === "secretaire") {
-      filterObj.created_by = req.session.userId;
-    }
 
     const [dossiers, clients] = await Promise.all([
       prisma.dossier.findMany({
         where: filterObj,
         include: {
           client: true,
+          representant_obj: true,
           taches: true,
           _count: { select: { files: true } }
         },
@@ -135,6 +178,45 @@ router.get("/dossiers", requireAuth, async (req: any, res: any) => {
   }
 });
 
+// GET /dossiers/liste - Secretariat's complete list of dossiers (or all for other roles)
+router.get("/dossiers/liste", requireAuth, async (req: any, res: any) => {
+  try {
+    const user = req.session.user;
+    const userRole = (user?.role || "").trim().toLowerCase();
+
+    const filterObj: any = {};
+    if (userRole === "secretariat" || userRole === "secretaire") {
+      filterObj.created_by = req.session.userId;
+    }
+
+    const [dossiers, clients] = await Promise.all([
+      prisma.dossier.findMany({
+        where: filterObj,
+        include: {
+          client: true,
+          taches: true,
+          _count: { select: { files: true } }
+        },
+        orderBy: {
+          created_at: "desc",
+        },
+      }),
+      prisma.client.findMany({ orderBy: { nom: "asc" } }),
+    ]);
+
+    res.render("dossiers/index", {
+      dossiers,
+      clients,
+      selectedClientId: "",
+      selectedEtat: "",
+      title: "Mes Dossiers — Liste complète",
+    });
+  } catch (error) {
+    console.error("Erreur GET /dossiers/liste :", error);
+    res.status(500).send("Erreur lors de la récupération de la liste des dossiers.");
+  }
+});
+
 // GET /archives & GET /dossiers/archives - Liste des dossiers archivés définitivement
 const handleGetArchives = async (req: any, res: any) => {
   try {
@@ -144,6 +226,7 @@ const handleGetArchives = async (req: any, res: any) => {
       },
       include: {
         client: true,
+        representant_obj: true,
         taches: true
       },
       orderBy: {
@@ -177,7 +260,7 @@ router.get("/dossiers/create", requireAuth, async (req: any, res: any) => {
     const clients = await prisma.client.findMany({ orderBy: { nom: "asc" } });
     res.render("dossiers/create", {
       clients,
-      title: "Ouvrir un Dossier de Transit Maritime & Douanier",
+      title: "Créer un Dossier de Transit",
     });
   } catch (error) {
     console.error("Erreur init formulaire dossier :", error);
@@ -202,22 +285,36 @@ router.post(
       const user = req.session.user;
       const userRole = (user?.role || "").trim().toLowerCase();
       if (userRole !== "secretariat" && userRole !== "secretaire" && userRole !== "super_admin") {
-        req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut ouvrir un nouveau dossier.";
+        req.session.error_msg = "Accès non autorisé : seul le secrétariat administratif (ou le Super Administrateur) peut créer un nouveau dossier.";
         return res.redirect("/dossiers");
       }
 
       const {
         client_id, numero, port, nature, etat,
-        ref_bl, ref_fac, ref_sgs, ref_di, ref_besc, ref_anor,
-        contenu, droits_douane, validation, valeur_douane, representant
+        bl, ref_bl,
+        fac_numero, ref_fac,
+        sgs_numero, ref_sgs,
+        di_numero, ref_di,
+        besc_numero, ref_besc,
+        anor_numero, ref_anor,
+        contenu, droits_douane, validation, valeur_douane, representant, representant_id,
+        comment_client, comment_douane, comment_fisc
       } = req.body;
 
-      if (!client_id || !numero || !port || !nature || !ref_bl) {
+      const normalized_bl = (bl || ref_bl || "").trim();
+      const normalized_fac = (fac_numero || ref_fac || "").trim();
+      const normalized_sgs = (sgs_numero || ref_sgs || "").trim();
+      const normalized_di = (di_numero || ref_di || "").trim();
+      const normalized_besc = (besc_numero || ref_besc || "").trim();
+      const normalized_anor = (anor_numero || ref_anor || "").trim();
+
+      if (!client_id || !numero || !port || !nature || !normalized_bl) {
         req.session.error_msg = "Veuillez remplir correctement tous les champs obligatoires (*), y compris le N° de BL.";
         return res.redirect("/dossiers/create");
       }
 
       const clientIdParsed = parseInt(client_id);
+      const parsedRepId = representant_id ? parseInt(representant_id) : null;
 
       // Vérifier l'unicité du numéro de dossier
       const existing = await prisma.dossier.findUnique({
@@ -241,13 +338,14 @@ router.post(
           numero: numero.trim(),
           port: port,
           nature: nature,
-          bl: ref_bl.trim(),
+          bl: normalized_bl,
           etat: etat || "OUVERT",
           contenu: contenu || null,
           droits_douane: parsedDroits,
           validation: validationBool,
           valeur_douane: parsedValeur,
-          representant: representant ? representant.trim() : null,
+          representant_id: parsedRepId,
+          representant_libre: representant ? representant.trim() : null,
           pipeline_status: "CREE",
           created_by: req.session.userId,
         },
@@ -260,12 +358,12 @@ router.post(
 
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const fileFields = [
-        { name: "fichier_bl", category: "BL", ref: ref_bl },
-        { name: "fichier_fac", category: "FAC", ref: ref_fac },
-        { name: "fichier_sgs", category: "SGS", ref: ref_sgs },
-        { name: "fichier_di", category: "DI", ref: ref_di },
-        { name: "fichier_besc", category: "BESC", ref: ref_besc },
-        { name: "fichier_anor", category: "ANOR", ref: ref_anor }
+        { name: "fichier_bl", category: "BL", ref: normalized_bl },
+        { name: "fichier_fac", category: "FAC", ref: normalized_fac },
+        { name: "fichier_sgs", category: "SGS", ref: normalized_sgs },
+        { name: "fichier_di", category: "DI", ref: normalized_di },
+        { name: "fichier_besc", category: "BESC", ref: normalized_besc },
+        { name: "fichier_anor", category: "ANOR", ref: normalized_anor }
       ];
 
       for (const fField of fileFields) {
@@ -293,15 +391,59 @@ router.post(
         }
       }
 
+      // CHANGE 4 - Save three section comments when form submits
+      if (comment_client && comment_client.trim()) {
+        await prisma.dossierComment.create({
+          data: {
+            dossier_id: newDossier.id,
+            user_id: req.session.userId,
+            contenu: `[INFO/CLIENT] ${comment_client.trim()}`,
+            stage: "CREE"
+          }
+        }).catch(() => {});
+      }
+
+      if (comment_douane && comment_douane.trim()) {
+        await prisma.dossierComment.create({
+          data: {
+            dossier_id: newDossier.id,
+            user_id: req.session.userId,
+            contenu: `[INFO/DOUANE] ${comment_douane.trim()}`,
+            stage: "CREE"
+          }
+        }).catch(() => {});
+      }
+
+      if (comment_fisc && comment_fisc.trim()) {
+        await prisma.dossierComment.create({
+          data: {
+            dossier_id: newDossier.id,
+            user_id: req.session.userId,
+            contenu: `[INFO/FISC] ${comment_fisc.trim()}`,
+            stage: "CREE"
+          }
+        }).catch(() => {});
+      }
+
+      // Always add the opening summary comment
+      await prisma.dossierComment.create({
+        data: {
+          dossier_id: newDossier.id,
+          user_id: req.session.userId,
+          contenu: `Dossier ouvert par ${req.session.user.nom}. BL: ${normalized_bl || 'N/A'}. Représentant: ${representant?.trim() || 'Non précisé'}.`,
+          stage: "CREE"
+        }
+      }).catch(() => {});
+
       await logActivity(
         req.session.userId,
-        "OUVERTURE_DOSSIER",
+        "CREATION_DOSSIER",
         "Dossier",
         newDossier.id
       );
 
       req.session.success_msg = "Dossier créé avec succès !";
-      res.redirect("/dashboard");
+      res.redirect("/dossiers");
     } catch (error: any) {
       console.error("Erreur de création du dossier :", error);
       req.session.error_msg = "Une erreur est survenue lors de la création du dossier: " + (error.message || error);
@@ -419,6 +561,7 @@ router.get("/dossiers/:id", requireAuth, async (req: any, res: any) => {
       where: { id: folderId },
       include: {
         client: true,
+        representant_obj: true,
         taches: {
           include: {
             intervenant: true,
@@ -1442,7 +1585,7 @@ router.post(
       const {
         client_id, numero, port, nature, etat,
         ref_bl, ref_fac, ref_sgs, ref_di, ref_besc, ref_anor,
-        contenu, droits_douane, validation, valeur_douane, representant
+        contenu, droits_douane, validation, valeur_douane, representant, representant_id
       } = req.body;
 
       if (!client_id || !numero || !port || !nature || !ref_bl) {
@@ -1469,6 +1612,9 @@ router.post(
       const parsedValeur = (valeur_douane && !isNaN(rawValeur)) ? rawValeur : null;
       const validationBool = (validation === 'true' || validation === true || validation === 'on');
 
+      const parsedRepId = representant_id ? parseInt(representant_id) : null;
+      const repLibreVal = parsedRepId ? null : (representant ? representant.trim() : null);
+
       await prisma.dossier.update({
         where: { id },
         data: {
@@ -1481,7 +1627,8 @@ router.post(
           contenu: contenu || null,
           droits_douane: parsedDroits,
           valeur_douane: parsedValeur,
-          representant: representant ? representant.trim() : null,
+          representant_id: parsedRepId,
+          representant_libre: repLibreVal,
           validation: validationBool
         }
       });

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { ensureDefaultAccounts, postEcriture, postPaymentEcriture } from "../lib/accounting";
 import { requireAuth, requireModule } from "./rbac";
 import prisma from "../lib/prismaClient";
+import { generateRef } from "../lib/generateRef";
 
 const router = Router();
 
@@ -92,10 +93,8 @@ router.post("/documents/create", requireAuth, async (req: any, res: any) => {
     const totalHtVal = parseFloat(total_ht) || 0;
     const totalTtcVal = parseFloat(total_ttc) || 0;
 
-    // Générer un numéro de facture unique : format FAC-2026-XXXX
-    const count = await prisma.document.count();
-    const sequence = String(count + 1001).slice(-4);
-    const invoiceNumber = `${type === "DEVIS" ? "DEV" : type === "PROFORMA" ? "PRO" : "FAC"}-2026-${sequence}`;
+    // Générer un numéro de facture unique
+    const invoiceNumber = type === "DEVIS" ? generateRef("DEV") : type === "PROFORMA" ? generateRef("PRF") : generateRef("FAC");
 
     const parsedLines = lines.map((l: any) => ({
       description: l.description,

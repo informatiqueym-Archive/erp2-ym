@@ -1,0 +1,111 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-6">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/clients">Clients</a></li>
+        <li class="breadcrumb-item"><a href="/clients/<%= client.id %>"><%= client.nom %></a></li>
+        <li class="breadcrumb-item active" aria-current="page">Représentants</li>
+      </ol>
+    </nav>
+    <h1 class="h3 text-slate-800"><i class="bi bi-people-fill text-primary me-2"></i>Représentants de <%= client.nom %></h1>
+    <p class="text-muted mb-0">Gestion des personnes physiques autorisées à apporter et payer des dossiers pour ce client.</p>
+  </div>
+  <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
+    <a href="/clients/<%= client.id %>/representants/create" class="btn btn-primary d-inline-flex align-items-center">
+      <i class="bi bi-person-plus-fill me-2"></i> Ajouter un représentant
+    </a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">Représentant</th>
+            <th>Fonction</th>
+            <th>Téléphone</th>
+            <th>Email</th>
+            <th>CNI N°</th>
+            <th class="text-center">Statut</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (client.representants && client.representants.length > 0) { %>
+            <% client.representants.forEach(function(rep) { %>
+              <tr id="rep-row-<%= rep.id %>">
+                <td class="ps-4 fw-semibold text-slate-800">
+                  <i class="bi bi-person-badge-fill text-muted me-2"></i>
+                  <%= rep.nom %> <%= rep.prenom || "" %>
+                </td>
+                <td><%= rep.fonction || "Non spécifié" %></td>
+                <td><%= rep.tel || "Non spécifié" %></td>
+                <td><%= rep.email || "Non spécifié" %></td>
+                <td><code class="text-dark bg-light px-2 py-0.5 rounded"><%= rep.cni_numero || "Non spécifié" %></code></td>
+                <td class="text-center">
+                  <span id="badge-<%= rep.id %>" class="badge <%= rep.actif ? 'bg-success' : 'bg-secondary' %>">
+                    <%= rep.actif ? 'Actif' : 'Inactif' %>
+                  </span>
+                </td>
+                <td class="text-end pe-4">
+                  <button onclick="toggleRepStatus(<%= rep.id %>)" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-toggle2-on me-1"></i> Activer/Désactiver
+                  </button>
+                </td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="bi bi-people mb-2 d-block fs-3"></i>
+                Aucun représentant enregistré pour ce client.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mt-4">
+  <a href="/clients/<%= client.id %>" class="btn btn-secondary">
+    <i class="bi bi-arrow-left me-2"></i> Retour au client
+  </a>
+</div>
+
+<script>
+  function toggleRepStatus(repId) {
+    fetch(`/clients/<%= client.id %>/representants/${repId}/toggle`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        const badge = document.getElementById(`badge-${repId}`);
+        if (data.actif) {
+          badge.className = 'badge bg-success';
+          badge.textContent = 'Actif';
+        } else {
+          badge.className = 'badge bg-secondary';
+          badge.textContent = 'Inactif';
+        }
+      } else {
+        alert("Erreur lors de la modification du statut : " + data.error);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Erreur de communication avec le serveur.");
+    });
+  }
+</script>
+
+<%- include('../partials/footer') %>

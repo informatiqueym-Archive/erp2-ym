@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import prisma from "../lib/prismaClient";
 import { requireAuth, requireModule } from "./rbac";
+import { generateRef } from "../lib/generateRef";
 
 const router = Router();
 
@@ -73,8 +74,7 @@ router.get("/clients", requireAuth, requireModule("clients"), async (req: any, r
 // GET /clients/create - Render create form
 router.get("/clients/create", requireAuth, requireModule("clients"), async (req: any, res: any) => {
   try {
-    const count = await prisma.client.count();
-    const auto_ref = `CLI-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const auto_ref = generateRef("CLI");
     res.render("clients/create", { auto_ref });
   } catch (error) {
     console.error("Erreur GET /clients/create :", error);
@@ -180,6 +180,7 @@ router.get("/clients/:id", requireAuth, requireModule("clients"), async (req: an
           include: { user: true },
           orderBy: { created_at: "asc" }
         },
+        representants: true,
         _count: { select: { dossiers: true } }
       }
     });
@@ -205,8 +206,7 @@ router.post("/clients/new", requireAuth, requireModule("clients"), async (req: a
       return res.redirect("/clients");
     }
 
-    const count = await prisma.client.count();
-    const auto_ref = `CLI-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const auto_ref = generateRef("CLI");
 
     const newClient = await prisma.client.create({
       data: {
@@ -238,8 +238,7 @@ router.post("/api/clients/quick", requireAuth, requireModule("clients"), async (
       return res.status(400).json({ success: false, error: "La raison sociale du client est obligatoire." });
     }
 
-    const count = await prisma.client.count();
-    const auto_ref = `CLI-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const auto_ref = generateRef("CLI");
 
     const newClient = await prisma.client.create({
       data: {
@@ -310,6 +309,196 @@ router.post("/clients/delete/:id", requireAuth, requireModule("clients"), async 
     console.error(error);
     req.session.error_msg = "Erreur de suppression de l'importateur.";
     res.redirect("/clients");
+  }
+});
+
+// GET /clients/:id/representants - List of representatives for a client
+router.get("/clients/:id/representants", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+  try {
+    const clId = parseInt(req.params.id);
+    const client = await prisma.client.findUnique({
+      where: { id: clId },
+      include: { representants: true }
+    });
+
+    if (!client) {
+      req.session.error_msg = "Client introuvable.";
+      return res.redirect("/clients");
+    }
+
+    res.render("clients/representants", { client });
+  } catch (error: any) {
+    console.error("Erreur list représentants:", error);
+    res.status(500).send("Erreur lors de la récupération des représentants.");
+  }
+});
+
+// GET /clients/:id/representants/create - Form to create a representative
+router.get("/clients/:id/representants/create", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+  try {
+    const clId = parseInt(req.params.id);
+    const client = await prisma.client.findUnique({ where: { id: clId } });
+
+    if (!client) {
+      req.session.error_msg = "Client introuvable.";
+      return res.redirect("/clients");
+    }
+
+    res.render("clients/representants/create", { client });
+  } catch (error: any) {
+    console.error("Erreur GET /clients/:id/representants/create:", error);
+    res.status(500).send("Erreur de chargement du formulaire.");
+  }
+});
+
+// POST /clients/:id/representants/create - Create representative with documents
+router.post(
+  "/clients/:id/representants/create",
+  requireAuth,
+  requireModule("clients"),
+  clientUpload.fields([
+    { name: "fichier_cni", maxCount: 1 },
+    { name: "fichier_procuration", maxCount: 1 }
+  ]),
+  async (req: any, res: any) => {
+    try {
+      const clId = parseInt(req.params.id);
+      const { nom, prenom, tel, email, cni_numero, fonction } = req.body;
+
+      if (!nom) {
+        req.session.error_msg = "Le nom du représentant est obligatoire.";
+        return res.redirect(`/clients/${clId}/representants/create`);
+      }
+
+      // 1. Create the representant
+      const representant = await prisma.representant.create({
+        data: {
+          client_id: clId,
+          nom,
+          prenom: prenom || null,
+          tel: tel || null,
+          email: email || null,
+          cni_numero: cni_numero || null,
+          fonction: fonction || null,
+          actif: true
+        }
+      });
+
+      // 2. Handle files
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const clientDir = path.join(process.cwd(), "uploads", "clients", String(clId));
+      if (!fs.existsSync(clientDir)) {
+        fs.mkdirSync(clientDir, { recursive: true });
+      }
+
+      if (files) {
+        if (files["fichier_cni"] && files["fichier_cni"][0]) {
+          const file = files["fichier_cni"][0];
+          const destPath = path.join(clientDir, file.filename);
+          fs.renameSync(file.path, destPath);
+
+          await prisma.clientDocument.create({
+            data: {
+              client_id: clId,
+              user_id: req.session.userId,
+              filename: file.filename,
+              original: file.originalname,
+              category: "CNI",
+              path: `/uploads/clients/${clId}/${file.filename}`,
+              comment: `CNI du représentant ${nom} ${prenom || ""}`.trim(),
+              representant_id: representant.id
+            }
+          });
+        }
+
+        if (files["fichier_procuration"] && files["fichier_procuration"][0]) {
+          const file = files["fichier_procuration"][0];
+          const destPath = path.join(clientDir, file.filename);
+          fs.renameSync(file.path, destPath);
+
+          await prisma.clientDocument.create({
+            data: {
+              client_id: clId,
+              user_id: req.session.userId,
+              filename: file.filename,
+              original: file.originalname,
+              category: "PROCU",
+              path: `/uploads/clients/${clId}/${file.filename}`,
+              comment: `Procuration du représentant ${nom} ${prenom || ""}`.trim(),
+              representant_id: representant.id
+            }
+          });
+        }
+      }
+
+      await logActivity(req.session.userId, "CREATION_REPRESENTANT", "Representant", representant.id);
+      req.session.success_msg = `✅ Représentant ${nom} ${prenom || ""} ajouté avec succès.`;
+      res.redirect(`/clients/${clId}`);
+    } catch (error: any) {
+      console.error("Erreur création représentant:", error);
+      req.session.error_msg = "Erreur de création du représentant: " + (error.message || error);
+      res.redirect(`/clients/${req.params.id}/representants/create`);
+    }
+  }
+);
+
+// GET /api/clients/:id/representants - JSON list of representatives
+router.get("/api/clients/:id/representants", requireAuth, async (req: any, res: any) => {
+  try {
+    const clId = parseInt(req.params.id);
+    const representants = await prisma.representant.findMany({
+      where: { client_id: clId },
+      include: {
+        documents: true
+      }
+    });
+
+    const mapped = representants.map(r => {
+      const has_cni = r.documents.some(d => d.category === "CNI");
+      const has_procu = r.documents.some(d => d.category === "PROCU");
+      return {
+        id: r.id,
+        nom: r.nom,
+        prenom: r.prenom || "",
+        tel: r.tel || "",
+        email: r.email || "",
+        cni_numero: r.cni_numero || "",
+        fonction: r.fonction || "",
+        actif: r.actif,
+        has_cni,
+        has_procu
+      };
+    });
+
+    res.json(mapped);
+  } catch (error: any) {
+    console.error("Erreur API list représentants:", error);
+    res.status(500).json({ error: "Erreur serveur: " + error.message });
+  }
+});
+
+// PATCH /clients/:id/representants/:repId/toggle - Toggle representant activity
+router.patch("/clients/:id/representants/:repId/toggle", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+  try {
+    const repId = parseInt(req.params.repId);
+    const representant = await prisma.representant.findUnique({
+      where: { id: repId }
+    });
+
+    if (!representant) {
+      return res.status(404).json({ success: false, error: "Représentant introuvable" });
+    }
+
+    const updated = await prisma.representant.update({
+      where: { id: repId },
+      data: { actif: !representant.actif }
+    });
+
+    await logActivity(req.session.userId, "TOGGLE_REPRESENTANT", "Representant", repId);
+    res.json({ success: true, actif: updated.actif });
+  } catch (error: any) {
+    console.error("Erreur toggle représentant:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

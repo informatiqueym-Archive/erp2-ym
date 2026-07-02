@@ -19,6 +19,7 @@ import facturesFournisseurRoutes from "./routes/factures-fournisseur";
 import clientsRoutes from "./routes/clients";
 import { postPaymentEcriture } from "./lib/accounting";
 import adminRoutes from "./routes/admin";
+import { generateRef } from "./lib/generateRef";
 import profilRoutes from "./routes/profil";
 import bonsRoutes from "./routes/bons";
 import { requireAuth, requireModule, requireSuperAdmin } from "./routes/rbac";
@@ -355,6 +356,16 @@ app.patch("/api/notifications/read-all", requireAuth, async (req: any, res: any)
   }
 });
 
+app.get("/api/generate-ref", requireAuth, (req: any, res: any) => {
+  try {
+    const prefix = (req.query.prefix as string || "REF").toUpperCase();
+    const ref = generateRef(prefix);
+    res.json({ ref });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== 2. TABLEAU DE BORD (DASHBOARD) ====================
 
 app.use(dashboardRoutes);
@@ -499,8 +510,7 @@ app.get("/facturation/new", requireAuth, async (req: any, res: any) => {
           ? await prisma.bonReel.findUnique({ where: { id: parseInt(bon_reel_id as string) } })
           : null;
 
-        const count = await prisma.document.count();
-        const autoNumero = `FAC-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+        const autoNumero = generateRef("FAC");
 
         prefill = {
           dossier_id: dossier.id,
@@ -1231,7 +1241,7 @@ async function seedAccounts() {
         societe: "YM-TRANSIT"
       },
       {
-        nom: "Service Enlevement",
+        nom: "Service Enlèvement et Livraison",
         prenom: "Opérations",
         email: "enlevement@ym-transit.cm",
         password: "enlevement123",

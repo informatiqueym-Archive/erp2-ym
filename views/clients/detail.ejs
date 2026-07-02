@@ -10,7 +10,7 @@
       <i class="bi bi-arrow-left me-1"></i> Tous les clients
     </a>
     <a href="/dossiers/create?client_id=<%= client.id %>" class="btn btn-primary btn-sm">
-      <i class="bi bi-folder-plus me-1"></i> Ouvrir un dossier
+      <i class="bi bi-folder-plus me-1"></i> Créer un dossier
     </a>
   </div>
 </div>
@@ -110,6 +110,51 @@
       </div>
     </div>
 
+    <!-- Représentants du Client -->
+    <div class="card border-0 shadow-sm mt-4" id="client-representants-card">
+      <div class="card-header bg-slate-700 text-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-people-fill me-2"></i>Représentants & Mandataires</h5>
+        <a href="/clients/<%= client.id %>/representants" class="btn btn-sm btn-outline-light">
+          Gérer
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <% if (client.representants && client.representants.length > 0) { %>
+          <div class="list-group list-group-flush">
+            <% client.representants.forEach(rep => { %>
+              <div class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="mb-1 fw-bold text-slate-800">
+                    <span class="badge <%= rep.actif ? 'bg-success' : 'bg-secondary' %> me-2"><%= rep.actif ? 'Actif' : 'Inactif' %></span>
+                    <%= rep.nom %> <%= rep.prenom || "" %>
+                  </h6>
+                  <p class="mb-0 text-muted small">
+                    <span class="me-3"><i class="bi bi-telephone me-1"></i><%= rep.tel || 'N/A' %></span>
+                    <span><i class="bi bi-person-badge me-1"></i><%= rep.fonction || 'N/A' %></span>
+                  </p>
+                </div>
+                <div>
+                  <button onclick="toggleRepStatusDetail(<%= rep.id %>)" class="btn btn-sm btn-outline-secondary">
+                    Basculer
+                  </button>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-people fs-4 text-slate-300 d-block mb-2"></i>
+            Aucun représentant enregistré pour ce client.
+          </div>
+        <% } %>
+        <div class="p-3 bg-light border-top text-end">
+          <a href="/clients/<%= client.id %>/representants/create" class="btn btn-sm btn-primary">
+            <i class="bi bi-person-plus-fill me-1"></i> Ajouter un représentant
+          </a>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Right Side: Document list card -->
@@ -190,5 +235,28 @@
     </div>
   </div>
 </div>
+
+<script>
+  function toggleRepStatusDetail(repId) {
+    fetch(`/clients/<%= client.id %>/representants/${repId}/toggle`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert("Erreur: " + data.error);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Erreur de communication.");
+    });
+  }
+</script>
 
 <%- include('../partials/footer') %>

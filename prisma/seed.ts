@@ -80,7 +80,7 @@ async function main() {
 
   await prisma.user.create({
     data: {
-      nom: "Service Enlevement",
+      nom: "Service Enlèvement et Livraison",
       email: "enlevement@ym-transit.cm",
       password: enlevementHash,
       role: "enlevement",

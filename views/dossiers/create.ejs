@@ -3,361 +3,680 @@
 <div class="row mb-4 align-items-center" id="create-dossier-header">
   <div class="col-sm-6 text-start">
     <h1 class="h3 mb-1 text-slate-800 font-sans fw-bold">
-      <i class="bi bi-folder-plus text-primary me-2"></i>Ouvrir un Dossier de Transit
+      <i class="bi bi-folder-plus text-primary me-2"></i>Créer un Dossier de Transit
     </h1>
-    <p class="text-muted mb-0">Initialisez les jalon-clés d'expédition, d'enregistrement douane et de pièces jointes.</p>
+    <p class="text-muted mb-0">Remplissez les informations clients, douanières et fiscales pas-à-pas.</p>
   </div>
   <div class="col-sm-6 text-sm-end mt-3 mt-sm-0">
     <a href="/dossiers" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-      <i class="bi bi-arrow-left me-1"></i> Retour à la Liste
+      <i class="bi bi-arrow-left me-1"></i> Retour à l'Espace
     </a>
   </div>
 </div>
 
-<form action="/dossiers/create" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate id="dossier-create-form">
-  <div class="row g-4">
-    <!-- Left Column: Section A & Section B -->
-    <div class="col-lg-8">
-      
-      <!-- SECTION A — INFO/CLIENT -->
-      <div class="card border-0 shadow-sm mb-4 text-start" id="section-a-client">
-        <div class="card-header bg-slate-900 text-white py-3">
-          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-person-badge-fill me-2"></i>SECTION A — INFO/CLIENT</h5>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-12">
-              <label class="form-label small fw-bold">Sélectionner le Client <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <span class="input-group-text bg-light text-slate-500"><i class="bi bi-person-fill"></i></span>
-                <select class="form-select" id="clientSelect" name="client_id" required>
-                  <option value="">-- Sélectionnez un client importateur / exportateur --</option>
-                  <% if (clients && clients.length > 0) { %>
-                    <% clients.forEach(cl => { %>
-                      <option value="<%= cl.id %>"><%= cl.nom %></option>
-                    <% }) %>
-                  <% } %>
-                </select>
-                <div class="invalid-feedback">Veuillez sélectionner un client donneur d'ordre.</div>
-              </div>
-            </div>
-
-            <!-- Pre-verification documents badges -->
-            <div class="col-md-12 d-none" id="document-status-row">
-              <div class="p-3 bg-light border rounded d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <div>
-                  <span class="small fw-semibold text-muted d-block uppercase mb-1">Vérification de Conformité Administrative Client :</span>
-                  <span id="badge-cni" class="badge bg-secondary-subtle text-secondary me-2 p-2 fs-7">
-                    <i class="bi bi-shield-fill-check"></i> CNI non vérifiée
-                  </span>
-                  <span id="badge-procu" class="badge bg-secondary-subtle text-secondary p-2 fs-7">
-                    <i class="bi bi-shield-fill-check"></i> Procuration non vérifiée
-                  </span>
-                </div>
-                <div id="full-client-link-container"></div>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Représentant Désigné</label>
-              <input type="text" class="form-control" name="representant" id="representantInput" placeholder="Saisir le nom du mandataire">
-              <div class="form-text text-muted" style="font-size: 0.75rem;">Ajustable si le représentant change pour cette opération.</div>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Numéro de dossier unique <span class="text-danger">*</span></label>
-              <% 
-                const randomSeq = Math.floor(1000 + Math.random() * 9000); 
-                const autoDossierNum = `DOS-${new Date().getFullYear()}-${randomSeq}`;
-              %>
-              <input type="text" class="form-control font-monospace" name="numero" value="<%= autoDossierNum %>" required id="numeroDossierInput">
-              <div class="invalid-feedback">Le numéro de dossier unique est obligatoire.</div>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Statut Initial <span class="text-danger">*</span></label>
-              <select class="form-select" name="etat" required id="etatDossierSelect">
-                <option value="OUVERT" selected>OUVERT / ATTENTE DOCS</option>
-                <option value="EN_COURS">EN COURS DE TRAITEMENT</option>
-                <option value="EN_ATTENTE">EN ATTENTE DE DECISION</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- SECTION B — INFO/DOUANE -->
-      <div class="card border-0 shadow-sm text-start" id="section-b-douane">
-        <div class="card-header bg-slate-800 text-white py-3">
-          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-shield-fill-check me-2"></i>SECTION B — INFO/DOUANE (Gestion Documentaire Opérationnelle)</h5>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Régime / Nature de l'opération <span class="text-danger">*</span></label>
-              <select class="form-select" name="nature" id="natureSelect" required>
-                <option value="IMPORT" selected>IMPORTATION (Mise en consommation)</option>
-                <option value="EXPORT">EXPORTATION (Envoi international)</option>
-              </select>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Port ou Douane Cible <span class="text-danger">*</span></label>
-              <select class="form-select" name="port" required id="portSelect">
-                <option value="Port Autonome de Douala (PAD)" selected>Port de Douala (PAD)</option>
-                <option value="Port de Kribi (Seaport)">Port de Kribi (Seaport)</option>
-                <option value="Aéroport International Douala">Aéroport International Douala</option>
-                <option value="Aéroport International Yaoundé-Nsimalen">Aéroport Nsimalen (YDE)</option>
-              </select>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Valeur en douane estimée (CIF / CAF en FCFA)</label>
-              <input type="number" class="form-control" name="valeur_douane" placeholder="Saisir montant en FCFA" id="valeurDouaneInput">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Montant des droits de douane estimés (FCFA)</label>
-              <input type="number" class="form-control" name="droits_douane" placeholder="Saisir montant en FCFA" id="droitsDouaneInput">
-            </div>
-
-            <div class="col-md-12">
-              <label class="form-label small fw-bold">Contenu du conteneur / Description Marchandises</label>
-              <textarea class="form-control" name="contenu" rows="2" placeholder="Ex: 240 sacs de cacao, matériels industriels, etc." id="contenuInput"></textarea>
-            </div>
-
-            <!-- Documents section -->
-            <div class="col-md-12 mt-4">
-              <h6 class="fw-bold border-bottom pb-2 mb-3 text-slate-800"><i class="bi bi-folder-fill text-warning me-1"></i> Pièces Jointes Spécifiques & Numéros de Réf.</h6>
-              <p class="text-xs text-muted mb-4"><i class="bi bi-info-circle"></i> Chaque pièce jointe requiert sa référence textuelle et son fichier scan correspondant.</p>
-              
-              <!-- BL Document Row -->
-              <div class="row g-2 align-items-center mb-3">
-                <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">1. BL / LTA (Connaissement) <span class="text-danger">*</span></label>
-                </div>
-                <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_bl" placeholder="N° Réf. BL" required id="refBlInput">
-                  <div class="invalid-feedback">Le numéro de BL est requis.</div>
-                </div>
-                <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_bl" accept=".pdf, .jpg, .jpeg, .png" required id="fichierBlInput">
-                </div>
-              </div>
-
-              <!-- FAC Document Row -->
-              <div class="row g-2 align-items-center mb-3">
-                <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">2. Facture Commerciale</label>
-                </div>
-                <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_fac" placeholder="N° Réf. Facture" id="refFacInput">
-                </div>
-                <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_fac" accept=".pdf" id="fichierFacInput">
-                </div>
-              </div>
-
-              <!-- SGS Document Row -->
-              <div class="row g-2 align-items-center mb-3">
-                <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">3. Rapport Inspection SGS</label>
-                </div>
-                <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_sgs" placeholder="N° Réf. SGS" id="refSgsInput">
-                </div>
-                <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_sgs" accept=".pdf" id="fichierSgsInput">
-                </div>
-              </div>
-
-              <!-- DI Document Row -->
-              <div class="row g-2 align-items-center mb-3">
-                <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">4. Déclaration d'Importation (DI)</label>
-                </div>
-                <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_di" placeholder="N° Réf. DI" id="refDiInput">
-                </div>
-                <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_di" accept=".pdf" id="fichierDiInput">
-                </div>
-              </div>
-
-              <!-- BESC Document Row -->
-              <div class="row g-2 align-items-center mb-3">
-                <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">5. Document BESC</label>
-                </div>
-                <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_besc" placeholder="N° Réf. BESC" id="refBescInput">
-                </div>
-                <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_besc" accept=".pdf" id="fichierBescInput">
-                </div>
-              </div>
-
-              <!-- ANOR Document Row -->
-              <div class="row g-2 align-items-center mb-3">
-                <div class="col-md-4">
-                  <label class="form-label mb-0 fw-bold text-dark small">6. Certification ANOR</label>
-                </div>
-                <div class="col-md-4">
-                  <input type="text" class="form-control form-control-sm font-monospace" name="ref_anor" placeholder="N° Réf. ANOR" id="refAnorInput">
-                </div>
-                <div class="col-md-4">
-                  <input type="file" class="form-control form-control-sm" name="fichier_anor" accept=".pdf" id="fichierAnorInput">
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Right Column: Section C - Fiscal Info Card -->
-    <div class="col-lg-4">
-      
-      <!-- SECTION C — INFO/FISC -->
-      <div class="card border-0 shadow-sm text-start" id="section-c-fisc">
-        <div class="card-header bg-primary text-white py-3">
-          <h5 class="card-title mb-0 text-white fw-bold"><i class="bi bi-file-earmark-ruled-fill me-2"></i>SECTION C — INFO/FISC</h5>
-        </div>
-        <div class="card-body bg-light-subtle">
-          <p class="text-xs text-muted mb-3"><i class="bi bi-info-circle"></i> Données fiscales récupérées depuis le registre d'importateur d'origine.</p>
-          
-          <div class="mb-3">
-            <span class="small fw-semibold text-muted d-block uppercase mb-1">N.I.U (Identifiant Unique)</span>
-            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-niu">Sélectionnez un client...</div>
-          </div>
-
-          <div class="mb-3">
-            <span class="small fw-semibold text-muted d-block uppercase mb-1">R.C.C.M (Numéro Registre)</span>
-            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-rccm">Sélectionnez un client...</div>
-          </div>
-
-          <div class="mb-3">
-            <span class="small fw-semibold text-muted d-block uppercase mb-1">Attestation de Conformité Fiscale (ACF)</span>
-            <div class="p-2 bg-light border rounded font-monospace text-slate-700 small fw-bold" id="fisc-acf">Sélectionnez un client...</div>
-          </div>
-
-          <hr class="my-4">
-
-          <button type="submit" class="btn btn-primary w-full py-2.5 rounded shadow fw-bold d-inline-flex align-items-center justify-content-center" id="submit-dossier-btn">
-            <i class="bi bi-folder-plus me-2 fs-5"></i> Générer l'expédition
-          </button>
-          
-          <a href="/dossiers" class="btn btn-light w-full mt-2 py-2 border text-muted">
-            Annuler
-          </a>
-        </div>
-      </div>
-
+<!-- Tab Navigation Bar with Unique Colored Tabs -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="nav nav-pills d-flex gap-2 p-1 bg-white rounded shadow-sm border" role="tablist">
+      <!-- Tab 1 Button -->
+      <button type="button" class="btn tab-btn flex-fill py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all active-client" id="tab-client" onclick="showTab('client')" style="border-radius: 6px; font-size: 0.95rem;">
+        <i class="bi bi-person-fill"></i> INFO/CLIENT
+      </button>
+      <!-- Tab 2 Button -->
+      <button type="button" class="btn tab-btn flex-fill py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all" id="tab-douane" onclick="showTab('douane')" style="border-radius: 6px; font-size: 0.95rem;">
+        <i class="bi bi-shield-fill"></i> INFO/DOUANE
+      </button>
+      <!-- Tab 3 Button -->
+      <button type="button" class="btn tab-btn flex-fill py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all" id="tab-fisc" onclick="showTab('fisc')" style="border-radius: 6px; font-size: 0.95rem;">
+        <i class="bi bi-file-earmark-ruled"></i> INFO/FISC
+      </button>
     </div>
   </div>
+</div>
+
+<!-- ONE Form wrapping everything -->
+<form action="/dossiers/create" method="POST" enctype="multipart/form-data" id="main-form" class="needs-validation" novalidate onsubmit="return false;">
+  
+  <!-- SECTION 1 — INFO/CLIENT -->
+  <div class="tab-section" id="section-client" style="display: block;">
+    <div class="card border-0 shadow-sm mb-4 text-start" style="background-color: #F5F3FF; border: 1px solid #5B21B6 !important;">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-4 d-flex align-items-center gap-2" style="color: #5B21B6;">
+          <i class="bi bi-person-circle" style="color: #5B21B6;"></i> INFO/CLIENT — Informations administratives du dossier
+        </h5>
+        
+        <div class="row g-4">
+          <!-- Client select -->
+          <div class="col-md-6">
+            <label class="form-label small fw-bold" style="color: #5B21B6;">Client <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text bg-white" style="color: #5B21B6;"><i class="bi bi-person-fill"></i></span>
+              <select class="form-select border-start-0" id="client_id" name="client_id" required>
+                <option value="">-- Sélectionnez un client --</option>
+                <% if (clients && clients.length > 0) { %>
+                  <% clients.forEach(cl => { %>
+                    <option value="<%= cl.id %>"><%= cl.nom %></option>
+                  <% }) %>
+                <% } %>
+              </select>
+            </div>
+            <div class="form-text" style="color: #5B21B6; font-size: 0.75rem;">Sélectionnez le client pour charger ses badges et informations fiscales.</div>
+          </div>
+
+          <!-- Representant -->
+          <div class="col-md-6">
+            <label class="form-label small fw-bold" style="color: #5B21B6;">Représentant Mandataire</label>
+            <div class="input-group mb-2">
+              <span class="input-group-text bg-white" style="color: #5B21B6;"><i class="bi bi-person-badge"></i></span>
+              <select class="form-select border-start-0" id="representant_id" name="representant_id">
+                <option value="">-- Sélectionnez un représentant --</option>
+              </select>
+            </div>
+            <div id="add-rep-link-container" class="mb-2" style="display: none;">
+              <a href="#" id="add-rep-link" class="small fw-semibold text-decoration-none" style="color: #5B21B6;" target="_blank">
+                <i class="bi bi-plus-circle-fill me-1"></i> Ajouter un nouveau représentant pour ce client
+              </a>
+            </div>
+            <!-- Free-text input fallback -->
+            <label class="form-label small fw-bold" style="color: #5B21B6; font-size: 0.8rem;">Ou saisir un nom libre</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white" style="color: #5B21B6;"><i class="bi bi-pencil-square"></i></span>
+              <input type="text" class="form-control border-start-0" name="representant" placeholder="Nom libre (si absent de la liste)">
+            </div>
+          </div>
+
+          <!-- Selected representant details panel -->
+          <div class="col-12 mt-2" id="selected-rep-details" style="display: none;">
+            <div class="p-3 bg-light rounded border text-start" style="border: 1px dashed #5B21B6 !important;">
+              <h6 class="fw-bold mb-2 font-sans" style="color: #5B21B6; font-size: 0.85rem;">
+                <i class="bi bi-person-check-fill"></i> Détails du Représentant Sélectionné
+              </h6>
+              <div class="row g-2">
+                <div class="col-sm-4">
+                  <div class="small text-muted" style="font-size: 0.75rem;">CNI N° :</div>
+                  <div class="fw-bold text-slate-800" id="rep-cni-num">-</div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="small text-muted" style="font-size: 0.75rem;">Téléphone :</div>
+                  <div class="fw-bold text-slate-800" id="rep-tel">-</div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="small text-muted" style="font-size: 0.75rem;">Statut Pièces :</div>
+                  <div class="d-flex gap-1" id="rep-docs-status">
+                    -
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- N° Dossier Unique -->
+          <div class="col-md-4">
+            <label class="form-label small fw-bold" style="color: #5B21B6;">N° Dossier Unique <span class="text-danger">*</span></label>
+            <% 
+              const randomSeq = Math.floor(1000 + Math.random() * 9000); 
+              const autoDossierNum = `DOS-${new Date().getFullYear()}-${randomSeq}`;
+            %>
+            <div class="input-group">
+              <span class="input-group-text bg-white font-monospace" style="color: #5B21B6;"><i class="bi bi-hash"></i></span>
+              <input type="text" class="form-control border-start-0 font-monospace fw-bold" name="numero" value="<%= autoDossierNum %>" required>
+            </div>
+          </div>
+
+          <!-- Statut Initial -->
+          <div class="col-md-4">
+            <label class="form-label small fw-bold" style="color: #5B21B6;">Statut Initial (STA INIT)</label>
+            <select class="form-select" name="etat">
+              <option value="OUVERT" selected>OUVERT</option>
+              <option value="EN_COURS">EN_COURS</option>
+              <option value="EN_ATTENTE">EN_ATTENTE</option>
+            </select>
+          </div>
+
+          <!-- Nature -->
+          <div class="col-md-4">
+            <label class="form-label small fw-bold" style="color: #5B21B6;">Nature <span class="text-danger">*</span></label>
+            <select class="form-select" name="nature" required>
+              <option value="IMPORT" selected>IMPORT</option>
+              <option value="EXPORT">EXPORT</option>
+            </select>
+          </div>
+
+          <!-- Read-only client info panel -->
+          <div class="col-12 mt-4">
+            <div class="p-3 bg-white border rounded shadow-sm">
+              <h6 class="fw-bold mb-3 font-sans" style="color: #5B21B6; font-size: 0.9rem;">
+                <i class="bi bi-shield-check"></i> Statut de Conformité Administrative du Client
+              </h6>
+              
+              <div class="row g-3">
+                <div class="col-sm-4">
+                  <div class="p-2.5 rounded-3 text-start shadow-sm" style="background-color: #FEF9C3; color: #713F12;">
+                    <div class="small fw-semibold">N.I.U</div>
+                    <div class="fw-bold font-monospace" id="display-niu">Sélectionnez un client</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="p-2.5 rounded-3 text-start shadow-sm" style="background-color: #DBEAFE; color: #1E3A8A;">
+                    <div class="small fw-semibold">R.C.C.M</div>
+                    <div class="fw-bold font-monospace" id="display-rccm">Sélectionnez un client</div>
+                  </div>
+                </div>
+                <div class="col-sm-4">
+                  <div class="p-2.5 rounded-3 text-start shadow-sm" style="background-color: #FCE7F3; color: #831843;">
+                    <div class="small fw-semibold">A.C.F</div>
+                    <div class="fw-bold font-monospace" id="display-acf">Sélectionnez un client</div>
+                  </div>
+                </div>
+                <div class="col-sm-6 mt-2">
+                  <div id="cni-status">
+                    <span class="badge py-2 px-3 border" style="background-color: #FEF3C7; color: #92400E; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+                      <i class="bi bi-exclamation-triangle"></i> CNI manquant — ajoutez dans la fiche client
+                    </span>
+                  </div>
+                </div>
+                <div class="col-sm-6 mt-2">
+                  <div id="procu-status">
+                    <span class="badge py-2 px-3 border" style="background-color: #F3F4F6; color: #6B7280; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+                      — Non fournie
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comment Field -->
+          <div class="col-12 mt-4">
+            <label class="form-label small fw-bold" style="color: #5B21B6;">Commentaire section Client</label>
+            <textarea name="comment_client" rows="2" class="form-control" placeholder="Note ou commentaire sur le client / représentant..." style="border-left: 4px solid #5B21B6 !important; background-color: #F5F3FF !important; border-radius: 0 6px 6px 0;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2 — INFO/DOUANE -->
+  <div class="tab-section" id="section-douane" style="display: none;">
+    <div class="card border-0 shadow-sm mb-4 text-start" style="background-color: #ECFEFF; border: 1px solid #0E7490 !important;">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-4 d-flex align-items-center gap-2" style="color: #0E7490;">
+          <i class="bi bi-file-earmark-arrow-up-fill" style="color: #0E7490;"></i> INFO/DOUANE — Documents & Spécifications Douanières
+        </h5>
+
+        <div class="row g-4">
+          <!-- Port / Douane cible -->
+          <div class="col-md-12">
+            <label class="form-label small fw-bold" style="color: #0E7490;">Port / Douane cible <span class="text-danger">*</span></label>
+            <select class="form-select" name="port" required id="portSelect">
+              <option value="Port Autonome de Douala (PAD)" selected>Port de Douala (PAD)</option>
+              <option value="Port de Kribi (Seaport)">Port de Kribi (Seaport)</option>
+              <option value="Aéroport International Douala">Aéroport International Douala</option>
+              <option value="Aéroport International Yaoundé-Nsimalen">Aéroport Nsimalen (YDE)</option>
+            </select>
+          </div>
+
+          <!-- Document Upload Rows -->
+          <div class="col-12">
+            <div class="p-3 bg-white rounded border shadow-sm">
+              <h6 class="fw-bold mb-3" style="color: #0E7490;"><i class="bi bi-files"></i> Téléversement des Pièces Opérationnelles</h6>
+              
+              <!-- BL row -->
+              <div class="row p-3 rounded mb-3 align-items-center g-2" style="background-color: #FEF3C7;">
+                <div class="col-md-4">
+                  <label class="fw-bold m-0 font-sans" style="color: #92400E; font-size: 0.9rem;">BL (Connaissement) <span class="text-danger">*</span></label>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" name="bl" class="form-control form-control-sm font-monospace border-warning" placeholder="N° BL ex: MSCU12345678" required>
+                </div>
+                <div class="col-md-4">
+                  <input type="file" name="fichier_bl" class="form-control form-control-sm border-warning" accept=".pdf,.jpg,.jpeg,.png">
+                  <div class="small text-muted mt-1" style="font-size: 0.7rem; color: #92400E !important;">Scan du connaissement (BL)</div>
+                </div>
+              </div>
+
+              <!-- FAC row -->
+              <div class="row p-3 rounded mb-3 align-items-center g-2" style="background-color: #FCE7F3;">
+                <div class="col-md-4">
+                  <label class="fw-bold m-0 font-sans" style="color: #9D174D; font-size: 0.9rem;">Facture commerciale</label>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" name="fac_numero" class="form-control form-control-sm font-monospace border-danger" placeholder="N° Facture fournisseur">
+                </div>
+                <div class="col-md-4">
+                  <input type="file" name="fichier_fac" class="form-control form-control-sm border-danger" accept=".pdf,.jpg,.jpeg,.png">
+                  <div class="small text-muted mt-1" style="font-size: 0.7rem; color: #9D174D !important;">Facture commerciale fournisseur</div>
+                </div>
+              </div>
+
+              <!-- SGS row -->
+              <div class="row p-3 rounded mb-3 align-items-center g-2" style="background-color: #E0E7FF;">
+                <div class="col-md-4">
+                  <label class="fw-bold m-0 font-sans" style="color: #3730A3; font-size: 0.9rem;">SGS (Rapport d'inspection)</label>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" name="sgs_numero" class="form-control form-control-sm font-monospace border-primary" placeholder="N° Rapport SGS">
+                </div>
+                <div class="col-md-4">
+                  <input type="file" name="fichier_sgs" class="form-control form-control-sm border-primary" accept=".pdf,.jpg,.jpeg,.png">
+                  <div class="small text-muted mt-1" style="font-size: 0.7rem; color: #3730A3 !important;">Rapport d'inspection SGS</div>
+                </div>
+              </div>
+
+              <!-- DI row -->
+              <div class="row p-3 rounded mb-3 align-items-center g-2" style="background-color: #DCFCE7;">
+                <div class="col-md-4">
+                  <label class="fw-bold m-0 font-sans" style="color: #166534; font-size: 0.9rem;">DI (Déclaration d'Importation)</label>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" name="di_numero" class="form-control form-control-sm font-monospace border-success" placeholder="N° DI">
+                </div>
+                <div class="col-md-4">
+                  <input type="file" name="fichier_di" class="form-control form-control-sm border-success" accept=".pdf,.jpg,.jpeg,.png">
+                  <div class="small text-muted mt-1" style="font-size: 0.7rem; color: #166534 !important;">Déclaration d'Importation</div>
+                </div>
+              </div>
+
+              <!-- BESC row -->
+              <div class="row p-3 rounded mb-3 align-items-center g-2" style="background-color: #F0FAFA;">
+                <div class="col-md-4">
+                  <label class="fw-bold m-0 font-sans" style="color: #0E7490; font-size: 0.9rem;">BESC</label>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" name="besc_numero" class="form-control form-control-sm font-monospace border-info" placeholder="N° BESC">
+                </div>
+                <div class="col-md-4">
+                  <input type="file" name="fichier_besc" class="form-control form-control-sm border-info" accept=".pdf,.jpg,.jpeg,.png">
+                  <div class="small text-muted mt-1" style="font-size: 0.7rem; color: #0E7490 !important;">BESC — Bordereau Électronique de Suivi des Cargaisons</div>
+                </div>
+              </div>
+
+              <!-- ANOR row -->
+              <div class="row p-3 rounded mb-2 align-items-center g-2" style="background-color: #FDF4FF;">
+                <div class="col-md-4">
+                  <label class="fw-bold m-0 font-sans" style="color: #7E22CE; font-size: 0.9rem;">ANOR (Certification)</label>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" name="anor_numero" class="form-control form-control-sm font-monospace border-purple" placeholder="N° ANOR">
+                </div>
+                <div class="col-md-4">
+                  <input type="file" name="fichier_anor" class="form-control form-control-sm border-purple" accept=".pdf,.jpg,.jpeg,.png">
+                  <div class="small text-muted mt-1" style="font-size: 0.7rem; color: #7E22CE !important;">Certification ANOR</div>
+                </div>
+              </div>
+
+              <div class="text-slate-500 mt-3 d-flex align-items-center gap-1" style="font-size: 0.78rem;">
+                <i class="bi bi-info-circle"></i> Formats acceptés: PDF, JPG, PNG — Max 20MB par fichier
+              </div>
+            </div>
+          </div>
+
+          <!-- Customs Financials -->
+          <div class="col-md-6">
+            <label class="form-label small fw-bold" style="color: #0E7490;">Droits de douane estimés (FCFA)</label>
+            <div class="input-group">
+              <input type="number" name="droits_douane" class="form-control" placeholder="Saisir montant estimé">
+              <span class="input-group-text bg-white fw-bold" style="color: #0E7490;">FCFA</span>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold" style="color: #0E7490;">Valeur en douane (FCFA)</label>
+            <div class="input-group">
+              <input type="number" name="valeur_douane" class="form-control" placeholder="Saisir valeur en douane CIF">
+              <span class="input-group-text bg-white fw-bold" style="color: #0E7490;">FCFA</span>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label small fw-bold" style="color: #0E7490;">Contenu / Marchandises</label>
+            <textarea name="contenu" rows="2" class="form-control" placeholder="Description détaillée du contenu des marchandises..."></textarea>
+          </div>
+
+          <!-- Comment Field -->
+          <div class="col-12 mt-4">
+            <label class="form-label small fw-bold" style="color: #0E7490;">Commentaire section Douane</label>
+            <textarea name="comment_douane" rows="2" class="form-control" placeholder="Observations sur les documents douaniers, état des fichiers, remarques particulières..." style="border-left: 4px solid #0E7490 !important; background-color: #ECFEFF !important; border-radius: 0 6px 6px 0;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3 — INFO/FISC -->
+  <div class="tab-section" id="section-fisc" style="display: none;">
+    <div class="card border-0 shadow-sm mb-4 text-start" style="background-color: #FFFBEB; border: 1px solid #B45309 !important;">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-4 d-flex align-items-center gap-2" style="color: #B45309;">
+          <i class="bi bi-file-earmark-text" style="color: #B45309;"></i> INFO/FISC — Situation & Enregistrements Fiscaux
+        </h5>
+
+        <div class="row g-4">
+          <!-- RC display card -->
+          <div class="col-md-4">
+            <div class="info-card p-3 border rounded shadow-sm bg-white" style="border-left: 4px solid #B45309 !important;">
+              <label class="small fw-semibold text-slate-500 uppercase d-block mb-1">RC (Registre de Commerce)</label>
+              <span id="fisc-rc" class="fw-bold text-slate-800 font-monospace fs-6">Sélectionnez un client dans INFO/CLIENT</span>
+            </div>
+          </div>
+
+          <!-- NIU display card -->
+          <div class="col-md-4">
+            <div class="info-card p-3 border rounded shadow-sm bg-white" style="border-left: 4px solid #B45309 !important;">
+              <label class="small fw-semibold text-slate-500 uppercase d-block mb-1">NIU (Identifiant fiscal)</label>
+              <span id="fisc-niu" class="fw-bold text-slate-800 font-monospace fs-6">Sélectionnez un client dans INFO/CLIENT</span>
+            </div>
+          </div>
+
+          <!-- ACF display card -->
+          <div class="col-md-4">
+            <div class="info-card p-3 border rounded shadow-sm bg-white" style="border-left: 4px solid #B45309 !important;">
+              <label class="small fw-semibold text-slate-500 uppercase d-block mb-1">ACF (Attestation Conformité Fiscale)</label>
+              <span id="fisc-acf" class="fw-bold text-slate-800 font-monospace fs-6">Sélectionnez un client dans INFO/CLIENT</span>
+            </div>
+          </div>
+
+          <div class="col-12 mt-2">
+            <div class="p-3 bg-white border rounded d-flex align-items-center gap-2 text-slate-600 shadow-sm" style="font-size: 0.88rem;">
+              <i class="bi bi-info-circle-fill text-warning"></i>
+              <span>Ces informations proviennent de la fiche client. Pour les modifier, éditez la fiche client.</span>
+            </div>
+          </div>
+
+          <!-- Comment Field -->
+          <div class="col-12 mt-4">
+            <label class="form-label small fw-bold" style="color: #B45309;">Commentaire section Fiscale</label>
+            <textarea name="comment_fisc" rows="2" class="form-control" placeholder="Observations fiscales, régime douanier particulier..." style="border-left: 4px solid #B45309 !important; background-color: #FFFBEB !important; border-radius: 0 6px 6px 0;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM STATUS BAR — Always visible, outside the tabs -->
+  <div class="card border-0 shadow-lg mt-4 sticky-bottom-bar text-start" style="border-radius: 12px; border: 1px solid #e2e8f0; background-color: #ffffff; z-index: 1000; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);">
+    <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <!-- Tab completion indicators -->
+      <div class="d-flex align-items-center gap-3">
+        <span class="small fw-bold text-slate-700">Complétion :</span>
+        
+        <!-- Status Client -->
+        <span class="badge d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill shadow-sm" style="background-color: #F5F3FF; color: #5B21B6; font-size: 0.82rem; font-weight: 600;">
+          🔵 CLIENT : <span id="status-client" class="ms-1">⚠️</span>
+        </span>
+
+        <!-- Status Douane -->
+        <span class="badge d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill shadow-sm" style="background-color: #ECFEFF; color: #0E7490; font-size: 0.82rem; font-weight: 600;">
+          🟢 DOUANE : <span id="status-douane" class="ms-1">⚠️</span>
+        </span>
+
+        <!-- Status Fisc -->
+        <span class="badge d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill shadow-sm" style="background-color: #FFFBEB; color: #B45309; font-size: 0.82rem; font-weight: 600;">
+          🟠 FISC : <span id="status-fisc" class="ms-1">✅</span>
+        </span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex align-items-center gap-2">
+        <a href="/dossiers" class="btn px-4 fw-bold shadow-sm" style="background-color: #6B7280; color: #ffffff; border-radius: 8px;">
+          Annuler
+        </a>
+        <button type="button" onclick="validateAndSubmit()" class="btn px-4 fw-bold text-white shadow-sm" style="background-color: #166534; border-radius: 8px;">
+          <i class="bi bi-check-circle me-1.5"></i> Vérifier et Soumettre
+        </button>
+      </div>
+    </div>
+  </div>
+
 </form>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-  const select = document.getElementById("clientSelect");
-  const representantInput = document.getElementById("representantInput");
+function showTab(tabName) {
+  // Hide all sections
+  document.querySelectorAll('.tab-section').forEach(s => {
+    s.style.display = 'none';
+  });
+  // Deactivate all tab buttons and remove styling
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.backgroundColor = '';
+    b.style.color = '';
+  });
   
-  // Badges
-  const docStatusRow = document.getElementById("document-status-row");
-  const badgeCni = document.getElementById("badge-cni");
-  const badgeProcu = document.getElementById("badge-procu");
-  const fullClientLinkContainer = document.getElementById("full-client-link-container");
-
-  // Section C DOM
-  const fiscNiu = document.getElementById("fisc-niu");
-  const fiscRccm = document.getElementById("fisc-rccm");
-  const fiscAcf = document.getElementById("fisc-acf");
-
-  async function handleClientChange() {
-    const clientId = select.value;
-    if (!clientId) {
-      docStatusRow.classList.add("d-none");
-      fiscNiu.textContent = "Sélectionnez un client...";
-      fiscRccm.textContent = "Sélectionnez un client...";
-      fiscAcf.textContent = "Sélectionnez un client...";
-      representantInput.value = "";
-      fullClientLinkContainer.innerHTML = "";
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/clients/" + clientId);
-      if (!res.ok) throw new Error("Erreur");
-      const client = await res.json();
-
-      // Representant
-      representantInput.value = client.representant || "";
-
-      // Section C filling
-      fiscNiu.textContent = client.niu || "NON FOURNI";
-      fiscRccm.textContent = client.rccm || "NON FOURNI";
-      fiscAcf.textContent = client.acf || "NON FOURNIE";
-
-      // Badge status setup
-      docStatusRow.classList.remove("d-none");
-      
-      // CNI badge
-      if (client.has_cni) {
-        badgeCni.className = "badge bg-success-subtle text-success p-2.5 fs-7 border border-success";
-        badgeCni.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> CNI disponible';
-      } else {
-        badgeCni.className = "badge bg-warning-subtle text-warning p-2.5 fs-7 border border-warning";
-        badgeCni.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i> CNI manquant';
-      }
-
-      // Procu badge
-      if (client.has_procu) {
-        badgeProcu.className = "badge bg-success-subtle text-success p-2.5 fs-7 border border-success";
-        badgeProcu.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Procuration disponible';
-      } else {
-        badgeProcu.className = "badge bg-secondary-subtle text-secondary p-2.5 fs-7 border border-secondary";
-        badgeProcu.innerHTML = '<i class="bi bi-file-earmark-lock-fill me-1"></i> Non fournie';
-      }
-
-      // Link container
-      fullClientLinkContainer.innerHTML = `
-        <a href="/clients/${client.id}" target="_blank" class="btn btn-outline-primary btn-xs d-inline-flex align-items-center">
-          <i class="bi bi-person-fill me-1"></i> Voir la fiche client complète <i class="bi bi-box-arrow-up-right ms-1"></i>
-        </a>
-      `;
-
-    } catch (err) {
-      console.error(err);
-    }
+  // Show selected section
+  document.getElementById('section-' + tabName).style.display = 'block';
+  
+  const activeBtn = document.getElementById('tab-' + tabName);
+  activeBtn.classList.add('active');
+  
+  // Apply unique styling based on tabName
+  if (tabName === 'client') {
+    activeBtn.style.backgroundColor = '#5B21B6';
+    activeBtn.style.color = '#ffffff';
+  } else if (tabName === 'douane') {
+    activeBtn.style.backgroundColor = '#0E7490';
+    activeBtn.style.color = '#ffffff';
+  } else if (tabName === 'fisc') {
+    activeBtn.style.backgroundColor = '#B45309';
+    activeBtn.style.color = '#ffffff';
   }
+  
+  // Save active tab to localStorage so refresh keeps position
+  localStorage.setItem('activeTab', tabName);
+}
 
-  select.addEventListener("change", handleClientChange);
+// On page load, restore last active tab and fetch auto-generated dossier reference
+document.addEventListener('DOMContentLoaded', async () => {
+  const lastTab = localStorage.getItem('activeTab') || 'client';
+  showTab(lastTab);
+  updateCompletionStatus();
 
-  // Check URL query parameters for client_id pre-fill
-  const urlParams = new URLSearchParams(window.location.search);
-  const prefillClientId = urlParams.get("client_id");
-  if (prefillClientId) {
-    select.value = prefillClientId;
-    handleClientChange();
+  try {
+    const res = await fetch('/api/generate-ref?prefix=DOS').then(r => r.json());
+    if (res && res.ref) {
+      document.querySelector('[name="numero"]').value = res.ref;
+    }
+  } catch (err) {
+    console.error("Erreur de récupération de la référence DOS:", err);
   }
 });
 
-// Form Validation starter
-(function () {
-  'use strict'
-  var forms = document.querySelectorAll('.needs-validation')
-  Array.prototype.slice.call(forms).forEach(function (form) {
-    form.addEventListener('submit', function (event) {
-      if (!form.checkValidity()) {
-        event.preventDefault()
-        event.stopPropagation()
-      }
-      form.classList.add('was-validated')
-    }, false)
-  })
-})()
+let currentClientRepresentatives = [];
+
+// Auto-fill from client selection
+document.getElementById('client_id').addEventListener('change', async function() {
+  const id = this.value;
+  
+  // Reset and hide representative elements
+  const repSelect = document.getElementById('representant_id');
+  repSelect.innerHTML = '<option value="">-- Sélectionnez un représentant --</option>';
+  document.getElementById('add-rep-link-container').style.display = 'none';
+  document.getElementById('selected-rep-details').style.display = 'none';
+  currentClientRepresentatives = [];
+
+  if (!id) {
+    document.getElementById('display-niu').textContent = 'Sélectionnez un client';
+    document.getElementById('display-rccm').textContent = 'Sélectionnez un client';
+    document.getElementById('display-acf').textContent = 'Sélectionnez un client';
+    document.getElementById('cni-status').innerHTML = `
+      <span class="badge py-2 px-3 border" style="background-color: #FEF3C7; color: #92400E; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+        <i class="bi bi-exclamation-triangle"></i> CNI manquant — ajoutez dans la fiche client
+      </span>`;
+    document.getElementById('procu-status').innerHTML = `
+      <span class="badge py-2 px-3 border" style="background-color: #F3F4F6; color: #6B7280; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+        — Non fournie
+      </span>`;
+    
+    document.getElementById('fisc-rc').textContent = 'Sélectionnez un client dans INFO/CLIENT';
+    document.getElementById('fisc-niu').textContent = 'Sélectionnez un client dans INFO/CLIENT';
+    document.getElementById('fisc-acf').textContent = 'Sélectionnez un client dans INFO/CLIENT';
+    updateCompletionStatus();
+    return;
+  }
+  
+  try {
+    // 1. Fetch general client data
+    const data = await fetch('/api/clients/' + id).then(r => r.json());
+    
+    // Fill Tab 1
+    document.querySelector('[name="representant"]').value = data.representant || '';
+    document.getElementById('display-niu').textContent = data.niu || 'Non renseigné';
+    document.getElementById('display-rccm').textContent = data.rccm || 'Non renseigné';
+    document.getElementById('display-acf').textContent = data.acf || 'Non renseigné';
+    
+    if (data.has_cni) {
+      document.getElementById('cni-status').innerHTML = `
+        <span class="badge py-2 px-3 border" style="background-color: #DCFCE7; color: #166534; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+          <i class="bi bi-check-circle-fill"></i> CNI disponible
+        </span>`;
+    } else {
+      document.getElementById('cni-status').innerHTML = `
+        <span class="badge py-2 px-3 border" style="background-color: #FEF3C7; color: #92400E; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+          <i class="bi bi-exclamation-triangle"></i> CNI manquant — ajoutez dans la fiche client
+        </span>`;
+    }
+    
+    if (data.has_procu) {
+      document.getElementById('procu-status').innerHTML = `
+        <span class="badge py-2 px-3 border" style="background-color: #DCFCE7; color: #166534; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+          <i class="bi bi-check-circle-fill"></i> Procuration disponible
+        </span>`;
+    } else {
+      document.getElementById('procu-status').innerHTML = `
+        <span class="badge py-2 px-3 border" style="background-color: #F3F4F6; color: #6B7280; width: 100%; display: block; text-align: left; font-size: 0.85rem;">
+          — Non fournie
+        </span>`;
+    }
+    
+    // Fill Tab 3
+    document.getElementById('fisc-rc').textContent = data.rccm || 'Non renseigné';
+    document.getElementById('fisc-niu').textContent = data.niu || 'Non renseigné';
+    document.getElementById('fisc-acf').textContent = data.acf || 'Non renseigné';
+
+    // 2. Fetch representatives for this client
+    const reps = await fetch('/api/clients/' + id + '/representants').then(r => r.json());
+    currentClientRepresentatives = reps;
+
+    // Filter to only active representatives
+    const activeReps = reps.filter(r => r.actif);
+
+    activeReps.forEach(r => {
+      const option = document.createElement('option');
+      option.value = r.id;
+      option.textContent = (r.nom + ' ' + r.prenom + ' (' + (r.fonction || 'Représentant') + ')').trim();
+      repSelect.appendChild(option);
+    });
+
+    // Configure and show the "Add new representative" link
+    const addRepLink = document.getElementById('add-rep-link');
+    addRepLink.href = '/clients/' + id + '/representants/create';
+    document.getElementById('add-rep-link-container').style.display = 'block';
+
+  } catch (err) {
+    console.error("Erreur de récupération client/représentants API", err);
+  }
+  
+  updateCompletionStatus();
+});
+
+// Watch representative select to show their details panel
+document.getElementById('representant_id').addEventListener('change', function() {
+  const repId = parseInt(this.value);
+  const detailsPanel = document.getElementById('selected-rep-details');
+  
+  if (!repId) {
+    detailsPanel.style.display = 'none';
+    return;
+  }
+
+  const rep = currentClientRepresentatives.find(r => r.id === repId);
+  if (rep) {
+    document.getElementById('rep-cni-num').textContent = rep.cni_numero || 'Non spécifié';
+    document.getElementById('rep-tel').textContent = rep.tel || 'Non spécifié';
+    
+    let docsHtml = '';
+    if (rep.has_cni) {
+      docsHtml += '<span class="badge bg-success-subtle text-success border"><i class="bi bi-check-circle-fill"></i> CNI</span> ';
+    } else {
+      docsHtml += '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-x-circle-fill"></i> CNI</span> ';
+    }
+    if (rep.has_procu) {
+      docsHtml += '<span class="badge bg-success-subtle text-success border"><i class="bi bi-check-circle-fill"></i> Procuration</span>';
+    } else {
+      docsHtml += '<span class="badge bg-danger-subtle text-danger border"><i class="bi bi-x-circle-fill"></i> Procuration</span>';
+    }
+    
+    document.getElementById('rep-docs-status').innerHTML = docsHtml;
+    detailsPanel.style.display = 'block';
+
+    // Auto-fill the text name field to ensure backward compatibility and standard fallback
+    document.querySelector('[name="representant"]').value = (rep.nom + ' ' + (rep.prenom || '')).trim();
+  } else {
+    detailsPanel.style.display = 'none';
+  }
+});
+
+function updateCompletionStatus() {
+  const client_id = document.getElementById('client_id').value;
+  const numero = document.querySelector('[name="numero"]').value;
+  const bl = document.querySelector('[name="bl"]').value;
+  
+  const clientOk = client_id && numero;
+  const douaneOk = bl;
+  
+  document.getElementById('status-client').innerHTML = clientOk
+    ? '<span class="text-success">✅</span>'
+    : '<span class="text-warning">⚠️</span>';
+  document.getElementById('status-douane').innerHTML = douaneOk
+    ? '<span class="text-success">✅</span>'
+    : '<span class="text-warning">⚠️</span>';
+}
+
+// Listen for changes to update status indicators
+document.getElementById('client_id').addEventListener('change', updateCompletionStatus);
+document.querySelector('[name="numero"]').addEventListener('input', updateCompletionStatus);
+document.querySelector('[name="bl"]').addEventListener('input', updateCompletionStatus);
+
+function validateAndSubmit() {
+  const clientId = document.getElementById('client_id').value;
+  const numero = document.querySelector('[name="numero"]').value;
+  const bl = document.querySelector('[name="bl"]').value;
+  const nature = document.querySelector('[name="nature"]').value;
+  
+  if (!clientId || !numero) {
+    showTab('client');
+    alert('⚠️ Veuillez remplir: Client et N° Dossier dans l\'onglet INFO/CLIENT');
+    return false;
+  }
+  if (!bl || !nature) {
+    showTab('douane');
+    alert('⚠️ Veuillez remplir: N° BL et Nature dans l\'onglet INFO/DOUANE');
+    return false;
+  }
+  
+  // Clear saved tab on successful submit
+  localStorage.removeItem('activeTab');
+  document.getElementById('main-form').submit();
+}
 </script>
+
+<style>
+.tab-btn {
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease-in-out;
+}
+.tab-btn:hover {
+  background-color: #f1f5f9;
+}
+.transition-all {
+  transition: all 0.25s ease-in-out;
+}
+.sticky-bottom-bar {
+  position: sticky;
+  bottom: 1rem;
+}
+</style>
 
 <%- include('../partials/footer') %>

@@ -1,0 +1,92 @@
+<%- include('../../partials/header') %>
+
+<div class="row mb-4 align-items-center">
+  <div class="col-sm-12">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/clients">Clients</a></li>
+        <li class="breadcrumb-item"><a href="/clients/<%= client.id %>"><%= client.nom %></a></li>
+        <li class="breadcrumb-item"><a href="/clients/<%= client.id %>/representants">Représentants</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Nouveau</li>
+      </ol>
+    </nav>
+    <h1 class="h3 text-slate-800"><i class="bi bi-person-plus-fill text-primary me-2"></i>Ajouter un représentant pour <%= client.nom %></h1>
+    <p class="text-muted mb-0">Enregistrement d'un nouveau mandataire physique avec ses pièces justificatives.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold text-slate-800"><i class="bi bi-card-list me-2 text-primary"></i>Formulaire d'enregistrement</h5>
+      </div>
+      <div class="card-body p-4">
+        <form action="/clients/<%= client.id %>/representants/create" method="POST" enctype="multipart/form-data">
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="nom" class="form-label fw-semibold text-slate-700">Nom du représentant <span class="text-danger">*</span></label>
+              <input type="text" id="nom" name="nom" class="form-control" placeholder="Ex: NDONG" required>
+            </div>
+            <div class="col-md-6">
+              <label for="prenom" class="form-label fw-semibold text-slate-700">Prénom du représentant</label>
+              <input type="text" id="prenom" name="prenom" class="form-control" placeholder="Ex: Jean-Paul">
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="tel" class="form-label fw-semibold text-slate-700">Téléphone de contact</label>
+              <input type="tel" id="tel" name="tel" class="form-control" placeholder="Ex: +237 6xx xx xx xx">
+            </div>
+            <div class="col-md-6">
+              <label for="email" class="form-label fw-semibold text-slate-700">Adresse Email</label>
+              <input type="email" id="email" name="email" class="form-control" placeholder="Ex: jpndong@gmail.com">
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="cni_numero" class="form-label fw-semibold text-slate-700">Numéro de CNI / Passeport</label>
+              <input type="text" id="cni_numero" name="cni_numero" class="form-control" placeholder="Ex: 112345678">
+            </div>
+            <div class="col-md-6">
+              <label for="fonction" class="form-label fw-semibold text-slate-700">Fonction / Rôle au sein du client</label>
+              <input type="text" id="fonction" name="fonction" class="form-control" placeholder="Ex: Coursier principal">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="fw-bold text-slate-800 mb-3"><i class="bi bi-file-earmark-arrow-up me-2 text-primary"></i>Pièces Jointes (PDF, JPG, PNG)</h6>
+
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label for="fichier_cni" class="form-label fw-semibold text-slate-700">Pièce d'identité (CNI / Passeport)</label>
+              <input type="file" id="fichier_cni" name="fichier_cni" class="form-control" accept=".pdf, image/*">
+              <span class="text-muted fs-7">Uploadez la copie scannée de la carte nationale d'identité du représentant.</span>
+            </div>
+            <div class="col-md-6">
+              <label for="fichier_procuration" class="form-label fw-semibold text-slate-700">Lettre de Procuration signée</label>
+              <input type="file" id="fichier_procuration" name="fichier_procuration" class="form-control" accept=".pdf, image/*">
+              <span class="text-muted fs-7">Lettre officielle mandataire signée par le représentant légal de l'importateur.</span>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between mt-4">
+            <a href="/clients/<%= client.id %>" class="btn btn-secondary">
+              <i class="bi bi-x-circle me-2"></i> Annuler
+            </a>
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-circle me-2"></i> Enregistrer le représentant
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/footer') %>

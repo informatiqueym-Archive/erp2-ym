@@ -103,7 +103,15 @@
             </tr>
             <tr>
               <td class="fw-bold">Représentant Mandataire :</td>
-              <td><%= dossier.representant || 'Non spécifié' %></td>
+              <td>
+                <% if (dossier.representant_obj) { %>
+                  <%= dossier.representant_obj.nom %> <%= dossier.representant_obj.prenom || "" %>
+                <% } else if (dossier.representant_libre) { %>
+                  <%= dossier.representant_libre %>
+                <% } else { %>
+                  <%= dossier.representant || 'Non spécifié' %>
+                <% } %>
+              </td>
             </tr>
             <tr>
               <td class="fw-bold">Statut du Dossier :</td>

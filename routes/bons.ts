@@ -6,6 +6,7 @@ import { requireAuth } from "./rbac";
 import { notify } from "../lib/notify";
 import PDFDocument from "pdfkit";
 import prisma from "../lib/prismaClient";
+import { generateRef } from "../lib/generateRef";
 
 const router = Router();
 
@@ -133,17 +134,13 @@ router.post("/bons/provisoir", requireAuth, (req: any, res: any) => {
       }
 
       // Auto-generate numero
-      const currentYear = new Date().getFullYear();
-      const count = await prisma.bonProvisoir.count();
-      let numero = `BP-${currentYear}-${String(count + 1).padStart(4, "0")}`;
+      let numero = generateRef("BP");
       
       // Check for unique number
       let exists = await prisma.bonProvisoir.findUnique({ where: { numero } });
-      let inc = 1;
       while (exists) {
-        numero = `BP-${currentYear}-${String(count + 1 + inc).padStart(4, "0")}`;
+        numero = generateRef("BP");
         exists = await prisma.bonProvisoir.findUnique({ where: { numero } });
-        inc++;
       }
 
       // Calcul automatique à partir de la liste des charges

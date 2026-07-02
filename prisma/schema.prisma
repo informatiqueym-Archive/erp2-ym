@@ -51,6 +51,7 @@ model Client {
   email             String?
   ref_interne       String?
   client_documents  ClientDocument[] @relation("ClientDocuments")
+  representants     Representant[] @relation("ClientRepresentants")
 }
 
 model Dossier {
@@ -66,7 +67,9 @@ model Dossier {
   validation      Boolean        @default(false)
   valeur_douane   Float?
   created_at      DateTime       @default(now())
-  representant    String?        @default("")
+  representant_libre String?
+  representant_id   Int?
+  representant_obj  Representant? @relation("DossierRepresentant", fields:[representant_id], references:[id])
   pipeline_status String         @default("CREE")
   archived_at     DateTime?
   bons_provisoir  BonProvisoir[]
@@ -369,16 +372,34 @@ model Notification {
 }
 
 model ClientDocument {
-  id         Int      @id @default(autoincrement())
-  client_id  Int
-  user_id    Int
-  filename   String
-  original   String
-  category   String
-  comment    String?
-  path       String
-  created_at DateTime @default(now())
-  client     Client   @relation("ClientDocuments", fields:[client_id], references:[id], onDelete:Cascade)
-  user       User     @relation("UserClientDocuments", fields:[user_id], references:[id], onDelete:Cascade)
+  id              Int           @id @default(autoincrement())
+  client_id       Int
+  user_id         Int
+  filename        String
+  original        String
+  category        String
+  comment         String?
+  path            String
+  created_at      DateTime      @default(now())
+  client          Client        @relation("ClientDocuments", fields:[client_id], references:[id], onDelete:Cascade)
+  user            User          @relation("UserClientDocuments", fields:[user_id], references:[id], onDelete:Cascade)
+  representant_id Int?
+  representant    Representant? @relation("RepresentantDocuments", fields:[representant_id], references:[id])
+}
+
+model Representant {
+  id          Int       @id @default(autoincrement())
+  client_id   Int
+  nom         String
+  prenom      String?
+  tel         String?
+  email       String?
+  cni_numero  String?
+  fonction    String?
+  actif       Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  client      Client    @relation("ClientRepresentants", fields:[client_id], references:[id], onDelete:Cascade)
+  dossiers    Dossier[] @relation("DossierRepresentant")
+  documents   ClientDocument[] @relation("RepresentantDocuments")
 }
 
