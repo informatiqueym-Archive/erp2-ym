@@ -84,7 +84,7 @@ export const requireAuth = async (req: any, res: any, next: any) => {
 };
 
 // Middleware pour restreindre l'accès à un module donné
-export const requireModule = (moduleName: string) => {
+export const requireModule = (moduleName: string | string[]) => {
   return (req: any, res: any, next: any) => {
     const user = req.session.user;
     if (!user) {
@@ -92,28 +92,31 @@ export const requireModule = (moduleName: string) => {
     }
 
     const userRole = (user.role || "").trim().toLowerCase();
+    const modulesToCheck = Array.isArray(moduleName) ? moduleName : [moduleName];
 
     // To prevent root-mounted router middleware from running on unrelated routes
     // (since routers are mounted at root '/' via app.use(router) in server.ts),
     // we should only enforce module permissions if the request path actually matches
     // the module's target paths.
-    let pathMatchesModule = true;
+    let pathMatchesModule = false;
     const path = req.path || "";
 
-    if (moduleName === "facturation") {
-      pathMatchesModule = path.startsWith("/documents") || path.startsWith("/api/documents");
-    } else if (moduleName === "analytics") {
-      pathMatchesModule = path.startsWith("/analytics");
-    } else if (moduleName === "comptabilite") {
-      pathMatchesModule = path.startsWith("/accounting");
-    } else if (moduleName === "achats") {
-      pathMatchesModule = path.startsWith("/fournisseurs") || path.startsWith("/commandes") || path.startsWith("/factures-fournisseur");
-    } else if (moduleName === "taches") {
-      pathMatchesModule = path.startsWith("/taches") || path.startsWith("/subtasks");
-    } else if (moduleName === "dossiers") {
-      pathMatchesModule = path.startsWith("/dossiers") || path.startsWith("/archives");
-    } else if (moduleName === "clients") {
-      pathMatchesModule = path.startsWith("/clients") || path.startsWith("/api/clients");
+    for (const mName of modulesToCheck) {
+      if (mName === "facturation") {
+        if (path.startsWith("/documents") || path.startsWith("/api/documents")) pathMatchesModule = true;
+      } else if (mName === "analytics") {
+        if (path.startsWith("/analytics")) pathMatchesModule = true;
+      } else if (mName === "comptabilite") {
+        if (path.startsWith("/accounting")) pathMatchesModule = true;
+      } else if (mName === "achats") {
+        if (path.startsWith("/fournisseurs") || path.startsWith("/commandes") || path.startsWith("/factures-fournisseur")) pathMatchesModule = true;
+      } else if (mName === "taches") {
+        if (path.startsWith("/taches") || path.startsWith("/subtasks")) pathMatchesModule = true;
+      } else if (mName === "dossiers") {
+        if (path.startsWith("/dossiers") || path.startsWith("/archives")) pathMatchesModule = true;
+      } else if (mName === "clients") {
+        if (path.startsWith("/clients") || path.startsWith("/api/clients")) pathMatchesModule = true;
+      }
     }
 
     if (!pathMatchesModule) {
@@ -126,7 +129,7 @@ export const requireModule = (moduleName: string) => {
     }
 
     // 1.5. Secretariat can always write to clients, dossiers, and taches modules
-    if ((userRole === "secretariat" || userRole === "secretaire") && ["clients", "dossiers", "taches", "dashboard"].includes(moduleName)) {
+    if ((userRole === "secretariat" || userRole === "secretaire") && modulesToCheck.some(m => ["clients", "dossiers", "taches", "dashboard"].includes(m))) {
       return next();
     }
 
@@ -145,21 +148,23 @@ export const requireModule = (moduleName: string) => {
       // Block creation/modification of dossiers/clients/facturation/comptabilite operational data.
       // They are only allowed to modify "bons" or "taches".
       const allowedWriteModules = ["bons", "taches"];
-      if (!allowedWriteModules.includes(moduleName)) {
-        console.warn(`[RBAC] Administration write action block for ${user.email} (Rôle: ${user.role}, Module: ${moduleName})`);
+      const containsNonAdminWriteModule = modulesToCheck.some(m => !allowedWriteModules.includes(m));
+      if (containsNonAdminWriteModule) {
+        console.warn(`[RBAC] Administration write action block for ${user.email} (Rôle: ${user.role}, Modules: ${modulesToCheck.join(",")})`);
         return res.status(403).render("errors/403", {
           message: `Accès refusé : En tant que membre de la Direction, vous pouvez visualiser toutes les données et valider les bons, mais vous ne pouvez pas créer ou modifier des fiches opérationnelles directement (ex: dossiers, clients, factures).`
         });
       }
     }
 
-    if (permittedModules.includes(moduleName)) {
+    const hasPermission = modulesToCheck.some(m => permittedModules.includes(m));
+    if (hasPermission) {
       return next();
     }
 
-    console.warn(`[RBAC] Accès refusé au module "${moduleName}" pour l'utilisateur ${user.email} (Rôle: ${user.role})`);
+    console.warn(`[RBAC] Accès refusé aux modules "${modulesToCheck.join(",")}" pour l'utilisateur ${user.email} (Rôle: ${user.role})`);
     res.status(403).render("errors/403", {
-      message: `Vous n'avez pas l'autorisation d'accéder au module : ${moduleName.toUpperCase()}`
+      message: `Vous n'avez pas l'autorisation d'accéder aux modules : ${modulesToCheck.map(m => m.toUpperCase()).join(", ")}`
     });
   };
 };

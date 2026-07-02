@@ -170,9 +170,14 @@ router.post(
 );
 
 // GET /clients/:id - Client details with documents
-router.get("/clients/:id", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+router.get("/clients/:id", requireAuth, requireModule(["clients", "dossiers"]), async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
+    if (isNaN(clId)) {
+      req.session.error_msg = "Identifiant de client invalide.";
+      return res.redirect("/clients");
+    }
+
     const client = await prisma.client.findUnique({
       where: { id: clId },
       include: {
@@ -190,7 +195,7 @@ router.get("/clients/:id", requireAuth, requireModule("clients"), async (req: an
       return res.redirect("/clients");
     }
 
-    res.render("clients/detail", { client });
+    res.render("clients/detail", { client_obj: client });
   } catch (error) {
     console.error("Erreur detail client :", error);
     res.status(500).send("Erreur lors de la récupération des informations du client.");
@@ -313,9 +318,14 @@ router.post("/clients/delete/:id", requireAuth, requireModule("clients"), async 
 });
 
 // GET /clients/:id/representants - List of representatives for a client
-router.get("/clients/:id/representants", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+router.get("/clients/:id/representants", requireAuth, requireModule(["clients", "dossiers"]), async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
+    if (isNaN(clId)) {
+      req.session.error_msg = "Identifiant de client invalide.";
+      return res.redirect("/clients");
+    }
+
     const client = await prisma.client.findUnique({
       where: { id: clId },
       include: { representants: true }
@@ -326,7 +336,7 @@ router.get("/clients/:id/representants", requireAuth, requireModule("clients"), 
       return res.redirect("/clients");
     }
 
-    res.render("clients/representants", { client });
+    res.render("clients/representants", { client_obj: client });
   } catch (error: any) {
     console.error("Erreur list représentants:", error);
     res.status(500).send("Erreur lors de la récupération des représentants.");
@@ -334,9 +344,14 @@ router.get("/clients/:id/representants", requireAuth, requireModule("clients"), 
 });
 
 // GET /clients/:id/representants/create - Form to create a representative
-router.get("/clients/:id/representants/create", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+router.get("/clients/:id/representants/create", requireAuth, requireModule(["clients", "dossiers"]), async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
+    if (isNaN(clId)) {
+      req.session.error_msg = "Identifiant de client invalide.";
+      return res.redirect("/clients");
+    }
+
     const client = await prisma.client.findUnique({ where: { id: clId } });
 
     if (!client) {
@@ -344,7 +359,7 @@ router.get("/clients/:id/representants/create", requireAuth, requireModule("clie
       return res.redirect("/clients");
     }
 
-    res.render("clients/representants/create", { client });
+    res.render("clients/representants/create", { client_obj: client });
   } catch (error: any) {
     console.error("Erreur GET /clients/:id/representants/create:", error);
     res.status(500).send("Erreur de chargement du formulaire.");
@@ -355,7 +370,7 @@ router.get("/clients/:id/representants/create", requireAuth, requireModule("clie
 router.post(
   "/clients/:id/representants/create",
   requireAuth,
-  requireModule("clients"),
+  requireModule(["clients", "dossiers"]),
   clientUpload.fields([
     { name: "fichier_cni", maxCount: 1 },
     { name: "fichier_procuration", maxCount: 1 }
@@ -363,6 +378,11 @@ router.post(
   async (req: any, res: any) => {
     try {
       const clId = parseInt(req.params.id);
+      if (isNaN(clId)) {
+        req.session.error_msg = "Identifiant de client invalide.";
+        return res.redirect("/clients");
+      }
+
       const { nom, prenom, tel, email, cni_numero, fonction } = req.body;
 
       if (!nom) {
@@ -446,6 +466,10 @@ router.post(
 router.get("/api/clients/:id/representants", requireAuth, async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
+    if (isNaN(clId)) {
+      return res.status(400).json({ error: "Identifiant de client invalide." });
+    }
+
     const representants = await prisma.representant.findMany({
       where: { client_id: clId },
       include: {
@@ -478,9 +502,13 @@ router.get("/api/clients/:id/representants", requireAuth, async (req: any, res: 
 });
 
 // PATCH /clients/:id/representants/:repId/toggle - Toggle representant activity
-router.patch("/clients/:id/representants/:repId/toggle", requireAuth, requireModule("clients"), async (req: any, res: any) => {
+router.patch("/clients/:id/representants/:repId/toggle", requireAuth, requireModule(["clients", "dossiers"]), async (req: any, res: any) => {
   try {
     const repId = parseInt(req.params.repId);
+    if (isNaN(repId)) {
+      return res.status(400).json({ success: false, error: "Identifiant de représentant invalide." });
+    }
+
     const representant = await prisma.representant.findUnique({
       where: { id: repId }
     });

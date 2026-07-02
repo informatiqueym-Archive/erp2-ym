@@ -382,6 +382,10 @@ app.use(facturesFournisseurRoutes);
 app.get("/api/clients/:id", requireAuth, async (req: any, res: any) => {
   try {
     const clId = parseInt(req.params.id);
+    if (isNaN(clId)) {
+      return res.status(400).json({ error: "Identifiant de client invalide" });
+    }
+
     const client = await prisma.client.findUnique({
       where: { id: clId },
       include: {
